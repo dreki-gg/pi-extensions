@@ -17,5 +17,5 @@ Each package is independently installable via `pi install`.
 ```bash
 git clone https://github.com/dreki-gg/pi-extensions.git
 cd pi-extensions
-npm install
+bun install
 ```
