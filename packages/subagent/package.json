@@ -7,6 +7,11 @@
   ],
   "author": "Juan Albarran <jalbarrandev@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dreki-gg/pi-extensions",
+    "directory": "packages/subagent"
+  },
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
