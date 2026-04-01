@@ -1,0 +1,20 @@
+{
+  "name": "dreki-pi-extensions",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "bun run --filter '*' lint",
+    "format": "bun run --filter '*' format",
+    "format:check": "bun run --filter '*' format:check",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "publish": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.0",
+    "@changesets/changelog-github": "^0.5.1"
+  }
+}

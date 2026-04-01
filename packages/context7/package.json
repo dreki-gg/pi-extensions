@@ -1,0 +1,28 @@
+{
+  "name": "@dreki-gg/pi-context7",
+  "version": "0.1.0",
+  "description": "Pi-native Context7 documentation tools — direct HTTP, persistent cache, no MCP dependency",
+  "keywords": ["pi-package"],
+  "author": "Juan Albarran <jalbarrandev@gmail.com>",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint extensions",
+    "format": "oxfmt --write extensions",
+    "format:check": "oxfmt --check extensions"
+  },
+  "pi": {
+    "extensions": ["./extensions/context7"]
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "oxfmt": "^0.43.0",
+    "oxlint": "^1.58.0",
+    "typescript": "^6.0.0"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@sinclair/typebox": "*"
+  }
+}

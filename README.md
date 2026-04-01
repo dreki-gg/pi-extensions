@@ -1,0 +1,23 @@
+# Pi Extensions
+
+A collection of [pi coding agent](https://github.com/badlogic/pi-mono) extensions.
+
+Each package is independently installable via `pi install`.
+
+## Packages
+
+| Package | Description | Install |
+|---------|-------------|---------|
+| `@dreki-gg/pi-context7` | Pi-native Context7 docs tools (no MCP) | `pi install npm:@dreki-gg/pi-context7` |
+| `@dreki-gg/pi-delegate` | `/delegate` orchestration command with workflow presets | `pi install npm:@dreki-gg/pi-delegate` |
+| `@dreki-gg/pi-subagent` | Subagent tool for ad-hoc task delegation | `pi install npm:@dreki-gg/pi-subagent` |
+
+## Development
+
+```bash
+git clone https://github.com/dreki-gg/pi-extensions.git
+cd pi-extensions
+npm install
+```
+
+This is an npm workspaces monorepo. Each package under `packages/` is independent.

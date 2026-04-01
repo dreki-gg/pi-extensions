@@ -1,0 +1,28 @@
+node_modules/
+
+# TypeScript
+*.tsbuildinfo
+
+# Cache
+cache/
+*.tmp-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Config secrets (never commit API keys)
+packages/*/extensions/*/config.json
+
+# Bun
+bun.lockb
