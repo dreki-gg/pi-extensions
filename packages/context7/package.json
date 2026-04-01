@@ -1,8 +1,10 @@
 {
   "name": "@dreki-gg/pi-context7",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pi-native Context7 documentation tools — direct HTTP, persistent cache, no MCP dependency",
-  "keywords": ["pi-package"],
+  "keywords": [
+    "pi-package"
+  ],
   "author": "Juan Albarran <jalbarrandev@gmail.com>",
   "license": "MIT",
   "type": "module",
@@ -13,7 +15,9 @@
     "format:check": "oxfmt --check extensions"
   },
   "pi": {
-    "extensions": ["./extensions/context7"]
+    "extensions": [
+      "./extensions/context7"
+    ]
   },
   "devDependencies": {
     "@types/node": "24",
