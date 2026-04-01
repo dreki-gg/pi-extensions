@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-subagent",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Subagent tool for pi — delegate tasks to specialized agents with isolated context windows",
   "keywords": [
     "pi-package"
