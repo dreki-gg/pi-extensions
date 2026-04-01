@@ -19,5 +19,3 @@ git clone https://github.com/dreki-gg/pi-extensions.git
 cd pi-extensions
 npm install
 ```
-
-This is an npm workspaces monorepo. Each package under `packages/` is independent.
