@@ -27,7 +27,7 @@ Create agent files in `~/.pi/agent/agents/` as markdown with YAML frontmatter:
 name: my-agent
 description: What this agent does
 tools: read, grep, find, ls
-model: claude-haiku-4-5
+model: anthropic/claude-haiku-4-5
 ---
 
 System prompt for the agent.

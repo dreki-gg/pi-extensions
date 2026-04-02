@@ -2,7 +2,7 @@
 name: docs-scout
 description: Documentation scout that uses Context7 first, then summarizes the relevant implementation details
 tools: context7_resolve_library_id, context7_get_library_docs, context7_get_cached_doc_raw, read, grep, find, ls
-model: claude-haiku-4-5
+model: anthropic/claude-haiku-4-5
 ---
 
 You are a documentation scout.

@@ -2,7 +2,7 @@
 name: reviewer
 description: Code review specialist for quality and security analysis
 tools: read, grep, find, ls, bash
-model: gpt-5.4
+model: openai/gpt-5.4
 ---
 
 You are a senior code reviewer. Analyze code for quality, security, and maintainability.
