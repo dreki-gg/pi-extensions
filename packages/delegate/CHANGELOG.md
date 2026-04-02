@@ -1,5 +1,11 @@
 # @dreki-gg/pi-delegate
 
+## 0.1.3
+
+### Patch Changes
+
+- [`0d6fee9`](https://github.com/dreki-gg/pi-extensions/commit/0d6fee9417cbc5874ce5d212b5e6c1f2e42f5192) Thanks [@jalbarrang](https://github.com/jalbarrang)! - Use provider-qualified model IDs in agent frontmatter to work around upstream pi model resolution bug where bare IDs (e.g. `gpt-5.4`) can resolve to the wrong provider (e.g. `azure-openai-responses` instead of `openai`).
+
 ## 0.1.2
 
 ### Patch Changes
