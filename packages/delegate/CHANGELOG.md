@@ -1,5 +1,14 @@
 # @dreki-gg/pi-delegate
 
+## 0.1.4
+
+### Patch Changes
+
+- [`147eb20`](https://github.com/dreki-gg/pi-extensions/commit/147eb205ace0f842da2f2823a3a3fe163ee29ad5) Thanks [@jalbarrang](https://github.com/jalbarrang)! - Improve compatibility with newer PI releases.
+
+  - `@dreki-gg/pi-delegate`: limit bundled agent bootstrap work to startup/reload-compatible session starts.
+  - `@dreki-gg/pi-context7`: tighten tool definitions and alias argument normalization for PI compatibility.
+
 ## 0.1.3
 
 ### Patch Changes
