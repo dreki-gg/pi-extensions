@@ -1,5 +1,5 @@
-import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
-import { Type } from '@sinclair/typebox';
+import type { ExtensionAPI, ToolDefinition } from '@mariozechner/pi-coding-agent';
+import { Type, type TSchema } from '@sinclair/typebox';
 import { fetchLibraryDocs, searchLibraries } from './api';
 import {
   buildDocRef,
@@ -347,8 +347,14 @@ async function getDocsEntry(params: GetLibraryDocsParams) {
   );
 }
 
+function defineContext7Tool<TParams extends TSchema>(
+  tool: ToolDefinition<TParams, Record<string, unknown>>,
+): ToolDefinition<TParams, Record<string, unknown>> {
+  return tool;
+}
+
 function createResolveTool(name: string, description: string, promptVisible: boolean) {
-  return {
+  return defineContext7Tool({
     name,
     label: 'Context7 Resolve Library ID',
     description,
@@ -384,16 +390,16 @@ function createResolveTool(name: string, description: string, promptVisible: boo
         },
       };
     },
-  };
+  });
 }
 
 function createDocsTool(
   name: string,
   description: string,
   promptVisible: boolean,
-  prepareArguments?: (args: unknown) => any,
+  prepareArguments?: (args: unknown) => GetLibraryDocsParams,
 ) {
-  return {
+  return defineContext7Tool({
     name,
     label: 'Context7 Get Library Docs',
     description,
@@ -461,11 +467,11 @@ function createDocsTool(
         },
       };
     },
-  };
+  });
 }
 
 function createRawDocsTool() {
-  return {
+  return defineContext7Tool({
     name: 'context7_get_cached_doc_raw',
     label: 'Context7 Get Cached Raw Doc',
     description:
@@ -585,25 +591,34 @@ function createRawDocsTool() {
         },
       };
     },
-  };
+  });
 }
 
-function normalizeGetLibraryDocsAlias(args: unknown) {
-  if (!args || typeof args !== 'object') return args as any;
-  const input = args as Record<string, unknown>;
-  const libraryId = typeof input.libraryId === 'string' ? input.libraryId : undefined;
-  const compatibilityLibraryId =
-    typeof input.context7CompatibleLibraryID === 'string'
-      ? input.context7CompatibleLibraryID
-      : undefined;
-  const query = typeof input.query === 'string' ? input.query : undefined;
-  const topic = typeof input.topic === 'string' ? input.topic : undefined;
+function normalizeGetLibraryDocsAlias(args: unknown): GetLibraryDocsParams {
+  if (!args || typeof args !== 'object') return {};
 
-  return {
-    ...input,
-    libraryId: libraryId ?? compatibilityLibraryId,
-    query: query ?? topic,
-  } as any;
+  const input = args as Record<string, unknown>;
+  const normalized: GetLibraryDocsParams = {};
+
+  if (typeof input.libraryId === 'string') normalized.libraryId = input.libraryId;
+  else if (typeof input.context7CompatibleLibraryID === 'string') {
+    normalized.libraryId = input.context7CompatibleLibraryID;
+  }
+
+  if (typeof input.libraryName === 'string') normalized.libraryName = input.libraryName;
+
+  if (typeof input.query === 'string') normalized.query = input.query;
+  else if (typeof input.topic === 'string') normalized.query = input.topic;
+
+  if (typeof input.query === 'string' && typeof input.topic === 'string') {
+    normalized.topic = input.topic;
+  }
+
+  if (typeof input.page === 'number' && Number.isFinite(input.page)) {
+    normalized.page = input.page;
+  }
+
+  return normalized;
 }
 
 export function registerContext7Tools(pi: ExtensionAPI) {
@@ -620,10 +635,10 @@ export function registerContext7Tools(pi: ExtensionAPI) {
       'context7_get_library_docs',
       'Fetch curated, up-to-date Context7 docs by library ID or library name. Pi-native equivalent of Context7 MCP get-library-docs / query-docs.',
       true,
-    ) as any,
+    ),
   );
 
-  pi.registerTool(createRawDocsTool() as any);
+  pi.registerTool(createRawDocsTool());
 
   pi.registerTool(
     createResolveTool(
@@ -639,7 +654,7 @@ export function registerContext7Tools(pi: ExtensionAPI) {
       'Compatibility alias for context7_get_library_docs.',
       false,
       normalizeGetLibraryDocsAlias,
-    ) as any,
+    ),
   );
 
   pi.registerTool(
@@ -648,6 +663,6 @@ export function registerContext7Tools(pi: ExtensionAPI) {
       'Compatibility alias for context7_get_library_docs.',
       false,
       normalizeGetLibraryDocsAlias,
-    ) as any,
+    ),
   );
 }
