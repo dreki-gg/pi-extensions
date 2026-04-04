@@ -1,5 +1,11 @@
 # @dreki-gg/pi-questionnaire
 
+## 0.2.1
+
+### Patch Changes
+
+- [`8121a65`](https://github.com/dreki-gg/pi-extensions/commit/8121a65d312e9e9688762c713976c83dd3ac9d99) Thanks [@jalbarrang](https://github.com/jalbarrang)! - Add prompt guideline to prefer questionnaire tool over plain text when questions have clear, enumerable options.
+
 ## 0.2.0
 
 ### Minor Changes
