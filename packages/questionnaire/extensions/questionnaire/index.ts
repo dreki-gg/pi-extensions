@@ -102,6 +102,7 @@ export default function questionnaireExtension(pi: ExtensionAPI) {
     promptGuidelines: [
       'Use this tool when you need explicit user choices before continuing.',
       'Batch related clarification questions into one questionnaire call instead of many single prompts.',
+      'When asking the user a question that has clear, enumerable options, prefer using this tool over asking in plain text.',
       'Only call this tool in interactive sessions with UI available.',
     ],
     parameters: QuestionnaireParamsSchema,
