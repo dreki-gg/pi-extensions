@@ -1,5 +1,15 @@
 # @dreki-gg/pi-subagent
 
+## 0.2.0
+
+### Minor Changes
+
+- [#22](https://github.com/dreki-gg/pi-extensions/pull/22) [`d5c55f5`](https://github.com/dreki-gg/pi-extensions/commit/d5c55f533c6e1ec65fcc1cce19537cf91854b122) Thanks [@jalbarrang](https://github.com/jalbarrang)! - Support `thinking` frontmatter field in agent definitions to set reasoning effort level.
+
+  - Read `thinking` from agent `.md` frontmatter and pass `--thinking <level>` to spawned pi processes
+  - Update all bundled agents to use OpenAI models with thinking levels
+  - Add `ux-designer` agent for frontend UI design with anti-Codex aesthetic guidelines
+
 ## 0.1.3
 
 ### Patch Changes
