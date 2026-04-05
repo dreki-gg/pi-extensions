@@ -1,5 +1,19 @@
 # @dreki-gg/pi-delegate
 
+## 0.2.1
+
+### Patch Changes
+
+- [`f9dbdf9`](https://github.com/dreki-gg/pi-extensions/commit/f9dbdf92b80992c7485d8d5fcbcf7d5fade9b46c) Thanks [@jalbarrang](https://github.com/jalbarrang)! - Fix agent files not updating on `pi update`. Agents are now read directly from the bundled package directory instead of being copied to `~/.pi/agent/agents/` on first run. User overrides in `~/.pi/agent/agents/` still take precedence by name.
+
+  Added `/delegate-agents` command to manage agents:
+
+  - `/delegate-agents list` — show all agents with their source (bundled, user override, user-only)
+  - `/delegate-agents reset <name|--all>` — delete user override, restoring the bundled version
+  - `/delegate-agents edit <name>` — copy a bundled agent to the user directory for customization
+
+  Removed the `bootstrapAgents()` session_start hook that was preventing bundled agent updates from reaching users.
+
 ## 0.2.0
 
 ### Minor Changes
