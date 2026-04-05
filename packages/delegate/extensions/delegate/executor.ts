@@ -15,6 +15,7 @@ export interface AgentConfig {
   description: string;
   tools?: string[];
   model?: string;
+  thinking?: string;
   systemPrompt: string;
   source: 'user' | 'project';
   filePath: string;
@@ -56,6 +57,7 @@ function loadAgentsFromDir(dir: string, source: 'user' | 'project'): AgentConfig
       description: frontmatter.description,
       tools: tools && tools.length > 0 ? tools : undefined,
       model: frontmatter.model,
+      thinking: frontmatter.thinking,
       systemPrompt: body,
       source,
       filePath,
@@ -126,6 +128,7 @@ export async function runAgent(
 
   const args: string[] = ['--mode', 'json', '-p', '--no-session'];
   if (agent.model) args.push('--model', agent.model);
+  if (agent.thinking) args.push('--thinking', agent.thinking);
   if (agent.tools && agent.tools.length > 0) args.push('--tools', agent.tools.join(','));
 
   let tmpPromptDir: string | null = null;
