@@ -1,9 +1,5 @@
 node_modules/
 
-# Pi runtime data (sessions, caches)
-.pi/
-!.pi/lsp.json
-
 # TypeScript
 *.tsbuildinfo
 
