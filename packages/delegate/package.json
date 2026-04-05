@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-delegate",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Orchestration command for pi — /delegate with workflow presets, parallel scouts, planning gates, and subagent execution",
   "keywords": [
     "pi-package"
