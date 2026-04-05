@@ -38,6 +38,34 @@ export default function lspExtension(pi: ExtensionAPI) {
     clients.clear();
   }
 
+  function refreshStatus(
+    ui: { setStatus: (key: string, value: string) => void },
+    cfg: LoadedConfig | null,
+  ) {
+    if (!cfg) {
+      ui.setStatus('lsp', 'LSP: no servers detected');
+      return;
+    }
+
+    if (cfg.globalDisabled) {
+      ui.setStatus('lsp', 'LSP: disabled');
+      return;
+    }
+
+    if (cfg.servers.length === 0) {
+      ui.setStatus('lsp', 'LSP: no servers detected');
+      return;
+    }
+
+    const running = cfg.servers.filter((server) => clients.get(server.name)?.isInitialized);
+    if (running.length > 0) {
+      ui.setStatus('lsp', `LSP: ${running.map((s) => s.name).join(', ')} (running)`);
+      return;
+    }
+
+    ui.setStatus('lsp', `LSP: ${cfg.servers.map((s) => s.name).join(', ')}`);
+  }
+
   // ── Server manager (passed to tool) ───────────────────────────────────
 
   const serverManager: ServerManager = {
@@ -92,26 +120,17 @@ export default function lspExtension(pi: ExtensionAPI) {
     }
 
     config = await loadConfig(rootPath);
-
-    if (config.globalDisabled) {
-      ctx.ui.setStatus('lsp', 'LSP: disabled');
-      return;
-    }
-
-    const parts: string[] = [];
-    for (const server of config.servers) {
-      parts.push(server.name);
-    }
-    if (parts.length > 0) {
-      ctx.ui.setStatus('lsp', `LSP: ${parts.join(', ')}`);
-    } else {
-      ctx.ui.setStatus('lsp', 'LSP: no servers detected');
-    }
+    refreshStatus(ctx.ui, config);
   });
 
   pi.on('session_shutdown', async () => {
     await shutdownAll();
     config = null;
+  });
+
+  pi.on('tool_execution_end', async (event, ctx) => {
+    if (event.toolName !== 'lsp') return;
+    refreshStatus(ctx.ui, config);
   });
 
   // ── Commands ──────────────────────────────────────────────────────────
@@ -121,6 +140,8 @@ export default function lspExtension(pi: ExtensionAPI) {
     handler: async (_args, ctx) => {
       rootPath = ctx.cwd;
       const cfg = await loadConfig(ctx.cwd);
+      config = cfg;
+      refreshStatus(ctx.ui, cfg);
       const lines: string[] = ['LSP Status:'];
 
       if (cfg.globalDisabled) {
@@ -153,6 +174,7 @@ export default function lspExtension(pi: ExtensionAPI) {
       config = null;
       rootPath = ctx.cwd;
       config = await loadConfig(ctx.cwd);
+      refreshStatus(ctx.ui, config);
       ctx.ui.notify('LSP servers stopped. Will reinitialize on next tool use.', 'info');
     },
   });
