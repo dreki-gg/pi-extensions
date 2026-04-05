@@ -1,7 +1,6 @@
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, readdir } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { copyFile, mkdir, readdir, unlink } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import type { ExtensionAPI, ExtensionCommandContext } from '@mariozechner/pi-coding-agent';
 import { getAgentDir } from '@mariozechner/pi-coding-agent';
 import { runAgent, runParallel } from './executor';
@@ -88,35 +87,112 @@ async function executePhase(
   return { results, output, aborted: false };
 }
 
-const extensionDir = dirname(fileURLToPath(import.meta.url));
-const bundledAgentsDir = join(extensionDir, '..', '..', 'agents');
+const bundledAgentsDir = resolve(import.meta.dirname, '..', '..', 'agents');
 
-async function bootstrapAgents() {
-  const targetDir = join(getAgentDir(), 'agents');
-  await mkdir(targetDir, { recursive: true });
-
-  if (!existsSync(bundledAgentsDir)) return;
-
-  let files: string[];
+async function listMdFiles(dir: string): Promise<Set<string>> {
+  if (!existsSync(dir)) return new Set();
   try {
-    files = (await readdir(bundledAgentsDir)).filter((f: string) => f.endsWith('.md'));
+    const entries = await readdir(dir);
+    return new Set(entries.filter((f) => f.endsWith('.md')).map((f) => f.replace(/\.md$/, '')));
   } catch {
-    return;
-  }
-
-  for (const file of files) {
-    const target = join(targetDir, file);
-    if (!existsSync(target)) {
-      await copyFile(join(bundledAgentsDir, file), target);
-    }
+    return new Set();
   }
 }
 
 export default function delegateExtension(pi: ExtensionAPI) {
-  pi.on('session_start', async (event, _ctx) => {
-    const reason = 'reason' in event && typeof event.reason === 'string' ? event.reason : undefined;
-    if (reason && reason !== 'startup' && reason !== 'reload') return;
-    await bootstrapAgents();
+  pi.registerCommand('delegate-agents', {
+    description: 'List, customize, or reset delegate agents',
+    handler: async (args, ctx) => {
+      const userDir = join(getAgentDir(), 'agents');
+      const parts = args?.trim().split(/\s+/) || [];
+      const action = parts[0] || 'list';
+
+      if (action === 'list') {
+        const bundled = await listMdFiles(bundledAgentsDir);
+        const user = await listMdFiles(userDir);
+        const allNames = new Set([...bundled, ...user]);
+
+        const lines: string[] = ['## Delegate Agents\n'];
+        for (const name of [...allNames].sort()) {
+          const isBundled = bundled.has(name);
+          const isUser = user.has(name);
+          if (isUser && isBundled) {
+            lines.push(`- **${name}** — user override (bundled version available, \`/delegate-agents reset ${name}\` to restore)`);
+          } else if (isUser) {
+            lines.push(`- **${name}** — user-only`);
+          } else {
+            lines.push(`- **${name}** — bundled`);
+          }
+        }
+        pi.sendMessage({ customType: 'delegate-agents-list', content: lines.join('\n'), display: true });
+        return;
+      }
+
+      if (action === 'reset') {
+        const name = parts[1];
+        if (!name) {
+          ctx.ui.notify('Usage: /delegate-agents reset <name|--all>', 'warning');
+          return;
+        }
+
+        if (name === '--all') {
+          const user = await listMdFiles(userDir);
+          const bundled = await listMdFiles(bundledAgentsDir);
+          let count = 0;
+          for (const n of user) {
+            if (bundled.has(n)) {
+              await unlink(join(userDir, `${n}.md`));
+              count++;
+            }
+          }
+          ctx.ui.notify(count > 0 ? `Reset ${count} agent(s) to bundled versions.` : 'No user overrides to reset.', 'info');
+          return;
+        }
+
+        const userFile = join(userDir, `${name}.md`);
+        const bundledFile = join(bundledAgentsDir, `${name}.md`);
+
+        if (!existsSync(userFile)) {
+          ctx.ui.notify(`No user override for "${name}" — already using bundled version.`, 'info');
+          return;
+        }
+        if (!existsSync(bundledFile)) {
+          ctx.ui.notify(`"${name}" is user-only (no bundled version). Delete manually if needed.`, 'warning');
+          return;
+        }
+
+        await unlink(userFile);
+        ctx.ui.notify(`Reset "${name}" — now using bundled version.`, 'info');
+        return;
+      }
+
+      if (action === 'edit') {
+        const name = parts[1];
+        if (!name) {
+          ctx.ui.notify('Usage: /delegate-agents edit <name>', 'warning');
+          return;
+        }
+
+        const bundledFile = join(bundledAgentsDir, `${name}.md`);
+        const userFile = join(userDir, `${name}.md`);
+
+        if (existsSync(userFile)) {
+          ctx.ui.notify(`User override already exists: ${userFile}`, 'info');
+          return;
+        }
+        if (!existsSync(bundledFile)) {
+          ctx.ui.notify(`No bundled agent named "${name}".`, 'warning');
+          return;
+        }
+
+        await mkdir(userDir, { recursive: true });
+        await copyFile(bundledFile, userFile);
+        ctx.ui.notify(`Copied "${name}" to ${userFile} — edit it there to customize.`, 'info');
+        return;
+      }
+
+      ctx.ui.notify('Unknown action. Usage: /delegate-agents [list|reset <name|--all>|edit <name>]', 'warning');
+    },
   });
 
   pi.registerCommand('delegate', {

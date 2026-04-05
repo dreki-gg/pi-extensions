@@ -68,8 +68,16 @@ function loadAgentsFromDir(dir: string, source: 'user' | 'project'): AgentConfig
 }
 
 export function discoverAgents(): AgentConfig[] {
+  // Bundled agents ship with the package (../agents relative to extensions/delegate)
+  const bundledDir = path.resolve(import.meta.dirname, '../../agents');
+  const bundled = loadAgentsFromDir(bundledDir, 'project');
+
+  // User agents live in ~/.pi/agent/agents/ and override bundled ones by name
   const userDir = path.join(getAgentDir(), 'agents');
-  return loadAgentsFromDir(userDir, 'user');
+  const user = loadAgentsFromDir(userDir, 'user');
+
+  const userNames = new Set(user.map((a) => a.name));
+  return [...user, ...bundled.filter((a) => !userNames.has(a.name))];
 }
 
 function emptyUsage(): UsageStats {
