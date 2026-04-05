@@ -174,17 +174,23 @@ export function registerLspTool(pi: ExtensionAPI, mgr: ServerManager) {
 
         case 'goToDefinition': {
           const locs = await client.definition(filePath!, pos);
-          return ok(formatLocations(locs, 'Definition', filePath!, pos.line, pos.character, rootPath));
+          return ok(
+            formatLocations(locs, 'Definition', filePath!, pos.line, pos.character, rootPath),
+          );
         }
 
         case 'findReferences': {
           const locs = await client.references(filePath!, pos);
-          return ok(formatLocations(locs, 'References', filePath!, pos.line, pos.character, rootPath));
+          return ok(
+            formatLocations(locs, 'References', filePath!, pos.line, pos.character, rootPath),
+          );
         }
 
         case 'goToImplementation': {
           const locs = await client.implementation(filePath!, pos);
-          return ok(formatLocations(locs, 'Implementation', filePath!, pos.line, pos.character, rootPath));
+          return ok(
+            formatLocations(locs, 'Implementation', filePath!, pos.line, pos.character, rootPath),
+          );
         }
 
         case 'documentSymbol': {

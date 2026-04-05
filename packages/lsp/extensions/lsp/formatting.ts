@@ -100,7 +100,8 @@ export function formatDiagnostics(filePath: string, groups: DiagnosticGroup[]): 
 
   const summaryParts: string[] = [];
   if (totalErrors > 0) summaryParts.push(`${totalErrors} error${totalErrors !== 1 ? 's' : ''}`);
-  if (totalWarnings > 0) summaryParts.push(`${totalWarnings} warning${totalWarnings !== 1 ? 's' : ''}`);
+  if (totalWarnings > 0)
+    summaryParts.push(`${totalWarnings} warning${totalWarnings !== 1 ? 's' : ''}`);
   if (totalOther > 0) summaryParts.push(`${totalOther} info/hint`);
 
   const lines = [`Diagnostics for ${filePath}: ${summaryParts.join(', ')}`];
@@ -125,7 +126,12 @@ export function formatDiagnostics(filePath: string, groups: DiagnosticGroup[]): 
 
 // ── Hover ───────────────────────────────────────────────────────────────────
 
-export function formatHover(hover: Hover | null, filePath: string, line: number, character: number): string {
+export function formatHover(
+  hover: Hover | null,
+  filePath: string,
+  line: number,
+  character: number,
+): string {
   if (!hover) return `No hover information at ${filePath}:${line + 1}:${character + 1}`;
 
   const contents = hover.contents;
@@ -215,7 +221,11 @@ export function formatDocumentSymbols(
 
 // ── Workspace Symbols ───────────────────────────────────────────────────────
 
-export function formatWorkspaceSymbols(symbols: SymbolInformation[], query: string, rootPath: string): string {
+export function formatWorkspaceSymbols(
+  symbols: SymbolInformation[],
+  query: string,
+  rootPath: string,
+): string {
   if (symbols.length === 0) return `No workspace symbols matching "${query}"`;
 
   const formatted = symbols.slice(0, 50).map((sym, i) => {
@@ -290,7 +300,9 @@ export function formatCodeActions(actions: CodeAction[], filePath: string, line:
     if (action.edit?.changes) {
       const files = Object.keys(action.edit.changes);
       const totalEdits = files.reduce((s, f) => s + (action.edit!.changes![f]?.length ?? 0), 0);
-      parts.push(`   Changes: ${totalEdits} edit${totalEdits !== 1 ? 's' : ''} across ${files.length} file${files.length !== 1 ? 's' : ''}`);
+      parts.push(
+        `   Changes: ${totalEdits} edit${totalEdits !== 1 ? 's' : ''} across ${files.length} file${files.length !== 1 ? 's' : ''}`,
+      );
     }
 
     return parts.join('\n');

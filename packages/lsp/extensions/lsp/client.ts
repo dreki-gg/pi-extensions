@@ -195,9 +195,7 @@ export class LspClient {
           symbol: {},
         },
       },
-      workspaceFolders: [
-        { uri: rootUri, name: this.rootPath.split('/').pop() || 'workspace' },
-      ],
+      workspaceFolders: [{ uri: rootUri, name: this.rootPath.split('/').pop() || 'workspace' }],
       initializationOptions: this.config.initializationOptions,
     })) as { capabilities?: Record<string, unknown> } | null;
 
@@ -413,7 +411,11 @@ export class LspClient {
 
   // ── Code Actions ──────────────────────────────────────────────────────
 
-  async codeActions(filePath: string, range: Range, context: CodeActionContext): Promise<CodeAction[]> {
+  async codeActions(
+    filePath: string,
+    range: Range,
+    context: CodeActionContext,
+  ): Promise<CodeAction[]> {
     const uri = await this.openDocument(filePath);
     const result = await this.connection.sendRequest('textDocument/codeAction', {
       textDocument: { uri },

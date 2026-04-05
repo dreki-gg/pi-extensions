@@ -206,7 +206,6 @@ export interface ResolvedServerConfig {
   initializationOptions: Record<string, unknown>;
 }
 
-
 // ── Operations ──────────────────────────────────────────────────────────────
 
 export const LSP_OPERATIONS = [

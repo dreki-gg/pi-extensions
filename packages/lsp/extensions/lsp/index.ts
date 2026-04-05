@@ -131,9 +131,7 @@ export default function lspExtension(pi: ExtensionAPI) {
       } else {
         for (const server of cfg.servers) {
           const client = clients.get(server.name);
-          const status = client?.isInitialized
-            ? 'running'
-            : 'available (lazy start)';
+          const status = client?.isInitialized ? 'running' : 'available (lazy start)';
           const exts = server.extensions.join(', ');
           lines.push(`  ${server.name}: ${status} — handles ${exts}`);
         }

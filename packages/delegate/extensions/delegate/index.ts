@@ -114,8 +114,7 @@ async function bootstrapAgents() {
 
 export default function delegateExtension(pi: ExtensionAPI) {
   pi.on('session_start', async (event, _ctx) => {
-    const reason =
-      'reason' in event && typeof event.reason === 'string' ? event.reason : undefined;
+    const reason = 'reason' in event && typeof event.reason === 'string' ? event.reason : undefined;
     if (reason && reason !== 'startup' && reason !== 'reload') return;
     await bootstrapAgents();
   });

@@ -21,7 +21,7 @@ import type { LspConfigFile, LspServerUserConfig, ResolvedServerConfig } from '.
 // ── Paths ───────────────────────────────────────────────────────────────────
 
 function globalConfigPath(): string {
-  return join(homedir(), '.pi', 'agent', 'extensions', 'lsp', 'config.json');
+  return join(process.env.HOME ?? homedir(), '.pi', 'agent', 'extensions', 'lsp', 'config.json');
 }
 
 function projectConfigPath(cwd: string): string {
@@ -89,7 +89,6 @@ function commandAvailableVia(command: string, cwd: string): 'global' | 'npx' | n
   }
 }
 
-
 // ── Resolving ───────────────────────────────────────────────────────────────
 
 function resolveServer(
@@ -144,10 +143,9 @@ export async function loadConfig(cwd: string): Promise<LoadedConfig> {
     string,
     LspServerUserConfig
   >;
-  const projectServers = (typeof projectConfig?.lsp === 'object' ? projectConfig.lsp : {}) as Record<
-    string,
-    LspServerUserConfig
-  >;
+  const projectServers = (
+    typeof projectConfig?.lsp === 'object' ? projectConfig.lsp : {}
+  ) as Record<string, LspServerUserConfig>;
 
   // Merge: project overrides global
   const allNames = new Set([...Object.keys(globalServers), ...Object.keys(projectServers)]);
