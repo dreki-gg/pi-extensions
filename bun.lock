@@ -23,23 +23,9 @@
         "@sinclair/typebox": "*",
       },
     },
-    "packages/delegate": {
-      "name": "@dreki-gg/pi-delegate",
-      "version": "0.1.4",
-      "devDependencies": {
-        "@types/node": "24",
-        "oxfmt": "^0.43.0",
-        "oxlint": "^1.58.0",
-        "typescript": "^6.0.0",
-      },
-      "peerDependencies": {
-        "@mariozechner/pi-ai": "*",
-        "@mariozechner/pi-coding-agent": "*",
-      },
-    },
     "packages/lsp": {
       "name": "@dreki-gg/pi-lsp",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "@mariozechner/pi-ai": "^0.64.0",
         "@types/node": "24",
@@ -73,7 +59,7 @@
     },
     "packages/subagent": {
       "name": "@dreki-gg/pi-subagent",
-      "version": "0.1.3",
+      "version": "0.3.0",
       "devDependencies": {
         "@types/node": "24",
         "oxfmt": "^0.43.0",
@@ -201,8 +187,6 @@
     "@changesets/write": ["@changesets/write@0.4.0", "", { "dependencies": { "@changesets/types": "^6.1.0", "fs-extra": "^7.0.1", "human-id": "^4.1.1", "prettier": "^2.7.1" } }, "sha512-CdTLvIOPiCNuH71pyDu3rA+Q0n65cmAbXnwWH84rKGiFumFzkmHNT8KHTMEchcxN+Kl8I54xGUhJ7l3E7X396Q=="],
 
     "@dreki-gg/pi-context7": ["@dreki-gg/pi-context7@workspace:packages/context7"],
-
-    "@dreki-gg/pi-delegate": ["@dreki-gg/pi-delegate@workspace:packages/delegate"],
 
     "@dreki-gg/pi-lsp": ["@dreki-gg/pi-lsp@workspace:packages/lsp"],
 
