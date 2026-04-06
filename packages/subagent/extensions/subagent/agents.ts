@@ -24,6 +24,9 @@ export interface AgentDiscoveryResult {
   projectAgentsDir: string | null;
 }
 
+/** Bundled agents ship with the package (../../agents relative to extensions/subagent/) */
+const bundledAgentsDir = path.resolve(import.meta.dirname, '..', '..', 'agents');
+
 function loadAgentsFromDir(dir: string, source: 'user' | 'project'): AgentConfig[] {
   const agents: AgentConfig[] = [];
 
@@ -100,11 +103,17 @@ export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryRe
   const userDir = path.join(getAgentDir(), 'agents');
   const projectAgentsDir = findNearestProjectAgentsDir(cwd);
 
+  // Bundled agents from the package itself (lowest priority)
+  const bundledAgents = loadAgentsFromDir(bundledAgentsDir, 'project');
+
   const userAgents = scope === 'project' ? [] : loadAgentsFromDir(userDir, 'user');
   const projectAgents =
     scope === 'user' || !projectAgentsDir ? [] : loadAgentsFromDir(projectAgentsDir, 'project');
 
+  // Priority: bundled (lowest) → user → project (highest, overrides by name)
   const agentMap = new Map<string, AgentConfig>();
+
+  for (const agent of bundledAgents) agentMap.set(agent.name, agent);
 
   if (scope === 'both') {
     for (const agent of userAgents) agentMap.set(agent.name, agent);
@@ -117,6 +126,8 @@ export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryRe
 
   return { agents: Array.from(agentMap.values()), projectAgentsDir };
 }
+
+export { bundledAgentsDir };
 
 export function formatAgentList(
   agents: AgentConfig[],

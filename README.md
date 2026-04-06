@@ -9,9 +9,8 @@ Each package is independently installable via `pi install`.
 | Package | Description | Install |
 |---------|-------------|---------|
 | `@dreki-gg/pi-context7` | Pi-native Context7 docs tools (no MCP) | `pi install npm:@dreki-gg/pi-context7` |
-| `@dreki-gg/pi-delegate` | `/delegate` orchestration command with workflow presets | `pi install npm:@dreki-gg/pi-delegate` |
 | `@dreki-gg/pi-questionnaire` | Tool-first questionnaire flow + `/questionnaire` demo command | `pi install npm:@dreki-gg/pi-questionnaire` |
-| `@dreki-gg/pi-subagent` | Subagent tool for ad-hoc task delegation | `pi install npm:@dreki-gg/pi-subagent` |
+| `@dreki-gg/pi-subagent` | Subagent tool + `/delegate` orchestration with bundled agents and workflow presets | `pi install npm:@dreki-gg/pi-subagent` |
 | `@dreki-gg/pi-lsp` | LSP-powered code intelligence (TypeScript + oxlint) | `pi install npm:@dreki-gg/pi-lsp` |
 
 ## Development

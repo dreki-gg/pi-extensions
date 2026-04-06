@@ -1,7 +1,7 @@
 {
   "name": "@dreki-gg/pi-subagent",
   "version": "0.2.0",
-  "description": "Subagent tool for pi — delegate tasks to specialized agents with isolated context windows",
+  "description": "Subagent tool and delegate orchestration for pi — isolated agents, parallel scouts, planning gates, and workflow presets",
   "keywords": [
     "pi-package"
   ],
@@ -22,6 +22,12 @@
   "pi": {
     "extensions": [
       "./extensions/subagent"
+    ],
+    "skills": [
+      "./skills"
+    ],
+    "prompts": [
+      "./prompts"
     ]
   },
   "devDependencies": {

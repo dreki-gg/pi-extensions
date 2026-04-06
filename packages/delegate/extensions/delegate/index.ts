@@ -3,6 +3,9 @@ import { copyFile, mkdir, readdir, unlink } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { ExtensionAPI, ExtensionCommandContext } from '@mariozechner/pi-coding-agent';
 import { getAgentDir } from '@mariozechner/pi-coding-agent';
+
+/** Well-known symbol shared with @dreki-gg/pi-subagent for agent dir registration */
+const PI_AGENT_DIRS = Symbol.for('pi.agentDirs');
 import { runAgent, runParallel } from './executor';
 import { buildSynthesisPrompt, extractRecentConversation } from './synthesis';
 import type { AgentResult, DelegateState, PhaseDefinition, PhaseResult, UsageStats } from './types';
@@ -89,6 +92,15 @@ async function executePhase(
 
 const bundledAgentsDir = resolve(import.meta.dirname, '..', '..', 'agents');
 
+/** Register bundled agents dir so the subagent tool can discover them */
+function registerBundledAgents(): void {
+  const g = globalThis as any;
+  if (!g[PI_AGENT_DIRS]) g[PI_AGENT_DIRS] = [];
+  if (!g[PI_AGENT_DIRS].some((e: { dir: string }) => e.dir === bundledAgentsDir)) {
+    g[PI_AGENT_DIRS].push({ dir: bundledAgentsDir, source: 'project' });
+  }
+}
+
 async function listMdFiles(dir: string): Promise<Set<string>> {
   if (!existsSync(dir)) return new Set();
   try {
@@ -100,6 +112,8 @@ async function listMdFiles(dir: string): Promise<Set<string>> {
 }
 
 export default function delegateExtension(pi: ExtensionAPI) {
+  registerBundledAgents();
+
   pi.registerCommand('delegate-agents', {
     description: 'List, customize, or reset delegate agents',
     handler: async (args, ctx) => {
