@@ -6,7 +6,8 @@
   ],
   "scripts": {
     "typecheck": "bun run --filter '*' typecheck",
-    "test": "bun run --filter '@dreki-gg/pi-lsp' test",
+    "compat": "bun test test/pi-compat.test.ts",
+    "test": "bun run compat && bun run --filter '@dreki-gg/pi-lsp' test",
     "lint": "bun run --filter '*' lint",
     "format": "bun run --filter '*' format",
     "format:check": "bun run --filter '*' format:check",
