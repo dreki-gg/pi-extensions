@@ -41,6 +41,19 @@
         "@sinclair/typebox": "*",
       },
     },
+    "packages/modes": {
+      "name": "@dreki-gg/pi-modes",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/node": "24",
+        "oxfmt": "^0.43.0",
+        "oxlint": "^1.58.0",
+        "typescript": "^6.0.0",
+      },
+      "peerDependencies": {
+        "@mariozechner/pi-coding-agent": "*",
+      },
+    },
     "packages/questionnaire": {
       "name": "@dreki-gg/pi-questionnaire",
       "version": "0.2.1",
@@ -189,6 +202,8 @@
     "@dreki-gg/pi-context7": ["@dreki-gg/pi-context7@workspace:packages/context7"],
 
     "@dreki-gg/pi-lsp": ["@dreki-gg/pi-lsp@workspace:packages/lsp"],
+
+    "@dreki-gg/pi-modes": ["@dreki-gg/pi-modes@workspace:packages/modes"],
 
     "@dreki-gg/pi-questionnaire": ["@dreki-gg/pi-questionnaire@workspace:packages/questionnaire"],
 
