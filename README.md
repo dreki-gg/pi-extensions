@@ -12,6 +12,7 @@ Each package is independently installable via `pi install`.
 | `@dreki-gg/pi-questionnaire` | Tool-first questionnaire flow + `/questionnaire` demo command | `pi install npm:@dreki-gg/pi-questionnaire` |
 | `@dreki-gg/pi-subagent` | Subagent tool + `/delegate` orchestration with bundled agents and workflow presets | `pi install npm:@dreki-gg/pi-subagent` |
 | `@dreki-gg/pi-lsp` | LSP-powered code intelligence (TypeScript + oxlint) | `pi install npm:@dreki-gg/pi-lsp` |
+| `@dreki-gg/pi-modes` | Config-driven preset/mode switching with hard-enforced tool whitelists | `pi install npm:@dreki-gg/pi-modes` |
 
 ## Development
 

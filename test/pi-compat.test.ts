@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -20,9 +20,11 @@ type CommandDefinitionLike = {
 
 function createMockPi() {
   const tools: ToolDefinitionLike[] = [];
+  const activeTools: string[] = [];
   const commands = new Map<string, CommandDefinitionLike>();
   const eventHandlers = new Map<string, Array<(...args: any[]) => any>>();
   const sentMessages: any[] = [];
+  const flags = new Map<string, unknown>();
 
   const api = {
     on(event: string, handler: (...args: any[]) => any) {
@@ -32,6 +34,7 @@ function createMockPi() {
     },
     registerTool(tool: ToolDefinitionLike) {
       tools.push(tool);
+      if (!activeTools.includes(tool.name)) activeTools.push(tool.name);
     },
     registerCommand(name: string, definition: CommandDefinitionLike) {
       commands.set(name, definition);
@@ -39,6 +42,19 @@ function createMockPi() {
     registerShortcut() {},
     registerFlag() {},
     registerMessageRenderer() {},
+    getCommands() {
+      return [...commands.entries()].map(([name, definition]) => ({
+        name,
+        description: definition.description,
+        source: 'extension',
+        sourceInfo: {
+          path: `<mock:${name}>`,
+          source: 'extension',
+          scope: 'temporary',
+          origin: 'top-level',
+        },
+      }));
+    },
     sendMessage(message: any) {
       sentMessages.push(message);
     },
@@ -50,17 +66,23 @@ function createMockPi() {
     getSessionName() {
       return undefined;
     },
+    getFlag(name: string) {
+      const normalized = name.startsWith('--') ? name.slice(2) : name;
+      return flags.get(normalized);
+    },
     setLabel() {},
     async exec() {
       throw new Error('Mock pi.exec() not implemented for this test');
     },
     getActiveTools() {
-      return tools.map((tool) => tool.name);
+      return [...activeTools];
     },
     getAllTools() {
       return tools;
     },
-    setActiveTools() {},
+    setActiveTools(names: string[]) {
+      activeTools.splice(0, activeTools.length, ...names);
+    },
     async setModel() {
       return true;
     },
@@ -81,6 +103,9 @@ function createMockPi() {
     tools,
     commands,
     sentMessages,
+    setFlag(name: string, value: unknown) {
+      flags.set(name, value);
+    },
     getTool(name: string) {
       const tool = tools.find((candidate) => candidate.name === name);
       if (!tool) throw new Error(`Tool not registered: ${name}`);
@@ -93,9 +118,11 @@ function createMockPi() {
     },
     async emit(event: string, payload: any, ctx: any) {
       const handlers = eventHandlers.get(event) ?? [];
+      const results: any[] = [];
       for (const handler of handlers) {
-        await handler(payload, ctx);
+        results.push(await handler(payload, ctx));
       }
+      return results;
     },
     countHandlers(event: string) {
       return (eventHandlers.get(event) ?? []).length;
@@ -223,6 +250,19 @@ async function withTempHome<T>(fn: (homeDir: string) => Promise<T>): Promise<T> 
     if (previousHome === undefined) delete process.env.HOME;
     else process.env.HOME = previousHome;
     await rm(homeDir, { recursive: true, force: true });
+  }
+}
+
+async function withTempModesGlobalPath<T>(homeDir: string, fn: (presetsPath: string) => Promise<T>): Promise<T> {
+  const previousPath = process.env.PI_MODES_GLOBAL_PRESETS_PATH;
+  const presetsPath = path.join(homeDir, '.pi', 'agent', 'presets.json');
+  process.env.PI_MODES_GLOBAL_PRESETS_PATH = presetsPath;
+
+  try {
+    return await fn(presetsPath);
+  } finally {
+    if (previousPath === undefined) delete process.env.PI_MODES_GLOBAL_PRESETS_PATH;
+    else process.env.PI_MODES_GLOBAL_PRESETS_PATH = previousPath;
   }
 }
 
@@ -362,6 +402,165 @@ describe('Pi extension compatibility harness', () => {
       expect(result.content[0].text).toContain('Invalid parameters.');
       expect(result.content[0].text).toContain('Available agents:');
       expect(result.content[0].text).toContain('planner');
+    });
+  });
+
+  test('Modes extension bootstraps starter global presets on first run', async () => {
+    await withTempHome(async (homeDir) => {
+      await withTempModesGlobalPath(homeDir, async (presetsPath) => {
+        const pi = createMockPi();
+        for (const toolName of [
+          'read',
+          'bash',
+          'edit',
+          'write',
+          'lsp',
+          'questionnaire',
+          'context7_resolve_library_id',
+          'context7_get_library_docs',
+        ]) {
+          pi.api.registerTool({ name: toolName });
+        }
+
+        const { default: modesExtension } = await import(
+          `../packages/modes/extensions/modes/index.ts?bootstrap=${Date.now()}-${Math.random()}`
+        );
+        modesExtension(pi.api as any);
+
+        const projectDir = path.join(homeDir, 'project');
+        await mkdir(projectDir, { recursive: true });
+        const ctx = createMockContext({ cwd: projectDir, hasUI: false });
+        await pi.emit('session_start', { reason: 'startup' }, ctx);
+
+        const content = JSON.parse(await readFile(presetsPath, 'utf8')) as Record<string, any>;
+        expect(content.explore.tools).toEqual(['read', 'lsp', 'context7_*', 'questionnaire']);
+        expect(content.explore.thinkingLevel).toBe('high');
+        expect(
+          ctx.notifications.some((entry) => entry.message.includes('created starter global presets')),
+        ).toBe(true);
+      });
+    });
+  });
+
+  test('Modes extension adds missing starter presets without overwriting existing global ones', async () => {
+    await withTempHome(async (homeDir) => {
+      await withTempModesGlobalPath(homeDir, async (presetsPath) => {
+        await mkdir(path.dirname(presetsPath), { recursive: true });
+        await writeFile(
+          presetsPath,
+          JSON.stringify(
+            {
+              explore: {
+                tools: ['read'],
+                instructions: 'Custom user explore preset',
+              },
+            },
+            null,
+            2,
+          ),
+        );
+
+        const pi = createMockPi();
+        for (const toolName of ['read', 'lsp', 'questionnaire']) {
+          pi.api.registerTool({ name: toolName });
+        }
+
+        const { default: modesExtension } = await import(
+          `../packages/modes/extensions/modes/index.ts?preserve=${Date.now()}-${Math.random()}`
+        );
+        modesExtension(pi.api as any);
+
+        const projectDir = path.join(homeDir, 'project');
+        await mkdir(projectDir, { recursive: true });
+        const ctx = createMockContext({ cwd: projectDir, hasUI: false });
+        await pi.emit('session_start', { reason: 'startup' }, ctx);
+
+        const content = JSON.parse(await readFile(presetsPath, 'utf8')) as Record<string, any>;
+        expect(content.explore.tools).toEqual(['read']);
+        expect(content.explore.instructions).toBe('Custom user explore preset');
+        expect(
+          ctx.notifications.some((entry) => entry.message.includes('created starter global presets')),
+        ).toBe(false);
+      });
+    });
+  });
+
+  test('Modes extension applies explore preset from config and restores defaults when cleared', async () => {
+    await withTempHome(async (homeDir) => {
+      await withTempModesGlobalPath(homeDir, async () => {
+        const projectDir = path.join(homeDir, 'project');
+        const presetsPath = path.join(projectDir, '.pi', 'presets.json');
+        await mkdir(path.dirname(presetsPath), { recursive: true });
+        await writeFile(
+          presetsPath,
+          JSON.stringify(
+            {
+              explore: {
+                tools: ['read', 'lsp', 'context7_*', 'questionnaire'],
+                thinkingLevel: 'high',
+                instructions: 'Explore only. Do not modify files.',
+              },
+            },
+            null,
+            2,
+          ),
+        );
+
+        const pi = createMockPi();
+        for (const toolName of [
+          'read',
+          'bash',
+          'edit',
+          'write',
+          'lsp',
+          'questionnaire',
+          'context7_resolve_library_id',
+          'context7_get_library_docs',
+          'subagent',
+        ]) {
+          pi.api.registerTool({ name: toolName });
+        }
+        pi.setFlag('preset', 'explore');
+
+        const { default: modesExtension } = await import(
+          `../packages/modes/extensions/modes/index.ts?apply=${Date.now()}-${Math.random()}`
+        );
+        modesExtension(pi.api as any);
+
+        expect([...pi.commands.keys()].sort()).toEqual(['mode', 'modes', 'preset']);
+        expect(pi.countHandlers('session_start')).toBeGreaterThan(0);
+        expect(pi.countHandlers('input')).toBeGreaterThan(0);
+        expect(pi.countHandlers('before_agent_start')).toBeGreaterThan(0);
+
+        const ctx = createMockContext({ cwd: projectDir, hasUI: false });
+        await pi.emit('session_start', { reason: 'startup' }, ctx);
+
+        const inputResults = await pi.emit('input', { source: 'interactive', text: '/explore' }, ctx);
+        expect(inputResults[0]).toEqual({ action: 'transform', text: '/preset explore' });
+
+        expect(pi.api.getActiveTools()).toEqual([
+          'read',
+          'lsp',
+          'context7_resolve_library_id',
+          'context7_get_library_docs',
+          'questionnaire',
+        ]);
+        expect(ctx.statuses.get('mode')).toBe('mode:explore');
+
+        await pi.getCommand('preset').handler?.('off', ctx);
+        expect(pi.api.getActiveTools()).toEqual([
+          'read',
+          'bash',
+          'edit',
+          'write',
+          'lsp',
+          'questionnaire',
+          'context7_resolve_library_id',
+          'context7_get_library_docs',
+          'subagent',
+        ]);
+        expect(ctx.statuses.get('mode')).toBeUndefined();
+      });
     });
   });
 });

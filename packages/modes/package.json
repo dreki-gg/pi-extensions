@@ -1,0 +1,46 @@
+{
+  "name": "@dreki-gg/pi-modes",
+  "version": "0.1.0",
+  "description": "Config-driven preset and mode switching for pi — hard-enforced tool whitelists, mode aliases, and session persistence",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "modes",
+    "presets",
+    "tool-whitelist"
+  ],
+  "author": "Juan Albarran <jalbarrandev@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dreki-gg/pi-extensions",
+    "directory": "packages/modes"
+  },
+  "type": "module",
+  "files": [
+    "extensions",
+    "README.md",
+    "CHANGELOG.md",
+    "package.json"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint extensions",
+    "format": "oxfmt --write extensions",
+    "format:check": "oxfmt --check extensions"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/modes"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "oxfmt": "^0.43.0",
+    "oxlint": "^1.58.0",
+    "typescript": "^6.0.0"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  }
+}
