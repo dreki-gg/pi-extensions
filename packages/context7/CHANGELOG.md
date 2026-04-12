@@ -1,5 +1,11 @@
 # @dreki-gg/pi-context7
 
+## 0.1.4
+
+### Patch Changes
+
+- [`15559e4`](https://github.com/dreki-gg/pi-extensions/commit/15559e4d3392e4b5e1779cf191a69725f029a22b) Thanks [@jalbarrang](https://github.com/jalbarrang)! - Fix Context7 config loading to read from Pi's global extension directory (`~/.pi/agent/extensions/context7`) instead of the installed npm package directory. This restores `apiKey` detection from `config.json`, ensures authenticated requests include the Authorization header, and prevents unexpected rate limiting when a key is already configured.
+
 ## 0.1.3
 
 ### Patch Changes
