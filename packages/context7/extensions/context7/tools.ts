@@ -594,33 +594,6 @@ function createRawDocsTool() {
   });
 }
 
-function normalizeGetLibraryDocsAlias(args: unknown): GetLibraryDocsParams {
-  if (!args || typeof args !== 'object') return {};
-
-  const input = args as Record<string, unknown>;
-  const normalized: GetLibraryDocsParams = {};
-
-  if (typeof input.libraryId === 'string') normalized.libraryId = input.libraryId;
-  else if (typeof input.context7CompatibleLibraryID === 'string') {
-    normalized.libraryId = input.context7CompatibleLibraryID;
-  }
-
-  if (typeof input.libraryName === 'string') normalized.libraryName = input.libraryName;
-
-  if (typeof input.query === 'string') normalized.query = input.query;
-  else if (typeof input.topic === 'string') normalized.query = input.topic;
-
-  if (typeof input.query === 'string' && typeof input.topic === 'string') {
-    normalized.topic = input.topic;
-  }
-
-  if (typeof input.page === 'number' && Number.isFinite(input.page)) {
-    normalized.page = input.page;
-  }
-
-  return normalized;
-}
-
 export function registerContext7Tools(pi: ExtensionAPI) {
   pi.registerTool(
     createResolveTool(
@@ -639,30 +612,4 @@ export function registerContext7Tools(pi: ExtensionAPI) {
   );
 
   pi.registerTool(createRawDocsTool());
-
-  pi.registerTool(
-    createResolveTool(
-      'resolve-library-id',
-      'Compatibility alias for context7_resolve_library_id.',
-      false,
-    ),
-  );
-
-  pi.registerTool(
-    createDocsTool(
-      'get-library-docs',
-      'Compatibility alias for context7_get_library_docs.',
-      false,
-      normalizeGetLibraryDocsAlias,
-    ),
-  );
-
-  pi.registerTool(
-    createDocsTool(
-      'query-docs',
-      'Compatibility alias for context7_get_library_docs.',
-      false,
-      normalizeGetLibraryDocsAlias,
-    ),
-  );
 }

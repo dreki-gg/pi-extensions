@@ -1,13 +1,13 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { getAgentDir } from '@mariozechner/pi-coding-agent';
 import type { Context7ConfigFile, Context7Settings } from './types';
 
 export const DEFAULT_RESOLVE_TTL_HOURS = 24 * 7;
 export const DEFAULT_DOCS_TTL_HOURS = 24;
 
-const extensionDir = dirname(fileURLToPath(import.meta.url));
+const extensionDir = join(getAgentDir(), 'extensions', 'context7');
 const configPath = join(extensionDir, 'config.json');
 const cacheDir = join(extensionDir, 'cache');
 
