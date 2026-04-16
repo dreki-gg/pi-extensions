@@ -1,5 +1,14 @@
 # @dreki-gg/pi-subagent
 
+## 0.3.1
+
+### Patch Changes
+
+- [`144498f`](https://github.com/dreki-gg/pi-extensions/commit/144498fd9c23cb5060fb5171e56ff722ebf0c4f2) Thanks [@jalbarrang](https://github.com/jalbarrang)! - Fix two bugs in the `subagent` tool surfaced when spawning long-running reviewer agents:
+
+  - **Bun standalone binary spawn failure**: `getPiInvocation` now detects Bun's virtual filesystem paths (`/$bunfs/...`) in `process.argv[1]` and falls back to invoking the compiled binary directly. Previously, spawned subagents would fail with errors like `/$bunfs/root/pi doesn't exist in this environment` because the virtual path was passed verbatim to `spawn`.
+  - **Parallel summary truncation**: `parallel` mode no longer truncates each child agent's final output to 100 characters in the tool result summary. Long reviews from editorial/scout agents are now returned in full so callers don't need to scrape temp files or re-run agents to see their work.
+
 ## 0.3.0
 
 ### Minor Changes
