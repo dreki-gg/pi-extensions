@@ -256,13 +256,19 @@ async function writePromptToTempFile(
 
 function getPiInvocation(args: string[]): { command: string; args: string[] } {
   const currentScript = process.argv[1];
-  if (currentScript && fs.existsSync(currentScript)) {
+
+  // Bun standalone binaries set argv[1] to a virtual FS path (e.g. /$bunfs/root/pi)
+  // that only resolves inside the running Bun process. Skip it — the binary IS the entry point.
+  const isBunVirtualPath = currentScript?.startsWith('/$bunfs/');
+
+  if (currentScript && !isBunVirtualPath && fs.existsSync(currentScript)) {
     return { command: process.execPath, args: [currentScript, ...args] };
   }
 
   const execName = path.basename(process.execPath).toLowerCase();
   const isGenericRuntime = /^(node|bun)(\.exe)?$/.test(execName);
   if (!isGenericRuntime) {
+    // Standalone binary (e.g. pi compiled with Bun) — invoke directly
     return { command: process.execPath, args };
   }
 
@@ -719,8 +725,7 @@ export default function (pi: ExtensionAPI) {
         const successCount = results.filter((r) => r.exitCode === 0).length;
         const summaries = results.map((r) => {
           const output = getFinalOutput(r.messages);
-          const preview = output.slice(0, 100) + (output.length > 100 ? '...' : '');
-          return `[${r.agent}] ${r.exitCode === 0 ? 'completed' : 'failed'}: ${preview || '(no output)'}`;
+          return `[${r.agent}] ${r.exitCode === 0 ? 'completed' : 'failed'}: ${output || '(no output)'}`;
         });
         return {
           content: [
