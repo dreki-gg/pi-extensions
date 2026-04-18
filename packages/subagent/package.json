@@ -28,6 +28,9 @@
     ],
     "prompts": [
       "./prompts"
+    ],
+    "agents": [
+      "./agents"
     ]
   },
   "devDependencies": {

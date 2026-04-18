@@ -1,13 +1,21 @@
 /**
  * Agent discovery and configuration
+ *
+ * Supports two discovery strategies:
+ * 1. Package-resolved: Uses pi's ResolvedPaths.agents from the package manager
+ *    when available (pi forks with first-class agents resource support).
+ *    Package agents are resolved, filtered, and toggleable via pi config.
+ * 2. Legacy: Manual filesystem discovery from bundled, user, and project dirs.
+ *    Used as fallback when ResolvedPaths.agents is not available.
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getAgentDir, parseFrontmatter } from '@mariozechner/pi-coding-agent';
+import type { ResolvedPaths } from '@mariozechner/pi-coding-agent';
 
 export type AgentScope = 'user' | 'project' | 'both';
-export type AgentSource = 'bundled' | 'user' | 'project';
+export type AgentSource = 'bundled' | 'user' | 'project' | 'package';
 
 export interface AgentConfig {
   name: string;
@@ -100,6 +108,56 @@ function findNearestProjectAgentsDir(cwd: string): string | null {
   }
 }
 
+/**
+ * Load agents from package-manager resolved paths (enabled only).
+ * This is called with pre-resolved paths from an async context.
+ */
+export function loadAgentsFromResolvedPaths(resolvedPaths: ResolvedPaths): AgentConfig[] {
+  // Check if the agents field exists (compatibility with upstream pi)
+  const agentResources = (resolvedPaths as unknown as Record<string, unknown>).agents;
+  if (!agentResources || !Array.isArray(agentResources)) {
+    return [];
+  }
+
+  const agents: AgentConfig[] = [];
+  for (const resource of agentResources) {
+    if (!resource.enabled) continue;
+    const agent = loadAgentFromFile(resource.path, 'package');
+    if (agent) agents.push(agent);
+  }
+  return agents;
+}
+
+function loadAgentFromFile(filePath: string, source: AgentSource): AgentConfig | null {
+  let content: string;
+  try {
+    content = fs.readFileSync(filePath, 'utf-8');
+  } catch {
+    return null;
+  }
+
+  const { frontmatter, body } = parseFrontmatter<Record<string, string>>(content);
+  if (!frontmatter.name || !frontmatter.description) {
+    return null;
+  }
+
+  const tools = frontmatter.tools
+    ?.split(',')
+    .map((t: string) => t.trim())
+    .filter(Boolean);
+
+  return {
+    name: frontmatter.name,
+    description: frontmatter.description,
+    tools: tools && tools.length > 0 ? tools : undefined,
+    model: frontmatter.model,
+    thinking: frontmatter.thinking,
+    systemPrompt: body,
+    source,
+    filePath,
+  };
+}
+
 export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryResult {
   const userDir = path.join(getAgentDir(), 'agents');
   const projectAgentsDir = findNearestProjectAgentsDir(cwd);
@@ -126,6 +184,34 @@ export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryRe
   }
 
   return { agents: Array.from(agentMap.values()), projectAgentsDir };
+}
+
+/**
+ * Discover agents with package-resolved paths merged in.
+ * Package-resolved agents (from pi.agents in installed packages) are loaded
+ * at lowest priority, then overridden by bundled, user, and project agents.
+ *
+ * Falls back to discoverAgents() when resolvedPaths is not provided or
+ * does not contain the agents field (upstream pi compatibility).
+ */
+export function discoverAgentsWithPackages(
+  cwd: string,
+  scope: AgentScope,
+  resolvedPaths?: ResolvedPaths,
+): AgentDiscoveryResult {
+  const base = discoverAgents(cwd, scope);
+
+  if (!resolvedPaths) return base;
+
+  const packageAgents = loadAgentsFromResolvedPaths(resolvedPaths);
+  if (packageAgents.length === 0) return base;
+
+  // Package agents are lowest priority: existing agents override by name
+  const agentMap = new Map<string, AgentConfig>();
+  for (const agent of packageAgents) agentMap.set(agent.name, agent);
+  for (const agent of base.agents) agentMap.set(agent.name, agent);
+
+  return { agents: Array.from(agentMap.values()), projectAgentsDir: base.projectAgentsDir };
 }
 
 export { bundledAgentsDir };

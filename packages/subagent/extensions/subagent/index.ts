@@ -25,10 +25,13 @@ import { StringEnum } from '@mariozechner/pi-ai';
 import {
   type ExtensionAPI,
   type ExtensionCommandContext,
+  DefaultPackageManager,
   getAgentDir,
   getMarkdownTheme,
+  SettingsManager,
   withFileMutationQueue,
 } from '@mariozechner/pi-coding-agent';
+import type { ResolvedPaths } from '@mariozechner/pi-coding-agent';
 import { Container, Markdown, Spacer, Text } from '@mariozechner/pi-tui';
 import { Type } from '@sinclair/typebox';
 import {
@@ -37,6 +40,7 @@ import {
   type AgentSource,
   bundledAgentsDir,
   discoverAgents,
+  discoverAgentsWithPackages,
 } from './agents.js';
 import { formatDelegateUsage, parseDelegateArgs } from './delegate-args.js';
 import { runAgent, runParallel } from './delegate-executor.js';
@@ -507,6 +511,26 @@ const SubagentParams = Type.Object({
   ),
 });
 
+/**
+ * Try to resolve package paths including the agents resource.
+ * Returns null if the pi version does not support ResolvedPaths.agents.
+ */
+async function tryResolvePackagePaths(cwd: string): Promise<ResolvedPaths | undefined> {
+  try {
+    const agentDir = getAgentDir();
+    const settingsManager = SettingsManager.create(cwd, agentDir);
+    const packageManager = new DefaultPackageManager({ cwd, agentDir, settingsManager });
+    const resolved = await packageManager.resolve();
+    // Check if this pi version has agents support
+    if ('agents' in resolved && Array.isArray((resolved as Record<string, unknown>).agents)) {
+      return resolved;
+    }
+  } catch {
+    // Incompatible pi version or missing API
+  }
+  return undefined;
+}
+
 export default function (pi: ExtensionAPI) {
   pi.registerTool({
     name: 'subagent',
@@ -521,7 +545,8 @@ export default function (pi: ExtensionAPI) {
 
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
       const agentScope: AgentScope = params.agentScope ?? 'user';
-      const discovery = discoverAgents(ctx.cwd, agentScope);
+      const resolvedPaths = await tryResolvePackagePaths(ctx.cwd);
+      const discovery = discoverAgentsWithPackages(ctx.cwd, agentScope, resolvedPaths);
       const agents = discovery.agents;
       const confirmProjectAgents = params.confirmProjectAgents ?? true;
 
@@ -1142,6 +1167,7 @@ export default function (pi: ExtensionAPI) {
     previousOutput: string,
     ctx: ExtensionCommandContext,
     agentScope: AgentScope,
+    resolvedPaths?: ResolvedPaths,
   ): Promise<{ results: AgentResult[]; output: string; aborted: boolean }> {
     const task = phase.taskTemplate
       .replace(/\{synthesis\}/g, synthesis)
@@ -1160,11 +1186,13 @@ export default function (pi: ExtensionAPI) {
           // Streaming updates happen per-message
         },
         phaseName: phase.name,
+        resolvedPaths,
       });
     } else {
       const result = await runAgent(cwd, phase.agents[0], task, {
         agentScope,
         phaseName: phase.name,
+        resolvedPaths,
       });
       results = [result];
     }
@@ -1311,6 +1339,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       const { explicitTask, agentScope, workflowId, confirmProjectAgents } = parsed.options;
+      const resolvedPaths = await tryResolvePackagePaths(ctx.cwd);
 
       // Step 1: Synthesize
       const conversation = extractRecentConversation(ctx);
@@ -1322,7 +1351,7 @@ export default function (pi: ExtensionAPI) {
       const prompt = buildSynthesisPrompt(conversation, explicitTask);
       ctx.ui.notify('⏳ Synthesizing task from conversation...', 'info');
 
-      const synthResult = await runAgent(ctx.cwd, 'planner', prompt, { agentScope });
+      const synthResult = await runAgent(ctx.cwd, 'planner', prompt, { agentScope, resolvedPaths });
       const synthesis = getFinalText(synthResult);
 
       if (!synthesis.trim()) {
@@ -1351,7 +1380,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       if ((agentScope === 'project' || agentScope === 'both') && confirmProjectAgents && ctx.hasUI) {
-        const discovery = discoverAgents(ctx.cwd, agentScope);
+        const discovery = discoverAgentsWithPackages(ctx.cwd, agentScope, resolvedPaths);
         const requestedProjectAgents = workflow.phases
           .flatMap((phase) => phase.agents)
           .map((name) => discovery.agents.find((agent) => agent.name === name))
@@ -1391,6 +1420,7 @@ export default function (pi: ExtensionAPI) {
           previousOutput,
           ctx,
           agentScope,
+          resolvedPaths,
         );
 
         const phase: PhaseResult = {

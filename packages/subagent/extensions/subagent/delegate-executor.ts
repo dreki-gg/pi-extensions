@@ -3,8 +3,9 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { withFileMutationQueue } from '@mariozechner/pi-coding-agent';
+import type { ResolvedPaths } from '@mariozechner/pi-coding-agent';
 import type { Message } from '@mariozechner/pi-ai';
-import { discoverAgents, type AgentScope } from './agents';
+import { discoverAgentsWithPackages, type AgentScope } from './agents';
 import type { AgentResult, UsageStats } from './delegate-types';
 
 function emptyUsage(): UsageStats {
@@ -45,6 +46,7 @@ export interface RunAgentOptions {
   onUpdate?: OnPhaseUpdate;
   phaseName?: string;
   signal?: AbortSignal;
+  resolvedPaths?: ResolvedPaths;
 }
 
 export async function runAgent(
@@ -53,7 +55,7 @@ export async function runAgent(
   task: string,
   options: RunAgentOptions = {},
 ): Promise<AgentResult> {
-  const { agents } = discoverAgents(cwd, options.agentScope ?? 'user');
+  const { agents } = discoverAgentsWithPackages(cwd, options.agentScope ?? 'user', options.resolvedPaths);
   const agent = agents.find((a) => a.name === agentName);
 
   if (!agent) {
