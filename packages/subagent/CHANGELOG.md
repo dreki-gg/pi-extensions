@@ -1,5 +1,11 @@
 # @dreki-gg/pi-subagent
 
+## 0.5.0
+
+### Minor Changes
+
+- [`4f2f148`](https://github.com/dreki-gg/pi-extensions/commit/4f2f148488e32ff43f97216a5c221fd9d1716a11) Thanks [@jalbarrang](https://github.com/jalbarrang)! - added agents to the registry so my fork is able to discover subagent files
+
 ## 0.4.0
 
 ### Minor Changes
