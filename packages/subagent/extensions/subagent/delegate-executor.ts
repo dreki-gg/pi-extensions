@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { withFileMutationQueue } from '@mariozechner/pi-coding-agent';
 import type { Message } from '@mariozechner/pi-ai';
-import { discoverAgents } from './agents';
+import { discoverAgents, type AgentScope } from './agents';
 import type { AgentResult, UsageStats } from './delegate-types';
 
 function emptyUsage(): UsageStats {
@@ -39,14 +39,21 @@ async function writePromptToTempFile(
 
 export type OnPhaseUpdate = (phaseName: string, agentName: string, result: AgentResult) => void;
 
+export interface RunAgentOptions {
+  agentScope?: AgentScope;
+  cwd?: string;
+  onUpdate?: OnPhaseUpdate;
+  phaseName?: string;
+  signal?: AbortSignal;
+}
+
 export async function runAgent(
   cwd: string,
   agentName: string,
   task: string,
-  onUpdate?: OnPhaseUpdate,
-  phaseName?: string,
+  options: RunAgentOptions = {},
 ): Promise<AgentResult> {
-  const { agents } = discoverAgents(cwd, 'user');
+  const { agents } = discoverAgents(cwd, options.agentScope ?? 'user');
   const agent = agents.find((a) => a.name === agentName);
 
   if (!agent) {
@@ -92,7 +99,7 @@ export async function runAgent(
     const exitCode = await new Promise<number>((resolve) => {
       const invocation = getPiInvocation(args);
       const proc = spawn(invocation.command, invocation.args, {
-        cwd,
+        cwd: options.cwd ?? cwd,
         shell: false,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
@@ -128,12 +135,14 @@ export async function runAgent(
             if (msg.errorMessage) result.errorMessage = msg.errorMessage;
           }
 
-          if (onUpdate) onUpdate(phaseName ?? 'unknown', agentName, { ...result });
+          if (options.onUpdate)
+            options.onUpdate(options.phaseName ?? 'unknown', agentName, { ...result });
         }
 
         if (event.type === 'tool_result_end' && event.message) {
           result.messages.push(event.message as Message);
-          if (onUpdate) onUpdate(phaseName ?? 'unknown', agentName, { ...result });
+          if (options.onUpdate)
+            options.onUpdate(options.phaseName ?? 'unknown', agentName, { ...result });
         }
       };
 
@@ -154,6 +163,17 @@ export async function runAgent(
       });
 
       proc.on('error', () => resolve(1));
+
+      if (options.signal) {
+        const killProc = () => {
+          proc.kill('SIGTERM');
+          setTimeout(() => {
+            if (!proc.killed) proc.kill('SIGKILL');
+          }, 5000);
+        };
+        if (options.signal.aborted) killProc();
+        else options.signal.addEventListener('abort', killProc, { once: true });
+      }
     });
 
     result.exitCode = exitCode;
@@ -178,8 +198,7 @@ export async function runParallel(
   cwd: string,
   agentNames: string[],
   task: string,
-  onUpdate?: OnPhaseUpdate,
-  phaseName?: string,
+  options: RunAgentOptions = {},
 ): Promise<AgentResult[]> {
   const MAX_CONCURRENCY = 4;
   const results: AgentResult[] = new Array(agentNames.length);
@@ -191,7 +210,7 @@ export async function runParallel(
       while (true) {
         const current = nextIndex++;
         if (current >= agentNames.length) return;
-        results[current] = await runAgent(cwd, agentNames[current], task, onUpdate, phaseName);
+        results[current] = await runAgent(cwd, agentNames[current], task, options);
       }
     });
 

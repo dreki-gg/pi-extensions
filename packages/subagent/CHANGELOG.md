@@ -20,7 +20,7 @@
   - `/delegate` command — synthesize conversation into a task, pick a workflow, execute with scouts/planner/worker/reviewer
   - `/delegate-agents` command — list, customize, or reset bundled agents
   - 6 bundled agents: scout, docs-scout, planner, worker, reviewer, ux-designer
-  - `subagent-workflows` skill for guided orchestration
+  - `spawn-subagents` skill for conversational subagent orchestration
   - 3 prompt templates: implement, scout-and-plan, implement-and-review
 
   ### Bundled agent discovery

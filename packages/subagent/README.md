@@ -18,9 +18,21 @@ The `subagent` tool supports three modes:
 | Parallel | `{ tasks: [...] }` — multiple agents concurrently |
 | Chain | `{ chain: [...] }` — sequential with `{previous}` placeholder |
 
-## Delegate Command
+## Recommended Usage
 
-After a design/grill session:
+In day-to-day use, the main agent should usually call the `subagent` tool from normal conversation.
+
+Examples:
+- "spawn a scout for the auth code"
+- "run scout and docs-scout in parallel"
+- "have planner make a plan, then worker implement it"
+- "send this to reviewer"
+
+`/delegate` is optional. It exists for rigid gated workflows, plan approval, and explicit workflow control.
+
+## Optional Delegate Command
+
+After a design/grill session, or when you explicitly want a guided workflow:
 
 ```
 /delegate
@@ -32,6 +44,18 @@ Or with an explicit task:
 /delegate implement the auth flow we designed
 ```
 
+Use project-local repo agents:
+
+```
+/delegate --scope project implement the subagent refactor
+```
+
+Pin a workflow and skip the project-agent confirmation prompt:
+
+```
+/delegate --scope project --workflow implement --yes-project-agents improve delegate execution
+```
+
 ### How it works
 
 1. **Synthesize** — extracts goal, decisions, constraints, architecture, intent from conversation
@@ -40,6 +64,14 @@ Or with an explicit task:
 4. **Execute** — runs phases sequentially with parallel scouts
 5. **Plan gate** — shows planner output for approval before worker runs
 6. **Summary** — full phase-by-phase report with usage totals
+
+### Delegate Flags
+
+| Flag | Meaning |
+|------|---------|
+| `--scope user|project|both` | Which agent layers to use. Default: `user` |
+| `--workflow <id>` | Skip the picker and force a workflow |
+| `--yes-project-agents` | Disable the confirmation prompt for project-local agents |
 
 ### Workflows
 
@@ -54,7 +86,7 @@ Or with an explicit task:
 
 ## Agent Definitions
 
-Create agent files in `~/.pi/agent/agents/` as markdown with YAML frontmatter:
+Create agent files in `~/.pi/agent/agents/` or `.pi/agents/` as markdown with YAML frontmatter:
 
 ```markdown
 ---
@@ -78,7 +110,9 @@ The package ships with these agents out of the box:
 - `reviewer` — code review
 - `ux-designer` — frontend UI design
 
-User agents in `~/.pi/agent/agents/` override bundled agents by name.
+Resolution order is: bundled → user (`~/.pi/agent/agents/`) → project (`.pi/agents/`). Project agents override user and bundled agents by name.
+
+> Note: pi packages do not currently expose a first-class `agents` manifest. If you mirror package agents into `~/.pi/agent/agents/`, treat those files as managed package artifacts rather than hand-authored overrides.
 
 ### Managing Agents
 
@@ -92,7 +126,7 @@ User agents in `~/.pi/agent/agents/` override bundled agents by name.
 ## Bundled Resources
 
 ### Skill
-- `subagent-workflows` — guides the model on when/how to use subagent orchestration
+- `spawn-subagents` — guides the model on when/how to spawn specialized subagents conversationally
 
 ### Prompt Templates
 - `/implement` — scout → planner → worker

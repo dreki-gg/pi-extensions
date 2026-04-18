@@ -7,6 +7,7 @@ import * as path from 'node:path';
 import { getAgentDir, parseFrontmatter } from '@mariozechner/pi-coding-agent';
 
 export type AgentScope = 'user' | 'project' | 'both';
+export type AgentSource = 'bundled' | 'user' | 'project';
 
 export interface AgentConfig {
   name: string;
@@ -15,7 +16,7 @@ export interface AgentConfig {
   model?: string;
   thinking?: string;
   systemPrompt: string;
-  source: 'user' | 'project';
+  source: AgentSource;
   filePath: string;
 }
 
@@ -27,7 +28,7 @@ export interface AgentDiscoveryResult {
 /** Bundled agents ship with the package (../../agents relative to extensions/subagent/) */
 const bundledAgentsDir = path.resolve(import.meta.dirname, '..', '..', 'agents');
 
-function loadAgentsFromDir(dir: string, source: 'user' | 'project'): AgentConfig[] {
+function loadAgentsFromDir(dir: string, source: AgentSource): AgentConfig[] {
   const agents: AgentConfig[] = [];
 
   if (!fs.existsSync(dir)) {
@@ -104,7 +105,7 @@ export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryRe
   const projectAgentsDir = findNearestProjectAgentsDir(cwd);
 
   // Bundled agents from the package itself (lowest priority)
-  const bundledAgents = loadAgentsFromDir(bundledAgentsDir, 'project');
+  const bundledAgents = loadAgentsFromDir(bundledAgentsDir, 'bundled');
 
   const userAgents = scope === 'project' ? [] : loadAgentsFromDir(userDir, 'user');
   const projectAgents =

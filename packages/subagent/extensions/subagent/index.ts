@@ -31,7 +31,14 @@ import {
 } from '@mariozechner/pi-coding-agent';
 import { Container, Markdown, Spacer, Text } from '@mariozechner/pi-tui';
 import { Type } from '@sinclair/typebox';
-import { type AgentConfig, type AgentScope, bundledAgentsDir, discoverAgents } from './agents.js';
+import {
+  type AgentConfig,
+  type AgentScope,
+  type AgentSource,
+  bundledAgentsDir,
+  discoverAgents,
+} from './agents.js';
+import { formatDelegateUsage, parseDelegateArgs } from './delegate-args.js';
 import { runAgent, runParallel } from './delegate-executor.js';
 import { buildSynthesisPrompt, extractRecentConversation } from './synthesis.js';
 import type {
@@ -50,6 +57,7 @@ import {
   getFinalText,
   pickWorkflow,
 } from './delegate-ui.js';
+import { getWorkflow, suggestWorkflow } from './workflows.js';
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
@@ -172,7 +180,7 @@ interface UsageStats {
 
 interface SingleResult {
   agent: string;
-  agentSource: 'user' | 'project' | 'unknown';
+  agentSource: AgentSource | 'unknown';
   task: string;
   exitCode: number;
   messages: Message[];
@@ -1133,6 +1141,7 @@ export default function (pi: ExtensionAPI) {
     synthesis: string,
     previousOutput: string,
     ctx: ExtensionCommandContext,
+    agentScope: AgentScope,
   ): Promise<{ results: AgentResult[]; output: string; aborted: boolean }> {
     const task = phase.taskTemplate
       .replace(/\{synthesis\}/g, synthesis)
@@ -1145,17 +1154,18 @@ export default function (pi: ExtensionAPI) {
 
     let results: AgentResult[];
     if (phase.kind === 'parallel') {
-      results = await runParallel(
-        cwd,
-        phase.agents,
-        task,
-        (_phaseName, _agentName, _result) => {
+      results = await runParallel(cwd, phase.agents, task, {
+        agentScope,
+        onUpdate: (_phaseName, _agentName, _result) => {
           // Streaming updates happen per-message
         },
-        phase.name,
-      );
+        phaseName: phase.name,
+      });
     } else {
-      const result = await runAgent(cwd, phase.agents[0], task, undefined, phase.name);
+      const result = await runAgent(cwd, phase.agents[0], task, {
+        agentScope,
+        phaseName: phase.name,
+      });
       results = [result];
     }
 
@@ -1173,7 +1183,7 @@ export default function (pi: ExtensionAPI) {
     const output = combineParallelOutputs(results);
     ctx.ui.notify(formatPhaseHeader(phase.name, 'done'), 'info');
 
-    if (phase.requiresConfirmation) {
+    if (phase.requiresConfirmation && ctx.hasUI) {
       const planText = output;
       const proceed = await confirmPlan(ctx, planText);
       if (!proceed) {
@@ -1291,24 +1301,28 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.registerCommand('delegate', {
-    description: 'Orchestrate subagent workflows — scouts, planners, workers, reviewers',
+    description:
+      'Orchestrate subagent workflows — supports --scope, --workflow, and project-local agents',
     handler: async (args, ctx) => {
-      const explicitTask = args?.trim() || undefined;
+      const parsed = parseDelegateArgs(args);
+      if (!parsed.ok) {
+        ctx.ui.notify(parsed.error, 'warning');
+        return;
+      }
+
+      const { explicitTask, agentScope, workflowId, confirmProjectAgents } = parsed.options;
 
       // Step 1: Synthesize
       const conversation = extractRecentConversation(ctx);
       if (!conversation.trim() && !explicitTask) {
-        ctx.ui.notify(
-          'No conversation context and no task specified. Usage: /delegate [task]',
-          'warning',
-        );
+        ctx.ui.notify(`No conversation context and no task specified.\n\n${formatDelegateUsage()}`, 'warning');
         return;
       }
 
       const prompt = buildSynthesisPrompt(conversation, explicitTask);
       ctx.ui.notify('⏳ Synthesizing task from conversation...', 'info');
 
-      const synthResult = await runAgent(ctx.cwd, 'planner', prompt);
+      const synthResult = await runAgent(ctx.cwd, 'planner', prompt, { agentScope });
       const synthesis = getFinalText(synthResult);
 
       if (!synthesis.trim()) {
@@ -1317,17 +1331,44 @@ export default function (pi: ExtensionAPI) {
       }
 
       // Step 2: Confirm synthesis
-      const synthOk = await confirmSynthesis(ctx, synthesis);
-      if (!synthOk) {
-        ctx.ui.notify('Delegate cancelled.', 'info');
-        return;
+      if (ctx.hasUI) {
+        const synthOk = await confirmSynthesis(ctx, synthesis);
+        if (!synthOk) {
+          ctx.ui.notify('Delegate cancelled.', 'info');
+          return;
+        }
       }
 
       // Step 3: Pick workflow
-      const workflow = await pickWorkflow(ctx, synthesis);
+      const workflow = workflowId
+        ? getWorkflow(workflowId)
+        : ctx.hasUI
+          ? await pickWorkflow(ctx, synthesis)
+          : getWorkflow(suggestWorkflow(synthesis));
       if (!workflow) {
         ctx.ui.notify('Delegate cancelled — no workflow selected.', 'info');
         return;
+      }
+
+      if ((agentScope === 'project' || agentScope === 'both') && confirmProjectAgents && ctx.hasUI) {
+        const discovery = discoverAgents(ctx.cwd, agentScope);
+        const requestedProjectAgents = workflow.phases
+          .flatMap((phase) => phase.agents)
+          .map((name) => discovery.agents.find((agent) => agent.name === name))
+          .filter((agent): agent is AgentConfig => agent?.source === 'project');
+
+        if (requestedProjectAgents.length > 0) {
+          const names = Array.from(new Set(requestedProjectAgents.map((agent) => agent.name))).join(', ');
+          const dir = discovery.projectAgentsDir ?? '(unknown)';
+          const ok = await ctx.ui.confirm(
+            'Run project-local agents?',
+            `Agents: ${names}\nSource: ${dir}\n\nProject agents are repo-controlled. Only continue for trusted repositories.`,
+          );
+          if (!ok) {
+            ctx.ui.notify('Delegate cancelled — project-local agents not approved.', 'info');
+            return;
+          }
+        }
       }
 
       // Step 4: Execute phases
@@ -1340,10 +1381,17 @@ export default function (pi: ExtensionAPI) {
 
       let previousOutput = '';
 
-      ctx.ui.notify(`Starting workflow: ${workflow.label}`, 'info');
+      ctx.ui.notify(`Starting workflow: ${workflow.label} [${agentScope}]`, 'info');
 
       for (const phaseDef of workflow.phases) {
-        const phaseResult = await executePhase(ctx.cwd, phaseDef, synthesis, previousOutput, ctx);
+        const phaseResult = await executePhase(
+          ctx.cwd,
+          phaseDef,
+          synthesis,
+          previousOutput,
+          ctx,
+          agentScope,
+        );
 
         const phase: PhaseResult = {
           name: phaseDef.name,
@@ -1375,6 +1423,7 @@ export default function (pi: ExtensionAPI) {
         display: true,
         details: {
           workflow: workflow.id,
+          agentScope,
           phaseCount: state.phases.length,
           totalUsage: state.totalUsage,
         },
