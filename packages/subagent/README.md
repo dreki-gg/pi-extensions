@@ -28,6 +28,12 @@ Examples:
 - "have planner make a plan, then worker implement it"
 - "send this to reviewer"
 
+For direct user-invoked single-agent runs, use:
+
+```text
+/run-agent worker implement the auth flow we discussed
+```
+
 `/delegate` is optional. It exists for rigid gated workflows, plan approval, and explicit workflow control.
 
 ## Optional Delegate Command
@@ -65,6 +71,24 @@ Pin a workflow and skip the project-agent confirmation prompt:
 5. **Plan gate** — shows planner output for approval before worker runs
 6. **Summary** — full phase-by-phase report with usage totals
 
+## Direct Agent Runs
+
+Run one agent directly from the current session:
+
+```text
+/run-agent [--scope user|project|both] [--yes-project-agents] <agent> [task]
+```
+
+Examples:
+
+```text
+/run-agent scout trace how auth state is loaded
+/run-agent worker implement the refactor we just planned
+/run-agent --scope project reviewer review the latest changes
+```
+
+If the chosen agent frontmatter sets `sessionStrategy: fork-at`, the command clones the current active path into a new session before running the agent. That keeps long implementation runs isolated in their own branch while preserving the original conversation.
+
 ### Delegate Flags
 
 | Flag | Meaning |
@@ -94,6 +118,7 @@ name: my-agent
 description: What this agent does
 tools: read, grep, find, ls
 model: anthropic/claude-haiku-4-5
+sessionStrategy: fork-at
 ---
 
 System prompt for the agent.
@@ -106,13 +131,17 @@ The package ships with these agents out of the box:
 - `scout` — fast codebase recon
 - `docs-scout` — Context7-first documentation lookup
 - `planner` — implementation planning
-- `worker` — general-purpose implementation
-- `reviewer` — code review
+- `worker` — general-purpose implementation (`sessionStrategy: fork-at` by default)
+- `reviewer` — code review (`sessionStrategy: fork-at` by default)
 - `ux-designer` — frontend UI design
 
 Resolution order is: bundled → user (`~/.pi/agent/agents/`) → project (`.pi/agents/`). Project agents override user and bundled agents by name.
 
-> Note: pi packages do not currently expose a first-class `agents` manifest. If you mirror package agents into `~/.pi/agent/agents/`, treat those files as managed package artifacts rather than hand-authored overrides.
+Optional frontmatter:
+- `thinking` — reasoning effort for the spawned pi process
+- `sessionStrategy: fork-at` — when used with `/run-agent`, clone the current active branch into a new session before running
+
+> Note: pi now supports package-shipped agents via `pi.agents` (or conventional `agents/` directories). This package publishes its bundled agents that way, while user agents in `~/.pi/agent/agents/` and project agents in `.pi/agents/` still override them by name.
 
 ### Managing Agents
 

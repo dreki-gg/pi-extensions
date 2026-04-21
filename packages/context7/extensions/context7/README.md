@@ -1,6 +1,6 @@
 # pi Context7 Extension
 
-Pi-native Context7 tools with direct HTTP integration, persistent cache, and MCP-compatible aliases.
+Pi-native Context7 tools with direct HTTP integration and persistent cache.
 
 ## Public tools
 
@@ -9,12 +9,6 @@ Primary tools:
 - `context7_resolve_library_id`
 - `context7_get_library_docs`
 - `context7_get_cached_doc_raw`
-
-Compatibility aliases:
-
-- `resolve-library-id`
-- `get-library-docs`
-- `query-docs`
 
 ## Configuration
 

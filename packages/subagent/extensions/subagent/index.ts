@@ -32,7 +32,7 @@ import {
   withFileMutationQueue,
 } from '@mariozechner/pi-coding-agent';
 import type { ResolvedPaths } from '@mariozechner/pi-coding-agent';
-import { Container, Markdown, Spacer, Text } from '@mariozechner/pi-tui';
+import { Box, Container, Markdown, Spacer, Text } from '@mariozechner/pi-tui';
 import { Type } from '@sinclair/typebox';
 import {
   type AgentConfig,
@@ -42,7 +42,12 @@ import {
   discoverAgents,
   discoverAgentsWithPackages,
 } from './agents.js';
-import { formatDelegateUsage, parseDelegateArgs } from './delegate-args.js';
+import {
+  formatDelegateUsage,
+  formatRunAgentUsage,
+  parseDelegateArgs,
+  parseRunAgentArgs,
+} from './delegate-args.js';
 import { runAgent, runParallel } from './delegate-executor.js';
 import { buildSynthesisPrompt, extractRecentConversation } from './synthesis.js';
 import type {
@@ -180,6 +185,20 @@ interface UsageStats {
   cost: number;
   contextTokens: number;
   turns: number;
+}
+
+interface RunAgentSummaryDetails {
+  agent: string;
+  agentSource: AgentSource;
+  agentScope: AgentScope;
+  sessionStrategy: string;
+  forked: boolean;
+  exitCode: number;
+  stopReason?: string;
+  errorMessage?: string;
+  usage: UsageStats;
+  task: string;
+  output: string;
 }
 
 interface SingleResult {
@@ -1160,6 +1179,130 @@ export default function (pi: ExtensionAPI) {
       .join('\n\n');
   }
 
+  async function confirmProjectAgentsIfNeeded(
+    ctx: ExtensionCommandContext,
+    agents: AgentConfig[],
+    projectAgentsDir: string | null,
+    confirmProjectAgents: boolean,
+  ): Promise<boolean> {
+    if (!ctx.hasUI || !confirmProjectAgents || agents.length === 0) return true;
+
+    const names = Array.from(new Set(agents.map((agent) => agent.name))).join(', ');
+    const dir = projectAgentsDir ?? '(unknown)';
+    return ctx.ui.confirm(
+      'Run project-local agents?',
+      `Agents: ${names}\nSource: ${dir}\n\nProject agents are repo-controlled. Only continue for trusted repositories.`,
+    );
+  }
+
+  function buildRunAgentTask(conversation: string, explicitTask?: string): string | undefined {
+    const trimmedConversation = conversation.trim();
+    const trimmedTask = explicitTask?.trim();
+
+    if (trimmedTask && trimmedConversation) {
+      return `Assigned task:\n${trimmedTask}\n\nRelevant main-session context:\n${trimmedConversation}`;
+    }
+
+    if (trimmedTask) return trimmedTask;
+    if (trimmedConversation) {
+      return `Use the following main-session context to determine and complete the task:\n\n${trimmedConversation}`;
+    }
+
+    return undefined;
+  }
+
+  function formatRunAgentSummary(options: {
+    agent: AgentConfig;
+    agentScope: AgentScope;
+    task: string;
+    result: AgentResult;
+    forked: boolean;
+  }): string {
+    const { agent, agentScope, task, result, forked } = options;
+    const output = getFinalText(result).trim();
+    const usage = formatUsageStats(result.usage, result.model);
+    const failed = result.exitCode !== 0 || result.stopReason === 'error';
+    const status = failed ? 'failed' : 'completed';
+    const lines = [
+      '## Agent Run',
+      `- Agent: \`${agent.name}\``,
+      `- Source: ${agent.source}`,
+      `- Scope: ${agentScope}`,
+      `- Session strategy: ${agent.sessionStrategy ?? 'inline'}`,
+      `- Session handling: ${forked ? 'forked current branch at active entry' : 'inline in current session'}`,
+      `- Status: ${status}`,
+      '',
+      '## Task',
+      task,
+      '',
+      '## Output',
+      output || '_No output returned._',
+    ];
+
+    if (failed) {
+      const errorText = result.errorMessage?.trim() || result.stderr.trim();
+      if (errorText) {
+        lines.push('', '## Error', errorText);
+      }
+    }
+
+    if (usage) {
+      lines.push('', '## Usage', usage);
+    }
+
+    return lines.join('\n');
+  }
+
+  pi.registerMessageRenderer('run-agent-summary', (message, { expanded }, theme) => {
+    const details = message.details as RunAgentSummaryDetails | undefined;
+    if (!details) return new Text(typeof message.content === 'string' ? message.content : '', 0, 0);
+
+    const failed = details.exitCode !== 0 || details.stopReason === 'error';
+    const icon = failed ? theme.fg('error', '✗') : theme.fg('success', '✓');
+    const title = `${icon} ${theme.fg('toolTitle', theme.bold(details.agent))}${theme.fg('muted', ` (${details.agentSource})`)}`;
+    const modeLine = theme.fg(
+      'dim',
+      `${details.forked ? 'forked branch' : 'inline'} • ${details.agentScope} • ${details.sessionStrategy}`,
+    );
+    const usageLine = formatUsageStats(details.usage);
+    const outputPreview = details.output.trim() || '(no output)';
+
+    if (!expanded) {
+      const previewLines = outputPreview.split('\n').slice(0, 3).join('\n');
+      const text = [
+        title,
+        modeLine,
+        theme.fg('muted', `Task: ${details.task}`),
+        failed && details.errorMessage ? theme.fg('error', `Error: ${details.errorMessage}`) : previewLines,
+        usageLine ? theme.fg('dim', usageLine) : undefined,
+        theme.fg('muted', '(Ctrl+O to expand)'),
+      ]
+        .filter((line): line is string => Boolean(line))
+        .join('\n');
+      const box = new Box(1, 1, (text) => theme.bg('customMessageBg', text));
+      box.addChild(new Text(text, 0, 0));
+      return box;
+    }
+
+    const mdTheme = getMarkdownTheme();
+    const box = new Box(1, 1, (text) => theme.bg('customMessageBg', text));
+    box.addChild(new Text(title, 0, 0));
+    box.addChild(new Text(modeLine, 0, 0));
+    if (usageLine) box.addChild(new Text(theme.fg('dim', usageLine), 0, 0));
+    box.addChild(new Spacer(1));
+    box.addChild(new Text(theme.fg('muted', 'Task'), 0, 0));
+    box.addChild(new Text(theme.fg('text', details.task), 0, 0));
+    if (failed && details.errorMessage) {
+      box.addChild(new Spacer(1));
+      box.addChild(new Text(theme.fg('error', 'Error'), 0, 0));
+      box.addChild(new Text(theme.fg('error', details.errorMessage), 0, 0));
+    }
+    box.addChild(new Spacer(1));
+    box.addChild(new Text(theme.fg('muted', 'Output'), 0, 0));
+    box.addChild(new Markdown(outputPreview, 0, 0, mdTheme));
+    return box;
+  });
+
   async function executePhase(
     cwd: string,
     phase: PhaseDefinition,
@@ -1328,6 +1471,114 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
+  pi.registerCommand('run-agent', {
+    description:
+      'Run a single agent directly — honors agent sessionStrategy metadata such as fork-at',
+    handler: async (args, ctx) => {
+      const parsed = parseRunAgentArgs(args);
+      if (!parsed.ok) {
+        ctx.ui.notify(parsed.error, 'warning');
+        return;
+      }
+
+      const { agentName, explicitTask, agentScope, confirmProjectAgents } = parsed.options;
+      if (!agentName) {
+        ctx.ui.notify(formatRunAgentUsage(), 'warning');
+        return;
+      }
+
+      const resolvedPaths = await tryResolvePackagePaths(ctx.cwd);
+      const discovery = discoverAgentsWithPackages(ctx.cwd, agentScope, resolvedPaths);
+      const agent = discovery.agents.find((candidate) => candidate.name === agentName);
+
+      if (!agent) {
+        const available = discovery.agents.map((candidate) => candidate.name).join(', ') || 'none';
+        ctx.ui.notify(`Unknown agent: "${agentName}". Available: ${available}`, 'warning');
+        return;
+      }
+
+      const requestedProjectAgents = agent.source === 'project' ? [agent] : [];
+      const approved = await confirmProjectAgentsIfNeeded(
+        ctx,
+        requestedProjectAgents,
+        discovery.projectAgentsDir,
+        confirmProjectAgents,
+      );
+      if (!approved) {
+        ctx.ui.notify('Run cancelled — project-local agents not approved.', 'info');
+        return;
+      }
+
+      const conversation = extractRecentConversation(ctx);
+      const task = buildRunAgentTask(conversation, explicitTask);
+      if (!task) {
+        ctx.ui.notify(`No conversation context and no task specified.\n\n${formatRunAgentUsage()}`, 'warning');
+        return;
+      }
+
+      let forked = false;
+      if (agent.sessionStrategy === 'fork-at') {
+        const leafId = ctx.sessionManager.getLeafId?.();
+        if (!leafId) {
+          ctx.ui.notify(
+            `Agent "${agent.name}" prefers fork-at, but the current session cannot be forked. Running inline instead.`,
+            'warning',
+          );
+        } else {
+          const forkCompat = ctx.fork as unknown as (
+            entryId: string,
+            options?: { position: 'at' },
+          ) => Promise<{ cancelled: boolean }>;
+          const forkResult = await forkCompat(leafId, { position: 'at' });
+          if (forkResult.cancelled) {
+            ctx.ui.notify(`Run cancelled — unable to fork session for "${agent.name}".`, 'info');
+            return;
+          }
+          forked = true;
+        }
+      }
+
+      ctx.ui.notify(
+        `Running agent: ${agent.name} [${agent.source}${forked ? ', forked' : ', inline'}]`,
+        'info',
+      );
+
+      const result = await runAgent(ctx.cwd, agent.name, task, { agentScope, resolvedPaths });
+      const failed = result.exitCode !== 0 || result.stopReason === 'error';
+      const output = getFinalText(result).trim();
+
+      ctx.ui.notify(
+        failed ? `Agent "${agent.name}" failed.` : `Agent "${agent.name}" complete.`,
+        failed ? 'error' : 'info',
+      );
+
+      pi.sendMessage({
+        customType: 'run-agent-summary',
+        content: formatRunAgentSummary({
+          agent,
+          agentScope,
+          task,
+          result,
+          forked,
+        }),
+        display: true,
+        details: {
+          agent: agent.name,
+          agentSource: agent.source,
+          agentScope,
+          sessionStrategy: agent.sessionStrategy ?? 'inline',
+          forked,
+          exitCode: result.exitCode,
+          stopReason: result.stopReason,
+          errorMessage: result.errorMessage,
+          usage: result.usage,
+          task,
+          output,
+        } satisfies RunAgentSummaryDetails,
+      });
+    },
+  });
+
   pi.registerCommand('delegate', {
     description:
       'Orchestrate subagent workflows — supports --scope, --workflow, and project-local agents',
@@ -1379,24 +1630,22 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      if ((agentScope === 'project' || agentScope === 'both') && confirmProjectAgents && ctx.hasUI) {
+      if (agentScope === 'project' || agentScope === 'both') {
         const discovery = discoverAgentsWithPackages(ctx.cwd, agentScope, resolvedPaths);
         const requestedProjectAgents = workflow.phases
           .flatMap((phase) => phase.agents)
           .map((name) => discovery.agents.find((agent) => agent.name === name))
           .filter((agent): agent is AgentConfig => agent?.source === 'project');
 
-        if (requestedProjectAgents.length > 0) {
-          const names = Array.from(new Set(requestedProjectAgents.map((agent) => agent.name))).join(', ');
-          const dir = discovery.projectAgentsDir ?? '(unknown)';
-          const ok = await ctx.ui.confirm(
-            'Run project-local agents?',
-            `Agents: ${names}\nSource: ${dir}\n\nProject agents are repo-controlled. Only continue for trusted repositories.`,
-          );
-          if (!ok) {
-            ctx.ui.notify('Delegate cancelled — project-local agents not approved.', 'info');
-            return;
-          }
+        const ok = await confirmProjectAgentsIfNeeded(
+          ctx,
+          requestedProjectAgents,
+          discovery.projectAgentsDir,
+          confirmProjectAgents,
+        );
+        if (!ok) {
+          ctx.ui.notify('Delegate cancelled — project-local agents not approved.', 'info');
+          return;
         }
       }
 

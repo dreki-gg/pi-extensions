@@ -16,7 +16,6 @@ pi install npm:@dreki-gg/pi-context7
 | `context7_get_library_docs` | Fetch curated docs by ID or name (auto-resolves) |
 | `context7_get_cached_doc_raw` | Read full raw cached docs by docRef or semantic lookup |
 
-Compatibility aliases: `resolve-library-id`, `get-library-docs`, `query-docs`
 
 ## Configuration
 

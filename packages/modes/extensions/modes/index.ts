@@ -16,6 +16,12 @@ interface ModeState {
   name: string | null;
 }
 
+interface BeforeAgentStartCompatEvent {
+  systemPromptOptions?: {
+    selectedTools?: string[];
+  };
+}
+
 const STATE_ENTRY = 'modes-state';
 const DEFAULT_CLEAR_VALUES = new Set(['', 'off', 'none', 'clear', 'disable']);
 
@@ -373,7 +379,8 @@ export default function modesExtension(pi: ExtensionAPI) {
     const preset = activePreset ?? presets[activePresetName];
     if (!preset) return;
 
-    const activeTools = pi.getActiveTools();
+    const compatEvent = event as typeof event & BeforeAgentStartCompatEvent;
+    const activeTools = compatEvent.systemPromptOptions?.selectedTools ?? pi.getActiveTools();
     const instructions = preset.instructions?.trim();
     const sections = [
       `Current mode: ${activePresetName}`,

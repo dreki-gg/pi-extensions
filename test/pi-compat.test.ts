@@ -22,6 +22,7 @@ function createMockPi() {
   const tools: ToolDefinitionLike[] = [];
   const activeTools: string[] = [];
   const commands = new Map<string, CommandDefinitionLike>();
+  const messageRenderers = new Map<string, (...args: any[]) => any>();
   const eventHandlers = new Map<string, Array<(...args: any[]) => any>>();
   const sentMessages: any[] = [];
   const flags = new Map<string, unknown>();
@@ -41,7 +42,9 @@ function createMockPi() {
     },
     registerShortcut() {},
     registerFlag() {},
-    registerMessageRenderer() {},
+    registerMessageRenderer(customType: string, renderer: (...args: any[]) => any) {
+      messageRenderers.set(customType, renderer);
+    },
     getCommands() {
       return [...commands.entries()].map(([name, definition]) => ({
         name,
@@ -102,6 +105,7 @@ function createMockPi() {
     api,
     tools,
     commands,
+    messageRenderers,
     sentMessages,
     setFlag(name: string, value: unknown) {
       flags.set(name, value);
@@ -133,6 +137,7 @@ function createMockPi() {
 function createMockContext(options?: { cwd?: string; hasUI?: boolean }) {
   const notifications: Array<{ message: string; level: string }> = [];
   const statuses = new Map<string, string | undefined>();
+  const forkCalls: Array<{ entryId: string; options?: Record<string, unknown> }> = [];
 
   const cwd = options?.cwd ?? process.cwd();
   const hasUI = options?.hasUI ?? false;
@@ -142,6 +147,7 @@ function createMockContext(options?: { cwd?: string; hasUI?: boolean }) {
     hasUI,
     notifications,
     statuses,
+    forkCalls,
     ui: {
       notify(message: string, level = 'info') {
         notifications.push({ message, level });
@@ -236,6 +242,18 @@ function createMockContext(options?: { cwd?: string; hasUI?: boolean }) {
     getSystemPrompt() {
       return '';
     },
+    async waitForIdle() {},
+    async fork(entryId: string, options?: Record<string, unknown>) {
+      forkCalls.push({ entryId, options });
+      return { cancelled: false };
+    },
+    async newSession() {
+      return { cancelled: false };
+    },
+    async switchSession() {
+      return { cancelled: false };
+    },
+    async reload() {},
   };
 }
 
@@ -267,7 +285,7 @@ async function withTempModesGlobalPath<T>(homeDir: string, fn: (presetsPath: str
 }
 
 describe('Pi extension compatibility harness', () => {
-  test('Context7 registers canonical tools and aliases', async () => {
+  test('Context7 registers canonical tools', async () => {
     const pi = createMockPi();
     const { default: context7Extension } = await import('../packages/context7/extensions/context7/index.ts');
 
@@ -277,35 +295,7 @@ describe('Pi extension compatibility harness', () => {
       'context7_resolve_library_id',
       'context7_get_library_docs',
       'context7_get_cached_doc_raw',
-      'resolve-library-id',
-      'get-library-docs',
-      'query-docs',
     ]);
-
-    const getLibraryDocsAlias = pi.getTool('get-library-docs');
-    const queryDocsAlias = pi.getTool('query-docs');
-
-    expect(getLibraryDocsAlias.prepareArguments?.({
-      context7CompatibleLibraryID: '/vercel/next.js',
-      topic: 'routing',
-      page: 2,
-    })).toEqual({
-      libraryId: '/vercel/next.js',
-      query: 'routing',
-      page: 2,
-    });
-
-    expect(queryDocsAlias.prepareArguments?.({
-      libraryName: 'react',
-      query: 'hooks',
-      topic: 'useEffect',
-      page: 3,
-    })).toEqual({
-      libraryName: 'react',
-      query: 'hooks',
-      topic: 'useEffect',
-      page: 3,
-    });
   });
 
   test('LSP extension boots, scaffolds config, and keeps validation behavior intact', async () => {
@@ -392,7 +382,8 @@ describe('Pi extension compatibility harness', () => {
       subagentExtension(pi.api as any);
 
       expect(pi.tools.map((tool) => tool.name)).toEqual(['subagent']);
-      expect([...pi.commands.keys()].sort()).toEqual(['delegate', 'delegate-agents']);
+      expect([...pi.commands.keys()].sort()).toEqual(['delegate', 'delegate-agents', 'run-agent']);
+      expect(pi.messageRenderers.has('run-agent-summary')).toBe(true);
 
       const ctx = createMockContext({ cwd: process.cwd(), hasUI: false });
       const tool = pi.getTool('subagent');
@@ -402,6 +393,17 @@ describe('Pi extension compatibility harness', () => {
       expect(result.content[0].text).toContain('Invalid parameters.');
       expect(result.content[0].text).toContain('Available agents:');
       expect(result.content[0].text).toContain('planner');
+
+      await pi.getCommand('run-agent').handler?.('', ctx);
+      expect(ctx.notifications.at(-1)?.message).toContain('Usage: /run-agent');
+
+      const { bundledAgentsDir } = await import('../packages/subagent/extensions/subagent/agents.ts');
+      const workerAgentPath = path.join(bundledAgentsDir, 'worker.md');
+      const reviewerAgentPath = path.join(bundledAgentsDir, 'reviewer.md');
+      const workerAgent = await readFile(workerAgentPath, 'utf8');
+      const reviewerAgent = await readFile(reviewerAgentPath, 'utf8');
+      expect(workerAgent).toContain('sessionStrategy: fork-at');
+      expect(reviewerAgent).toContain('sessionStrategy: fork-at');
     });
   });
 
@@ -546,6 +548,23 @@ describe('Pi extension compatibility harness', () => {
           'questionnaire',
         ]);
         expect(ctx.statuses.get('mode')).toBe('mode:explore');
+
+        const beforeAgentStartResults = await pi.emit(
+          'before_agent_start',
+          {
+            prompt: 'inspect the repo',
+            images: [],
+            systemPrompt: 'Base prompt',
+            systemPromptOptions: {
+              selectedTools: ['read', 'questionnaire'],
+            },
+          },
+          ctx,
+        );
+        expect(beforeAgentStartResults[0]).toEqual({
+          systemPrompt:
+            'Base prompt\n\nCurrent mode: explore\n\nEnabled tools: read, questionnaire\n\nExplore only. Do not modify files.',
+        });
 
         await pi.getCommand('preset').handler?.('off', ctx);
         expect(pi.api.getActiveTools()).toEqual([

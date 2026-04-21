@@ -16,6 +16,7 @@ import type { ResolvedPaths } from '@mariozechner/pi-coding-agent';
 
 export type AgentScope = 'user' | 'project' | 'both';
 export type AgentSource = 'bundled' | 'user' | 'project' | 'package';
+export type AgentSessionStrategy = 'inline' | 'fork-at';
 
 export interface AgentConfig {
   name: string;
@@ -23,6 +24,7 @@ export interface AgentConfig {
   tools?: string[];
   model?: string;
   thinking?: string;
+  sessionStrategy?: AgentSessionStrategy;
   systemPrompt: string;
   source: AgentSource;
   filePath: string;
@@ -35,6 +37,13 @@ export interface AgentDiscoveryResult {
 
 /** Bundled agents ship with the package (../../agents relative to extensions/subagent/) */
 const bundledAgentsDir = path.resolve(import.meta.dirname, '..', '..', 'agents');
+
+function parseSessionStrategy(value?: string): AgentSessionStrategy | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'inline' || normalized === 'fork-at') return normalized;
+  return undefined;
+}
 
 function loadAgentsFromDir(dir: string, source: AgentSource): AgentConfig[] {
   const agents: AgentConfig[] = [];
@@ -79,6 +88,7 @@ function loadAgentsFromDir(dir: string, source: AgentSource): AgentConfig[] {
       tools: tools && tools.length > 0 ? tools : undefined,
       model: frontmatter.model,
       thinking: frontmatter.thinking,
+      sessionStrategy: parseSessionStrategy(frontmatter.sessionStrategy),
       systemPrompt: body,
       source,
       filePath,
@@ -152,6 +162,7 @@ function loadAgentFromFile(filePath: string, source: AgentSource): AgentConfig |
     tools: tools && tools.length > 0 ? tools : undefined,
     model: frontmatter.model,
     thinking: frontmatter.thinking,
+    sessionStrategy: parseSessionStrategy(frontmatter.sessionStrategy),
     systemPrompt: body,
     source,
     filePath,
