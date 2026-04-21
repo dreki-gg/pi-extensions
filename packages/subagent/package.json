@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-subagent",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Subagent tool and delegate orchestration for pi — isolated agents, parallel scouts, planning gates, and workflow presets",
   "keywords": [
     "pi-package"
