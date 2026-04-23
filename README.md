@@ -8,6 +8,7 @@ Each package is independently installable via `pi install`.
 
 | Package | Description | Install |
 |---------|-------------|---------|
+| `@dreki-gg/pi-browser-tools` | Browser automation + web research tools (`web_search`, `web_visit`, `web_screenshot`, `web_interact`, `web_console`) | `pi install npm:@dreki-gg/pi-browser-tools` |
 | `@dreki-gg/pi-context7` | Pi-native Context7 docs tools (no MCP) | `pi install npm:@dreki-gg/pi-context7` |
 | `@dreki-gg/pi-questionnaire` | Tool-first questionnaire flow + `/questionnaire` demo command | `pi install npm:@dreki-gg/pi-questionnaire` |
 | `@dreki-gg/pi-subagent` | Subagent tool + `/run-agent` with bundled agents and workflow templates | `pi install npm:@dreki-gg/pi-subagent` |
