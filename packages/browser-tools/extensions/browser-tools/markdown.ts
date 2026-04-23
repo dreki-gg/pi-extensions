@@ -2,7 +2,7 @@ import { Readability } from '@mozilla/readability';
 import { parseHTML } from 'linkedom';
 // @ts-expect-error -- turndown typings are not resolved in this extension environment.
 import TurndownService from 'turndown';
-import type { BrowserSession } from './core.js';
+import type { BrowserBackendName, RenderedPage } from './backends/types.js';
 
 const USER_AGENT = 'pi-browser-tools/1.0';
 const FETCH_TIMEOUT_MS = 15_000;
@@ -55,6 +55,25 @@ function articleHtmlToMarkdown(contentHtml: string, title: string): string {
   return withTitle(markdown, title);
 }
 
+export function renderedPageToMarkdown(page: RenderedPage): {
+  markdown: string;
+  title: string;
+  method: BrowserBackendName;
+  url: string;
+} {
+  const article = page.contentHtml?.trim()
+    ? { title: page.title.trim() || page.url, contentHtml: page.contentHtml }
+    : readabilityFromHtml(page.html, page.url);
+  const title = page.title.trim() || article.title;
+
+  return {
+    markdown: articleHtmlToMarkdown(article.contentHtml, title),
+    title,
+    method: page.backend,
+    url: page.url,
+  };
+}
+
 export async function fetchAsMarkdown(
   url: string,
   options: { signal?: AbortSignal } = {},
@@ -81,56 +100,6 @@ export async function fetchAsMarkdown(
     markdown: articleHtmlToMarkdown(article.contentHtml, article.title),
     title: article.title,
     method: 'fetch',
-    url: finalUrl,
-  };
-}
-
-export async function renderWithPlaywright(
-  browserSession: BrowserSession,
-  url: string,
-): Promise<{ markdown: string; title: string; method: 'playwright'; url: string }> {
-  const page = await browserSession.getPage();
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
-  await page.waitForTimeout(1500);
-
-  const inPageResult = await page.evaluate(
-    ({ readabilitySource }) => {
-      const rawHtml = document.documentElement?.innerHTML ?? '';
-      let title = document.title ?? '';
-      let contentHtml = document.body?.innerHTML ?? '';
-
-      try {
-        const ReadabilityCtor = new Function(`return (${readabilitySource});`)();
-        const clonedDocument = document.cloneNode(true);
-        const parsed = new ReadabilityCtor(clonedDocument).parse?.();
-        if (parsed?.title) title = parsed.title;
-        if (parsed?.content) contentHtml = parsed.content;
-      } catch {
-        // Fall back to raw document HTML extraction.
-      }
-
-      return {
-        rawHtml,
-        title,
-        contentHtml,
-        url: window.location.href,
-      };
-    },
-    { readabilitySource: Readability.toString() },
-  );
-
-  browserSession.resetIdleTimer();
-
-  const finalUrl = inPageResult.url || page.url() || url;
-  const title = inPageResult.title?.trim() || finalUrl;
-  const contentHtml = inPageResult.contentHtml?.trim()
-    ? inPageResult.contentHtml
-    : readabilityFromHtml(inPageResult.rawHtml, finalUrl).contentHtml;
-
-  return {
-    markdown: articleHtmlToMarkdown(contentHtml, title),
-    title,
-    method: 'playwright',
     url: finalUrl,
   };
 }

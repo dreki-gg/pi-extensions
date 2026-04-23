@@ -19,6 +19,10 @@ Output format:
 ## Goal
 One sentence summary of what needs to be done.
 
+## Constraints
+- Locked decisions, rejected approaches, assumptions that must stay true.
+- If there are no special constraints, say `- None`.
+
 ## Plan
 Numbered steps, each small and actionable:
 1. Step one - specific file/function to modify

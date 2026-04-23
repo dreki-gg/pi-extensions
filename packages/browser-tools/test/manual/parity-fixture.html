@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Browser Tools Parity Fixture</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+        line-height: 1.5;
+      }
+
+      body {
+        margin: 0;
+        background: #f5f7fb;
+        color: #111827;
+      }
+
+      main {
+        max-width: 56rem;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 4rem;
+      }
+
+      article,
+      section {
+        background: #ffffff;
+        border: 1px solid #dbe3f0;
+        border-radius: 1rem;
+        padding: 1.25rem;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+      }
+
+      article + section {
+        margin-top: 1rem;
+      }
+
+      h1,
+      h2 {
+        margin-top: 0;
+      }
+
+      .controls {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .field {
+        display: grid;
+        gap: 0.4rem;
+      }
+
+      label {
+        font-weight: 600;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+        border-radius: 0.75rem;
+        border: 1px solid #c3d1e8;
+        padding: 0.7rem 0.85rem;
+      }
+
+      button {
+        background: #1d4ed8;
+        color: #ffffff;
+        cursor: pointer;
+        width: fit-content;
+      }
+
+      .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+        gap: 0.75rem;
+      }
+
+      .status-card {
+        border: 1px solid #dbe3f0;
+        border-radius: 0.75rem;
+        padding: 0.85rem;
+        background: #f8fbff;
+      }
+
+      .eyebrow {
+        color: #475569;
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+      }
+
+      code {
+        background: #eff6ff;
+        padding: 0.15rem 0.35rem;
+        border-radius: 0.4rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article data-testid="article-root">
+        <p class="eyebrow">Local deterministic fixture for browser-tools parity</p>
+        <h1>Browser Tools Parity Fixture</h1>
+        <p>
+          This page exists so <code>web_visit</code>, <code>web_screenshot</code>,
+          <code>web_interact</code>, and <code>web_console</code> can be exercised against the same
+          stable target without relying on a public website.
+        </p>
+        <p>
+          Stable marker: <strong>PARITY-FIXTURE-MARKER-2026-04-22</strong>. The article body is long
+          enough to keep <code>web_visit</code> on the plain fetch path when
+          <code>render: false</code> is used.
+        </p>
+        <p>
+          Expected interactive defaults: button state starts <strong>off</strong>, typed value
+          starts empty, and selected flavor starts <strong>alpha</strong>. Exact selectors are
+          exposed via IDs and <code>data-testid</code> attributes.
+        </p>
+      </article>
+
+      <section aria-labelledby="interactive-title">
+        <h2 id="interactive-title">Interactive controls</h2>
+        <div class="controls">
+          <div class="field">
+            <label for="toggle-button">Toggle state</label>
+            <button id="toggle-button" data-testid="toggle-button" type="button">
+              Toggle state
+            </button>
+          </div>
+
+          <div class="field">
+            <label for="name-input">Name input</label>
+            <input
+              id="name-input"
+              data-testid="name-input"
+              type="text"
+              autocomplete="off"
+              placeholder="Type parity text"
+              value=""
+            />
+          </div>
+
+          <div class="field">
+            <label for="flavor-select">Flavor select</label>
+            <select id="flavor-select" data-testid="flavor-select">
+              <option value="alpha" selected>Alpha</option>
+              <option value="beta">Beta</option>
+              <option value="gamma">Gamma</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="status-grid" aria-live="polite">
+          <div class="status-card">
+            <div class="eyebrow">Button status</div>
+            <div id="button-status" data-testid="button-status">Button state: off</div>
+          </div>
+          <div class="status-card">
+            <div class="eyebrow">Typed status</div>
+            <div id="name-output" data-testid="name-output">Typed value: (empty)</div>
+          </div>
+          <div class="status-card">
+            <div class="eyebrow">Select status</div>
+            <div id="select-output" data-testid="select-output">Selected value: alpha</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      (() => {
+        const button = document.querySelector('#toggle-button');
+        const buttonStatus = document.querySelector('#button-status');
+        const nameInput = document.querySelector('#name-input');
+        const nameOutput = document.querySelector('#name-output');
+        const flavorSelect = document.querySelector('#flavor-select');
+        const selectOutput = document.querySelector('#select-output');
+
+        let isOn = false;
+
+        function updateButtonStatus() {
+          buttonStatus.textContent = `Button state: ${isOn ? 'on' : 'off'}`;
+        }
+
+        function updateNameStatus(value) {
+          nameOutput.textContent = `Typed value: ${value || '(empty)'}`;
+        }
+
+        function updateSelectStatus(value) {
+          selectOutput.textContent = `Selected value: ${value}`;
+        }
+
+        button.addEventListener('click', () => {
+          isOn = !isOn;
+          updateButtonStatus();
+          console.log(`fixture:button clicked:${isOn ? 'on' : 'off'}`);
+        });
+
+        nameInput.addEventListener('input', (event) => {
+          const value = event.currentTarget.value;
+          updateNameStatus(value);
+          console.info(`fixture:input typed:${value || '(empty)'}`);
+        });
+
+        flavorSelect.addEventListener('change', (event) => {
+          const value = event.currentTarget.value;
+          updateSelectStatus(value);
+          console.debug(`fixture:select changed:${value}`);
+        });
+
+        console.log('fixture:log ready');
+        console.warn('fixture:warn ready');
+        setTimeout(() => {
+          throw new Error('fixture:page-error ready');
+        }, 50);
+
+        updateButtonStatus();
+        updateNameStatus('');
+        updateSelectStatus(flavorSelect.value);
+      })();
+    </script>
+  </body>
+</html>

@@ -46,6 +46,7 @@ import { runAgent } from './agent-runner.js';
 import { extractRecentConversation } from './synthesis.js';
 import type { AgentResult } from './agent-runner-types.js';
 import { getFinalText } from './agent-result-utils.js';
+import { buildHandoffFromResult, renderHandoffForPrompt } from './handoffs.js';
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
@@ -712,7 +713,15 @@ export default function (pi: ExtensionAPI) {
               isError: true,
             };
           }
-          previousOutput = getFinalOutput(result.messages);
+          const finalOutput = getFinalOutput(result.messages) || '(no output)';
+          previousOutput = renderHandoffForPrompt(
+            buildHandoffFromResult({
+              agent: step.agent,
+              step: i + 1,
+              task: step.task,
+              output: finalOutput,
+            }),
+          );
         }
         return {
           content: [

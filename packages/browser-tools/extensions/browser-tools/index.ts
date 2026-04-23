@@ -1,8 +1,13 @@
 import type { ExtensionAPI } from '@mariozechner/pi-coding-agent';
 import { StringEnum } from '@mariozechner/pi-ai';
 import { Type } from 'typebox';
-import { browserSession, type ConsoleEntry, type ViewportPreset } from './core.js';
-import { fetchAsMarkdown, renderWithPlaywright } from './markdown.js';
+import {
+  ensureSelectedBrowserBackendAvailable,
+  getSelectedBrowserBackend,
+  getSelectedBrowserBackendName,
+} from './backends/select.js';
+import type { ConsoleEntry, ViewportPreset } from './backends/types.js';
+import { fetchAsMarkdown, renderedPageToMarkdown } from './markdown.js';
 import { webSearch } from './search.js';
 
 const TOOL_GUIDELINES = [
@@ -17,19 +22,11 @@ const env =
     }
   ).process?.env ?? {};
 
+const browserBackend = getSelectedBrowserBackend();
+const selectedBrowserBackendName = getSelectedBrowserBackendName();
 const VIEWPORT_ENUM = ['desktop', 'mobile'] as const;
 const ACTION_ENUM = ['click', 'type', 'scroll', 'select', 'hover', 'wait'] as const;
 const SCROLL_DIRECTION_ENUM = ['up', 'down'] as const;
-const ROLE_FALLBACKS = [
-  'button',
-  'link',
-  'textbox',
-  'tab',
-  'option',
-  'menuitem',
-  'checkbox',
-  'radio',
-] as const;
 const CONSOLE_LEVEL_ENUM = [
   'log',
   'info',
@@ -56,40 +53,11 @@ function formatSearchResults(
 function formatVisitMarkdown(result: {
   markdown: string;
   title: string;
-  method: 'fetch' | 'playwright';
+  method: 'fetch' | typeof selectedBrowserBackendName;
   url: string;
 }): string {
   const header = [`Source: ${result.url}`, `Method: ${result.method}`].join('\n');
   return `${header}\n\n${result.markdown}`.trim();
-}
-
-async function resolveLocator(
-  page: Awaited<ReturnType<typeof browserSession.getPage>>,
-  params: {
-    selector?: string;
-    text?: string;
-  },
-) {
-  if (params.selector) {
-    return page.locator(params.selector).first();
-  }
-
-  if (!params.text) {
-    throw new Error('This action requires either selector or text');
-  }
-
-  const exactText = page.getByText(params.text, { exact: true }).first();
-  if (await exactText.count()) return exactText;
-
-  const fuzzyText = page.getByText(params.text).first();
-  if (await fuzzyText.count()) return fuzzyText;
-
-  for (const role of ROLE_FALLBACKS) {
-    const locator = page.getByRole(role, { name: params.text }).first();
-    if (await locator.count()) return locator;
-  }
-
-  throw new Error(`Could not find element for text: ${params.text}`);
 }
 
 export default function browserToolsExtension(pi: ExtensionAPI) {
@@ -129,33 +97,34 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
     name: 'web_visit',
     label: 'Web Visit',
     description:
-      'Fetch a URL and convert it to readable markdown, with optional Playwright rendering.',
+      'Fetch a URL and convert it to readable markdown, with optional browser rendering.',
     promptSnippet: 'Fetch a URL and convert it to readable markdown',
     promptGuidelines: TOOL_GUIDELINES,
     parameters: Type.Object({
       url: Type.String({ description: 'URL to fetch' }),
-      render: Type.Optional(Type.Boolean({ description: 'Force Playwright rendering' })),
+      render: Type.Optional(Type.Boolean({ description: 'Force browser rendering' })),
     }),
     async execute(
       _toolCallId: string,
       params: { url: string; render?: boolean },
       signal?: AbortSignal,
     ) {
+      await ensureSelectedBrowserBackendAvailable();
+
       const result = params.render
-        ? await browserSession.runExclusive(() => renderWithPlaywright(browserSession, params.url))
+        ? renderedPageToMarkdown(await browserBackend.renderPage(params.url))
         : await fetchAsMarkdown(params.url, { signal });
 
       const finalResult =
-        !params.render && result.markdown.trim().length < 200 && !browserSession.isOpen
-          ? await browserSession.runExclusive(() =>
-              renderWithPlaywright(browserSession, params.url),
-            )
+        !params.render && result.markdown.trim().length < 200 && !browserBackend.isOpen()
+          ? renderedPageToMarkdown(await browserBackend.renderPage(params.url))
           : result;
 
       return {
         content: [{ type: 'text', text: formatVisitMarkdown(finalResult) }],
         details: {
           method: finalResult.method,
+          backend: selectedBrowserBackendName,
           title: finalResult.title,
           url: finalResult.url,
           length: finalResult.markdown.length,
@@ -180,38 +149,30 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
       _toolCallId: string,
       params: { url?: string; viewport?: ViewportPreset; width?: number; height?: number },
     ) {
-      const viewport = (params.viewport ?? 'desktop') as ViewportPreset;
+      await ensureSelectedBrowserBackendAvailable();
 
-      return browserSession.runExclusive(async () => {
-        const page = await browserSession.getPage({
-          preset: viewport,
-          width: params.width,
-          height: params.height,
-        });
-
-        const size = await browserSession.setViewport(viewport, params.width, params.height);
-
-        if (params.url) {
-          await page.goto(params.url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
-          await page.waitForTimeout(1500);
-          browserSession.resetIdleTimer();
-        }
-
-        const image = await browserSession.screenshotToBase64();
-        return {
-          content: [
-            {
-              type: 'image',
-              data: image,
-              mimeType: 'image/png',
-            },
-          ],
-          details: {
-            url: page.url(),
-            viewport: size,
-          },
-        };
+      const screenshot = await browserBackend.screenshot({
+        url: params.url,
+        preset: (params.viewport ?? 'desktop') as ViewportPreset,
+        width: params.width,
+        height: params.height,
+        waitMs: 1500,
       });
+
+      return {
+        content: [
+          {
+            type: 'image',
+            data: screenshot.imageBase64,
+            mimeType: 'image/png',
+          },
+        ],
+        details: {
+          backend: selectedBrowserBackendName,
+          url: screenshot.url,
+          viewport: screenshot.viewport,
+        },
+      };
     },
   });
 
@@ -244,75 +205,36 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
         timeout?: number;
       },
     ) {
-      if (!browserSession.isOpen) {
+      await ensureSelectedBrowserBackendAvailable();
+
+      if (!browserBackend.isOpen()) {
         throw new Error(
           'Browser is not open. Use web_screenshot or web_visit with render:true first.',
         );
       }
 
-      return browserSession.runExclusive(async () => {
-        const page = await browserSession.getPage();
+      const interaction = await browserBackend.interact(params);
+      const screenshot = await browserBackend.screenshot();
 
-        switch (params.action) {
-          case 'scroll': {
-            const delta = Math.abs(params.amount ?? 500) * (params.direction === 'up' ? -1 : 1);
-            await page.mouse.wheel(0, delta);
-            break;
-          }
-          case 'wait': {
-            await page.waitForTimeout(params.timeout ?? 1000);
-            break;
-          }
-          case 'click': {
-            const locator = await resolveLocator(page, params);
-            await locator.click();
-            break;
-          }
-          case 'hover': {
-            const locator = await resolveLocator(page, params);
-            await locator.hover();
-            break;
-          }
-          case 'type': {
-            if (params.value === undefined) throw new Error('type action requires value');
-            const locator = await resolveLocator(page, params);
-            await locator.click();
-            await locator.fill(params.value);
-            break;
-          }
-          case 'select': {
-            if (params.value === undefined) throw new Error('select action requires value');
-            const locator = await resolveLocator(page, params);
-            await locator.selectOption(params.value);
-            break;
-          }
-          default:
-            throw new Error(`Unsupported action: ${String(params.action)}`);
-        }
-
-        await page.waitForTimeout(500);
-        browserSession.resetIdleTimer();
-
-        const image = await browserSession.screenshotToBase64();
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Action completed: ${params.action}`,
-            },
-            {
-              type: 'image',
-              data: image,
-              mimeType: 'image/png',
-            },
-          ],
-          details: {
-            action: params.action,
-            url: page.url(),
-            viewport: page.viewportSize(),
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Action completed: ${params.action}`,
           },
-        };
-      });
+          {
+            type: 'image',
+            data: screenshot.imageBase64,
+            mimeType: 'image/png',
+          },
+        ],
+        details: {
+          action: params.action,
+          backend: selectedBrowserBackendName,
+          url: interaction.url ?? screenshot.url,
+          viewport: interaction.viewport ?? screenshot.viewport,
+        },
+      };
     },
   });
 
@@ -350,13 +272,15 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
         clear?: boolean;
       },
     ) {
-      const entries = browserSession.getConsoleEntries({
+      await ensureSelectedBrowserBackendAvailable();
+
+      const entries = await browserBackend.getConsoleEntries({
         level: params.level,
         clear: params.clear,
       });
 
       if (entries.length === 0) {
-        const reason = !browserSession.isOpen
+        const reason = !browserBackend.isOpen()
           ? 'Browser is not open. Use web_screenshot or web_visit with render:true first.'
           : 'No console output captured yet.';
         return {
@@ -365,14 +289,15 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
             count: 0,
             levels: {},
             cleared: params.clear ?? false,
+            backend: selectedBrowserBackendName,
           },
         };
       }
 
       const formatted = entries
-        .map((e) => {
-          const tag = e.level.toUpperCase().padEnd(10);
-          return `[${tag}] ${e.text}`;
+        .map((entry) => {
+          const tag = entry.level.toUpperCase().padEnd(10);
+          return `[${tag}] ${entry.text}`;
         })
         .join('\n');
 
@@ -381,11 +306,13 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
         details: {
           count: entries.length,
           levels: Object.fromEntries(
-            CONSOLE_LEVEL_ENUM.map((l) => [l, entries.filter((e) => e.level === l).length]).filter(
-              ([, n]) => (n as number) > 0,
-            ),
+            CONSOLE_LEVEL_ENUM.map((level) => [
+              level,
+              entries.filter((entry) => entry.level === level).length,
+            ]).filter(([, count]) => (count as number) > 0),
           ),
           cleared: params.clear ?? false,
+          backend: selectedBrowserBackendName,
         },
       };
     },
@@ -400,10 +327,12 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
         ui: { notify(message: string, level: 'info' | 'warning' | 'error'): void };
       },
     ) => {
-      const status = browserSession.getStatus();
+      await ensureSelectedBrowserBackendAvailable();
+
+      const status = browserBackend.getStatus();
       const message = status.isOpen
-        ? `Browser open\nURL: ${status.url ?? 'unknown'}\nViewport: ${status.viewport?.width ?? '?'}x${status.viewport?.height ?? '?'}`
-        : 'Browser closed';
+        ? `Browser open (${selectedBrowserBackendName})\nURL: ${status.url ?? 'unknown'}\nViewport: ${status.viewport?.width ?? '?'}x${status.viewport?.height ?? '?'}`
+        : `Browser closed (${selectedBrowserBackendName} selected)`;
 
       if (ctx.hasUI) {
         ctx.ui.notify(message, 'info');
@@ -412,6 +341,6 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
   });
 
   pi.on('session_shutdown', async () => {
-    await browserSession.close();
+    await browserBackend.close();
   });
 }

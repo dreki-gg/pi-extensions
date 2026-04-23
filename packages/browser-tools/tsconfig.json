@@ -13,5 +13,5 @@
     "tsBuildInfoFile": "./node_modules/.cache/browser-tools.tsbuildinfo",
     "rootDir": "."
   },
-  "include": ["extensions/**/*.ts"]
+  "include": ["extensions/**/*.ts", "test/manual/**/*.ts"]
 }

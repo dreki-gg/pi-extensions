@@ -25,9 +25,9 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint extensions",
-    "format": "oxfmt --write extensions",
-    "format:check": "oxfmt --check extensions"
+    "lint": "oxlint extensions test/manual",
+    "format": "oxfmt --write extensions test/manual",
+    "format:check": "oxfmt --check extensions test/manual"
   },
   "pi": {
     "extensions": [
