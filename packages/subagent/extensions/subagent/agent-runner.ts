@@ -5,8 +5,8 @@ import * as path from 'node:path';
 import { withFileMutationQueue } from '@mariozechner/pi-coding-agent';
 import type { ResolvedPaths } from '@mariozechner/pi-coding-agent';
 import type { Message } from '@mariozechner/pi-ai';
-import { discoverAgentsWithPackages, type AgentScope } from './agents';
-import type { AgentResult, UsageStats } from './delegate-types';
+import { discoverAgentsWithPackages, type AgentScope } from './agents.js';
+import type { AgentResult, UsageStats } from './agent-runner-types.js';
 
 function emptyUsage(): UsageStats {
   return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, contextTokens: 0, turns: 0 };
@@ -194,28 +194,4 @@ export async function runAgent(
         /* ignore */
       }
   }
-}
-
-export async function runParallel(
-  cwd: string,
-  agentNames: string[],
-  task: string,
-  options: RunAgentOptions = {},
-): Promise<AgentResult[]> {
-  const MAX_CONCURRENCY = 4;
-  const results: AgentResult[] = new Array(agentNames.length);
-  let nextIndex = 0;
-
-  const workers = new Array(Math.min(MAX_CONCURRENCY, agentNames.length))
-    .fill(null)
-    .map(async () => {
-      while (true) {
-        const current = nextIndex++;
-        if (current >= agentNames.length) return;
-        results[current] = await runAgent(cwd, agentNames[current], task, options);
-      }
-    });
-
-  await Promise.all(workers);
-  return results;
 }

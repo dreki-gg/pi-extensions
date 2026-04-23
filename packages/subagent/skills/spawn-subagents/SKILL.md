@@ -7,8 +7,8 @@ Use this skill when the user wants agents spawned conversationally.
 
 Default behavior:
 - Prefer the `subagent` tool directly.
-- Do **not** default to `/delegate`.
-- Use `/delegate` only when the user explicitly wants a gated workflow, workflow picker, or plan approval step.
+- Use `/run-agent` only when the user explicitly wants a direct named-agent run.
+- For rigid multi-step flows, prefer the bundled prompt templates (`/implement`, `/scout-and-plan`, `/implement-and-review`) or use `subagent` chain/parallel modes directly.
 
 Strong triggers:
 - "spawn a scout"

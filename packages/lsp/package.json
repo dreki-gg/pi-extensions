@@ -26,7 +26,7 @@
     ]
   },
   "devDependencies": {
-    "@mariozechner/pi-ai": "^0.64.0",
+    "@mariozechner/pi-ai": "^0.69.0",
     "@types/node": "24",
     "bun-types": "latest",
     "oxfmt": "^0.43.0",
@@ -37,6 +37,6 @@
   "peerDependencies": {
     "@mariozechner/pi-ai": "*",
     "@mariozechner/pi-coding-agent": "*",
-    "@sinclair/typebox": "*"
+    "typebox": "*"
   }
 }

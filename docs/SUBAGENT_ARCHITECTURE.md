@@ -4,7 +4,7 @@
 - Keep the published package generic
 - Keep repo development workflows project-local
 - Make project-local agents usable from direct `subagent` calls
-- Keep `/delegate` optional, not central
+- Keep workflow wrappers optional, not central
 - Keep every agent definition short and replaceable
 
 ## Constraint
@@ -86,12 +86,10 @@ Purpose:
 - prefer `agentScope: "project"` or `"both"` for this repo
 - use project scope when the task depends on repo-specific validation, packaging, or docs rules
 
-### Optional explicit workflow mode
-- `/delegate` remains useful for rigid gated flows
-- use it when you want plan approval, workflow pinning, or manual phase control
-- examples:
-  - `/delegate --scope project --workflow implement <task>`
-  - `/delegate --scope project --workflow scout-and-plan <task>`
+### Optional workflow templates
+- prefer conversational `subagent` usage or direct `/run-agent` for named one-off runs
+- for rigid multi-step flows, use bundled prompt templates such as `/implement`, `/scout-and-plan`, and `/implement-and-review`
+- those templates expand to `subagent` chain/parallel orchestration instead of a separate command wrapper
 
 ## Design rules
 - Project agents should override bundled names only when the repo needs different behavior

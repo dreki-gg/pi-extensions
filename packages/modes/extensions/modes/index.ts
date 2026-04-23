@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
+import type { AutocompleteItem } from '@mariozechner/pi-tui';
 import {
   getGlobalPresetsPath,
   getPresetAliases,
@@ -107,6 +108,7 @@ export default function modesExtension(pi: ExtensionAPI) {
   let activePresetName: string | undefined;
   let activePreset: PresetDefinition | undefined;
   let defaultActiveTools: string[] = [];
+  let autocompleteCwd = process.cwd();
 
   pi.registerFlag('preset', {
     description: 'Preset/mode configuration to use',
@@ -127,6 +129,47 @@ export default function modesExtension(pi: ExtensionAPI) {
         ctx.ui.notify(`pi-modes: ${error}`, 'warning');
       }
     }
+  }
+
+  function getPresetCommandCompletions(argumentText: string): AutocompleteItem[] | null {
+    if (argumentText.trim().includes(' ')) return null;
+
+    reloadPresets(autocompleteCwd);
+
+    const query = argumentText.trim().toLowerCase();
+    const items: AutocompleteItem[] = [
+      {
+        value: 'list',
+        label: 'list',
+        description: 'Show all available presets and the active preset',
+      },
+      {
+        value: 'off',
+        label: 'off',
+        description: 'Clear the active preset and restore the default tool set',
+      },
+      ...listPresetNames(presets).map((name) => {
+        const preset = presets[name];
+        const aliases = getPresetAliases(name, preset);
+        const aliasText = aliases.length > 0 ? `aliases: ${aliases.join(', ')}` : undefined;
+        return {
+          value: name,
+          label: name,
+          description: [preset.description, aliasText].filter(Boolean).join(' — ') || undefined,
+        } satisfies AutocompleteItem;
+      }),
+    ];
+
+    const filtered = items.filter((item) => {
+      if (!query) return true;
+      return (
+        item.value.toLowerCase().startsWith(query) ||
+        item.label?.toLowerCase().includes(query) ||
+        item.description?.toLowerCase().includes(query)
+      );
+    });
+
+    return filtered.length > 0 ? filtered : null;
   }
 
   function updateStatus(ctx: ExtensionContext) {
@@ -324,14 +367,18 @@ export default function modesExtension(pi: ExtensionAPI) {
 
   pi.registerCommand('preset', {
     description: 'Apply, select, or clear a preset/mode',
+    getArgumentCompletions: getPresetCommandCompletions,
     handler: async (args, ctx) => {
+      autocompleteCwd = ctx.cwd;
       await handlePresetCommand(args, ctx);
     },
   });
 
   pi.registerCommand('mode', {
     description: 'Alias of /preset',
+    getArgumentCompletions: getPresetCommandCompletions,
     handler: async (args, ctx) => {
+      autocompleteCwd = ctx.cwd;
       await handlePresetCommand(args, ctx);
     },
   });
@@ -339,6 +386,7 @@ export default function modesExtension(pi: ExtensionAPI) {
   pi.registerCommand('modes', {
     description: 'List available presets/modes',
     handler: async (_args, ctx) => {
+      autocompleteCwd = ctx.cwd;
       reloadPresets(ctx.cwd, ctx);
       const names = listPresetNames(presets);
       if (names.length === 0) {
@@ -394,6 +442,7 @@ export default function modesExtension(pi: ExtensionAPI) {
   });
 
   pi.on('session_start', async (_event, ctx) => {
+    autocompleteCwd = ctx.cwd;
     try {
       const bootstrap = await ensureGlobalPresetDefaults();
       if (bootstrap.error) {

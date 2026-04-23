@@ -32,41 +32,20 @@ import {
   withFileMutationQueue,
 } from '@mariozechner/pi-coding-agent';
 import type { ResolvedPaths } from '@mariozechner/pi-coding-agent';
-import { Box, Container, Markdown, Spacer, Text } from '@mariozechner/pi-tui';
-import { Type } from '@sinclair/typebox';
+import { Box, Container, Markdown, Spacer, Text, type AutocompleteItem } from '@mariozechner/pi-tui';
+import { Type } from 'typebox';
 import {
   type AgentConfig,
   type AgentScope,
   type AgentSource,
   bundledAgentsDir,
-  discoverAgents,
   discoverAgentsWithPackages,
 } from './agents.js';
-import {
-  formatDelegateUsage,
-  formatRunAgentUsage,
-  parseDelegateArgs,
-  parseRunAgentArgs,
-} from './delegate-args.js';
-import { runAgent, runParallel } from './delegate-executor.js';
-import { buildSynthesisPrompt, extractRecentConversation } from './synthesis.js';
-import type {
-  AgentResult,
-  DelegateState,
-  PhaseDefinition,
-  PhaseResult,
-  UsageStats as DelegateUsageStats,
-} from './delegate-types.js';
-import {
-  aggregateUsage,
-  confirmPlan,
-  confirmSynthesis,
-  formatFullSummary,
-  formatPhaseHeader,
-  getFinalText,
-  pickWorkflow,
-} from './delegate-ui.js';
-import { getWorkflow, suggestWorkflow } from './workflows.js';
+import { formatRunAgentUsage, parseRunAgentArgs } from './run-agent-args.js';
+import { runAgent } from './agent-runner.js';
+import { extractRecentConversation } from './synthesis.js';
+import type { AgentResult } from './agent-runner-types.js';
+import { getFinalText } from './agent-result-utils.js';
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
@@ -551,6 +530,57 @@ async function tryResolvePackagePaths(cwd: string): Promise<ResolvedPaths | unde
 }
 
 export default function (pi: ExtensionAPI) {
+  let autocompleteCwd = process.cwd();
+
+  function parseArgumentText(argumentText: string): {
+    completedTokens: string[];
+    currentToken: string;
+  } {
+    const endsWithSpace = argumentText.length > 0 && /\s$/.test(argumentText);
+    const tokens = argumentText.trim().length > 0 ? argumentText.trim().split(/\s+/) : [];
+    return {
+      completedTokens: endsWithSpace ? tokens : tokens.slice(0, -1),
+      currentToken: endsWithSpace ? '' : (tokens.at(-1) ?? ''),
+    };
+  }
+
+  function replaceCurrentToken(argumentText: string, replacement: string): string {
+    const trimmedEnd = argumentText.replace(/\s+$/, '');
+    if (!trimmedEnd) return replacement;
+    if (/\s$/.test(argumentText)) return `${trimmedEnd} ${replacement}`;
+    const lastSpace = trimmedEnd.lastIndexOf(' ');
+    return lastSpace === -1
+      ? replacement
+      : `${trimmedEnd.slice(0, lastSpace + 1)}${replacement}`;
+  }
+
+  function buildArgumentCompletions(
+    argumentText: string,
+    items: Array<{ value: string; label?: string; description?: string }>,
+  ): AutocompleteItem[] | null {
+    const { currentToken } = parseArgumentText(argumentText);
+    const query = currentToken.toLowerCase();
+    const filtered = items.filter((item) => {
+      if (!query) return true;
+      return (
+        item.value.toLowerCase().startsWith(query) ||
+        item.label?.toLowerCase().includes(query) ||
+        item.description?.toLowerCase().includes(query)
+      );
+    });
+    if (filtered.length === 0) return null;
+    return filtered.map((item) => ({
+      value: replaceCurrentToken(argumentText, item.value),
+      label: item.label ?? item.value,
+      description: item.description,
+    }));
+  }
+
+  async function getAutocompleteAgents(scope: AgentScope): Promise<AgentConfig[]> {
+    const resolvedPaths = await tryResolvePackagePaths(autocompleteCwd);
+    return discoverAgentsWithPackages(autocompleteCwd, scope, resolvedPaths).agents;
+  }
+
   pi.registerTool({
     name: 'subagent',
     label: 'Subagent',
@@ -1164,20 +1194,7 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // ── Delegate commands ──────────────────────────────────────────────────────
-
-  function emptyDelegateUsage(): DelegateUsageStats {
-    return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, contextTokens: 0, turns: 0 };
-  }
-
-  function combineParallelOutputs(results: AgentResult[]): string {
-    return results
-      .map((r) => {
-        const output = getFinalText(r);
-        return `## ${r.agent}\n${output}`;
-      })
-      .join('\n\n');
-  }
+  // ── Command helpers ───────────────────────────────────────────────────────
 
   async function confirmProjectAgentsIfNeeded(
     ctx: ExtensionCommandContext,
@@ -1303,69 +1320,6 @@ export default function (pi: ExtensionAPI) {
     return box;
   });
 
-  async function executePhase(
-    cwd: string,
-    phase: PhaseDefinition,
-    synthesis: string,
-    previousOutput: string,
-    ctx: ExtensionCommandContext,
-    agentScope: AgentScope,
-    resolvedPaths?: ResolvedPaths,
-  ): Promise<{ results: AgentResult[]; output: string; aborted: boolean }> {
-    const task = phase.taskTemplate
-      .replace(/\{synthesis\}/g, synthesis)
-      .replace(/\{previous\}/g, previousOutput);
-
-    ctx.ui.notify(
-      `${formatPhaseHeader(phase.name, 'running')} ${phase.kind === 'parallel' ? `(${phase.agents.length} agents)` : phase.agents[0]}`,
-      'info',
-    );
-
-    let results: AgentResult[];
-    if (phase.kind === 'parallel') {
-      results = await runParallel(cwd, phase.agents, task, {
-        agentScope,
-        onUpdate: (_phaseName, _agentName, _result) => {
-          // Streaming updates happen per-message
-        },
-        phaseName: phase.name,
-        resolvedPaths,
-      });
-    } else {
-      const result = await runAgent(cwd, phase.agents[0], task, {
-        agentScope,
-        phaseName: phase.name,
-        resolvedPaths,
-      });
-      results = [result];
-    }
-
-    const hasError = results.some((r) => r.exitCode !== 0 || r.stopReason === 'error');
-    if (hasError) {
-      const failedAgents = results
-        .filter((r) => r.exitCode !== 0 || r.stopReason === 'error')
-        .map((r) => `${r.agent}: ${r.errorMessage || r.stderr || '(unknown error)'}`)
-        .join('\n');
-
-      ctx.ui.notify(`${formatPhaseHeader(phase.name, 'failed')}\n${failedAgents}`, 'error');
-      return { results, output: combineParallelOutputs(results), aborted: true };
-    }
-
-    const output = combineParallelOutputs(results);
-    ctx.ui.notify(formatPhaseHeader(phase.name, 'done'), 'info');
-
-    if (phase.requiresConfirmation && ctx.hasUI) {
-      const planText = output;
-      const proceed = await confirmPlan(ctx, planText);
-      if (!proceed) {
-        ctx.ui.notify('Delegate aborted by user after plan review.', 'warning');
-        return { results, output, aborted: true };
-      }
-    }
-
-    return { results, output, aborted: false };
-  }
-
   async function listMdFiles(dir: string): Promise<Set<string>> {
     if (!existsSync(dir)) return new Set();
     try {
@@ -1376,9 +1330,55 @@ export default function (pi: ExtensionAPI) {
     }
   }
 
+  pi.on('session_start', async (_event, ctx) => {
+    autocompleteCwd = ctx.cwd;
+  });
+
   pi.registerCommand('delegate-agents', {
     description: 'List, customize, or reset delegate agents',
+    getArgumentCompletions: async (argumentText) => {
+      const userDir = join(getAgentDir(), 'agents');
+      const { completedTokens } = parseArgumentText(argumentText);
+      const action = completedTokens[0];
+
+      if (!action) {
+        return buildArgumentCompletions(argumentText, [
+          { value: 'list', description: 'Show bundled and overridden agents' },
+          { value: 'reset', description: 'Restore bundled agents by removing user overrides' },
+          { value: 'edit', description: 'Copy a bundled agent into your user agents directory' },
+        ]);
+      }
+
+      if (action === 'reset') {
+        if (completedTokens.length > 1) return null;
+        const bundled = await listMdFiles(bundledAgentsDir);
+        const user = await listMdFiles(userDir);
+        const resettable = [...user].filter((name) => bundled.has(name)).sort();
+        return buildArgumentCompletions(argumentText, [
+          { value: '--all', description: 'Reset all user overrides that have bundled versions' },
+          ...resettable.map((name) => ({
+            value: name,
+            description: 'Reset this user override to the bundled version',
+          })),
+        ]);
+      }
+
+      if (action === 'edit') {
+        if (completedTokens.length > 1) return null;
+        const bundled = [...(await listMdFiles(bundledAgentsDir))].sort();
+        return buildArgumentCompletions(
+          argumentText,
+          bundled.map((name) => ({
+            value: name,
+            description: 'Copy this bundled agent into your user agents directory',
+          })),
+        );
+      }
+
+      return null;
+    },
     handler: async (args, ctx) => {
+      autocompleteCwd = ctx.cwd;
       const userDir = join(getAgentDir(), 'agents');
       const parts = args?.trim().split(/\s+/) || [];
       const action = parts[0] || 'list';
@@ -1474,7 +1474,52 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand('run-agent', {
     description:
       'Run a single agent directly — honors agent sessionStrategy metadata such as fork-at',
+    getArgumentCompletions: async (argumentText) => {
+      const { completedTokens } = parseArgumentText(argumentText);
+      let agentScope: AgentScope = 'user';
+      let expectsScopeValue = false;
+      let agentName: string | undefined;
+
+      for (const token of completedTokens) {
+        if (expectsScopeValue) {
+          if (token === 'user' || token === 'project' || token === 'both') {
+            agentScope = token;
+          }
+          expectsScopeValue = false;
+          continue;
+        }
+        if (token === '--scope') {
+          expectsScopeValue = true;
+          continue;
+        }
+        if (token === '--yes-project-agents') continue;
+        if (token.startsWith('--')) continue;
+        if (!agentName) agentName = token;
+      }
+
+      if (expectsScopeValue) {
+        return buildArgumentCompletions(argumentText, [
+          { value: 'user', description: 'Only user/global agents from ~/.pi/agent/agents' },
+          { value: 'project', description: 'Only project-local agents from .pi/agents' },
+          { value: 'both', description: 'User/global agents plus project-local agents' },
+        ]);
+      }
+
+      if (agentName) return null;
+
+      const agents = await getAutocompleteAgents(agentScope);
+      return buildArgumentCompletions(argumentText, [
+        { value: '--scope', description: 'Choose which agent directories are searched' },
+        { value: '--yes-project-agents', description: 'Skip the project-agent trust confirmation prompt' },
+        ...agents.map((agent) => ({
+          value: agent.name,
+          label: agent.name,
+          description: `${agent.source} — ${agent.description}`,
+        })),
+      ]);
+    },
     handler: async (args, ctx) => {
+      autocompleteCwd = ctx.cwd;
       const parsed = parseRunAgentArgs(args);
       if (!parsed.ok) {
         ctx.ui.notify(parsed.error, 'warning');
@@ -1516,7 +1561,57 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      let forked = false;
+      const runAndReport = async (
+        commandCwd: string,
+        commandUi: typeof ctx.ui,
+        sendSummary: (message: {
+          customType: 'run-agent-summary';
+          content: string;
+          display: true;
+          details: RunAgentSummaryDetails;
+        }) => Promise<void> | void,
+        forked: boolean,
+      ) => {
+        commandUi.notify(
+          `Running agent: ${agent.name} [${agent.source}${forked ? ', forked' : ', inline'}]`,
+          'info',
+        );
+
+        const result = await runAgent(commandCwd, agent.name, task, { agentScope, resolvedPaths });
+        const failed = result.exitCode !== 0 || result.stopReason === 'error';
+        const output = getFinalText(result).trim();
+
+        commandUi.notify(
+          failed ? `Agent "${agent.name}" failed.` : `Agent "${agent.name}" complete.`,
+          failed ? 'error' : 'info',
+        );
+
+        await sendSummary({
+          customType: 'run-agent-summary',
+          content: formatRunAgentSummary({
+            agent,
+            agentScope,
+            task,
+            result,
+            forked,
+          }),
+          display: true,
+          details: {
+            agent: agent.name,
+            agentSource: agent.source,
+            agentScope,
+            sessionStrategy: agent.sessionStrategy ?? 'inline',
+            forked,
+            exitCode: result.exitCode,
+            stopReason: result.stopReason,
+            errorMessage: result.errorMessage,
+            usage: result.usage,
+            task,
+            output,
+          } satisfies RunAgentSummaryDetails,
+        });
+      };
+
       if (agent.sessionStrategy === 'fork-at') {
         const leafId = ctx.sessionManager.getLeafId?.();
         if (!leafId) {
@@ -1525,188 +1620,26 @@ export default function (pi: ExtensionAPI) {
             'warning',
           );
         } else {
-          const forkCompat = ctx.fork as unknown as (
-            entryId: string,
-            options?: { position: 'at' },
-          ) => Promise<{ cancelled: boolean }>;
-          const forkResult = await forkCompat(leafId, { position: 'at' });
+          const forkResult = await ctx.fork(leafId, {
+            position: 'at',
+            withSession: async (replacementCtx) => {
+              await runAndReport(
+                replacementCtx.cwd,
+                replacementCtx.ui,
+                (message) => replacementCtx.sendMessage(message),
+                true,
+              );
+            },
+          });
           if (forkResult.cancelled) {
             ctx.ui.notify(`Run cancelled — unable to fork session for "${agent.name}".`, 'info');
-            return;
           }
-          forked = true;
-        }
-      }
-
-      ctx.ui.notify(
-        `Running agent: ${agent.name} [${agent.source}${forked ? ', forked' : ', inline'}]`,
-        'info',
-      );
-
-      const result = await runAgent(ctx.cwd, agent.name, task, { agentScope, resolvedPaths });
-      const failed = result.exitCode !== 0 || result.stopReason === 'error';
-      const output = getFinalText(result).trim();
-
-      ctx.ui.notify(
-        failed ? `Agent "${agent.name}" failed.` : `Agent "${agent.name}" complete.`,
-        failed ? 'error' : 'info',
-      );
-
-      pi.sendMessage({
-        customType: 'run-agent-summary',
-        content: formatRunAgentSummary({
-          agent,
-          agentScope,
-          task,
-          result,
-          forked,
-        }),
-        display: true,
-        details: {
-          agent: agent.name,
-          agentSource: agent.source,
-          agentScope,
-          sessionStrategy: agent.sessionStrategy ?? 'inline',
-          forked,
-          exitCode: result.exitCode,
-          stopReason: result.stopReason,
-          errorMessage: result.errorMessage,
-          usage: result.usage,
-          task,
-          output,
-        } satisfies RunAgentSummaryDetails,
-      });
-    },
-  });
-
-  pi.registerCommand('delegate', {
-    description:
-      'Orchestrate subagent workflows — supports --scope, --workflow, and project-local agents',
-    handler: async (args, ctx) => {
-      const parsed = parseDelegateArgs(args);
-      if (!parsed.ok) {
-        ctx.ui.notify(parsed.error, 'warning');
-        return;
-      }
-
-      const { explicitTask, agentScope, workflowId, confirmProjectAgents } = parsed.options;
-      const resolvedPaths = await tryResolvePackagePaths(ctx.cwd);
-
-      // Step 1: Synthesize
-      const conversation = extractRecentConversation(ctx);
-      if (!conversation.trim() && !explicitTask) {
-        ctx.ui.notify(`No conversation context and no task specified.\n\n${formatDelegateUsage()}`, 'warning');
-        return;
-      }
-
-      const prompt = buildSynthesisPrompt(conversation, explicitTask);
-      ctx.ui.notify('⏳ Synthesizing task from conversation...', 'info');
-
-      const synthResult = await runAgent(ctx.cwd, 'planner', prompt, { agentScope, resolvedPaths });
-      const synthesis = getFinalText(synthResult);
-
-      if (!synthesis.trim()) {
-        ctx.ui.notify('Failed to synthesize task from conversation.', 'error');
-        return;
-      }
-
-      // Step 2: Confirm synthesis
-      if (ctx.hasUI) {
-        const synthOk = await confirmSynthesis(ctx, synthesis);
-        if (!synthOk) {
-          ctx.ui.notify('Delegate cancelled.', 'info');
           return;
         }
       }
 
-      // Step 3: Pick workflow
-      const workflow = workflowId
-        ? getWorkflow(workflowId)
-        : ctx.hasUI
-          ? await pickWorkflow(ctx, synthesis)
-          : getWorkflow(suggestWorkflow(synthesis));
-      if (!workflow) {
-        ctx.ui.notify('Delegate cancelled — no workflow selected.', 'info');
-        return;
-      }
-
-      if (agentScope === 'project' || agentScope === 'both') {
-        const discovery = discoverAgentsWithPackages(ctx.cwd, agentScope, resolvedPaths);
-        const requestedProjectAgents = workflow.phases
-          .flatMap((phase) => phase.agents)
-          .map((name) => discovery.agents.find((agent) => agent.name === name))
-          .filter((agent): agent is AgentConfig => agent?.source === 'project');
-
-        const ok = await confirmProjectAgentsIfNeeded(
-          ctx,
-          requestedProjectAgents,
-          discovery.projectAgentsDir,
-          confirmProjectAgents,
-        );
-        if (!ok) {
-          ctx.ui.notify('Delegate cancelled — project-local agents not approved.', 'info');
-          return;
-        }
-      }
-
-      // Step 4: Execute phases
-      const state: DelegateState = {
-        synthesis,
-        workflow,
-        phases: [],
-        totalUsage: emptyDelegateUsage(),
-      };
-
-      let previousOutput = '';
-
-      ctx.ui.notify(`Starting workflow: ${workflow.label} [${agentScope}]`, 'info');
-
-      for (const phaseDef of workflow.phases) {
-        const phaseResult = await executePhase(
-          ctx.cwd,
-          phaseDef,
-          synthesis,
-          previousOutput,
-          ctx,
-          agentScope,
-          resolvedPaths,
-        );
-
-        const phase: PhaseResult = {
-          name: phaseDef.name,
-          kind: phaseDef.kind,
-          agents: phaseResult.results,
-        };
-
-        state.phases.push(phase);
-        const phaseUsage = aggregateUsage(phaseResult.results);
-        state.totalUsage.input += phaseUsage.input;
-        state.totalUsage.output += phaseUsage.output;
-        state.totalUsage.cacheRead += phaseUsage.cacheRead;
-        state.totalUsage.cacheWrite += phaseUsage.cacheWrite;
-        state.totalUsage.cost += phaseUsage.cost;
-        state.totalUsage.turns += phaseUsage.turns;
-
-        if (phaseResult.aborted) break;
-
-        previousOutput = phaseResult.output;
-      }
-
-      // Step 5: Show full summary
-      const summary = formatFullSummary(state);
-      ctx.ui.notify(`Delegate complete — ${workflow.label}`, 'info');
-
-      pi.sendMessage({
-        customType: 'delegate-summary',
-        content: summary,
-        display: true,
-        details: {
-          workflow: workflow.id,
-          agentScope,
-          phaseCount: state.phases.length,
-          totalUsage: state.totalUsage,
-        },
-      });
+      await runAndReport(ctx.cwd, ctx.ui, (message) => pi.sendMessage(message), false);
     },
   });
+
 }

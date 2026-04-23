@@ -1,18 +1,28 @@
 {
-  "name": "@dreki-gg/pi-subagent",
-  "version": "0.6.0",
-  "description": "Subagent tool and direct agent runs for pi — isolated agents, parallel scouts, bundled agents, and workflow templates"
+  "name": "@dreki-gg/pi-vim-mode",
+  "version": "0.1.0",
+  "description": "Always-on vim-like modal editor for pi that preserves insert-mode autocomplete",
   "keywords": [
-    "pi-package"
+    "pi-package",
+    "pi",
+    "vim",
+    "modal-editor",
+    "editor"
   ],
   "author": "Juan Albarran <jalbarrandev@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/dreki-gg/pi-extensions",
-    "directory": "packages/subagent"
+    "directory": "packages/vim-mode"
   },
   "type": "module",
+  "files": [
+    "extensions",
+    "README.md",
+    "CHANGELOG.md",
+    "package.json"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "oxlint extensions",
@@ -21,16 +31,7 @@
   },
   "pi": {
     "extensions": [
-      "./extensions/subagent"
-    ],
-    "skills": [
-      "./skills"
-    ],
-    "prompts": [
-      "./prompts"
-    ],
-    "agents": [
-      "./agents"
+      "./extensions/vim-mode"
     ]
   },
   "devDependencies": {
@@ -40,10 +41,7 @@
     "typescript": "^6.0.0"
   },
   "peerDependencies": {
-    "@mariozechner/pi-ai": "*",
-    "@mariozechner/pi-agent-core": "*",
     "@mariozechner/pi-coding-agent": "*",
-    "@mariozechner/pi-tui": "*",
-    "typebox": "*"
+    "@mariozechner/pi-tui": "*"
   }
 }

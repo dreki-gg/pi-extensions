@@ -1,5 +1,5 @@
 import type { ExtensionAPI, ToolDefinition } from '@mariozechner/pi-coding-agent';
-import { Type, type TSchema } from '@sinclair/typebox';
+import { Type, type TSchema } from 'typebox';
 import { fetchLibraryDocs, searchLibraries } from './api';
 import {
   buildDocRef,

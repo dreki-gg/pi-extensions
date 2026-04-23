@@ -15,6 +15,7 @@ type ToolDefinitionLike = {
 
 type CommandDefinitionLike = {
   description?: string;
+  getArgumentCompletions?: (argumentPrefix: string) => Promise<any[] | null> | any[] | null;
   handler?: (...args: any[]) => Promise<any> | any;
 };
 
@@ -259,19 +260,26 @@ function createMockContext(options?: { cwd?: string; hasUI?: boolean }) {
 
 async function withTempHome<T>(fn: (homeDir: string) => Promise<T>): Promise<T> {
   const previousHome = process.env.HOME;
+  const previousPiDir = process.env.PI_CODING_AGENT_DIR;
   const homeDir = await mkdtemp(path.join(os.tmpdir(), 'pi-compat-home-'));
   process.env.HOME = homeDir;
+  process.env.PI_CODING_AGENT_DIR = path.join(homeDir, '.pi', 'agent');
 
   try {
     return await fn(homeDir);
   } finally {
     if (previousHome === undefined) delete process.env.HOME;
     else process.env.HOME = previousHome;
+    if (previousPiDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousPiDir;
     await rm(homeDir, { recursive: true, force: true });
   }
 }
 
-async function withTempModesGlobalPath<T>(homeDir: string, fn: (presetsPath: string) => Promise<T>): Promise<T> {
+async function withTempModesGlobalPath<T>(
+  homeDir: string,
+  fn: (presetsPath: string) => Promise<T>,
+): Promise<T> {
   const previousPath = process.env.PI_MODES_GLOBAL_PRESETS_PATH;
   const presetsPath = path.join(homeDir, '.pi', 'agent', 'presets.json');
   process.env.PI_MODES_GLOBAL_PRESETS_PATH = presetsPath;
@@ -287,7 +295,8 @@ async function withTempModesGlobalPath<T>(homeDir: string, fn: (presetsPath: str
 describe('Pi extension compatibility harness', () => {
   test('Context7 registers canonical tools', async () => {
     const pi = createMockPi();
-    const { default: context7Extension } = await import('../packages/context7/extensions/context7/index.ts');
+    const { default: context7Extension } =
+      await import('../packages/context7/extensions/context7/index.ts');
 
     context7Extension(pi.api as any);
 
@@ -318,14 +327,7 @@ describe('Pi extension compatibility harness', () => {
 
       await pi.emit('session_start', { reason: 'startup' }, ctx);
 
-      const configPath = path.join(
-        homeDir,
-        '.pi',
-        'agent',
-        'extensions',
-        'lsp',
-        'config.json',
-      );
+      const configPath = path.join(homeDir, '.pi', 'agent', 'extensions', 'lsp', 'config.json');
       const starterConfig = await readFile(configPath, 'utf8');
       expect(starterConfig).toContain('typescript-language-server');
       expect(ctx.statuses.has('lsp')).toBe(true);
@@ -339,9 +341,8 @@ describe('Pi extension compatibility harness', () => {
 
   test('Questionnaire tool degrades safely when no UI is available', async () => {
     const pi = createMockPi();
-    const { default: questionnaireExtension } = await import(
-      '../packages/questionnaire/extensions/questionnaire/index.ts'
-    );
+    const { default: questionnaireExtension } =
+      await import('../packages/questionnaire/extensions/questionnaire/index.ts');
 
     questionnaireExtension(pi.api as any);
 
@@ -377,12 +378,13 @@ describe('Pi extension compatibility harness', () => {
   test('Subagent extension registers commands and handles invalid invocations without crashing', async () => {
     await withTempHome(async () => {
       const pi = createMockPi();
-      const { default: subagentExtension } = await import('../packages/subagent/extensions/subagent/index.ts');
+      const { default: subagentExtension } =
+        await import('../packages/subagent/extensions/subagent/index.ts');
 
       subagentExtension(pi.api as any);
 
       expect(pi.tools.map((tool) => tool.name)).toEqual(['subagent']);
-      expect([...pi.commands.keys()].sort()).toEqual(['delegate', 'delegate-agents', 'run-agent']);
+      expect([...pi.commands.keys()].sort()).toEqual(['delegate-agents', 'run-agent']);
       expect(pi.messageRenderers.has('run-agent-summary')).toBe(true);
 
       const ctx = createMockContext({ cwd: process.cwd(), hasUI: false });
@@ -394,10 +396,27 @@ describe('Pi extension compatibility harness', () => {
       expect(result.content[0].text).toContain('Available agents:');
       expect(result.content[0].text).toContain('planner');
 
+      const runAgentCompletions = await pi
+        .getCommand('run-agent')
+        .getArgumentCompletions?.('--scope both wor');
+      expect(runAgentCompletions?.some((item) => item.value === '--scope both worker')).toBe(true);
+
+      const delegateAgentCompletions = await pi
+        .getCommand('delegate-agents')
+        .getArgumentCompletions?.('reset ');
+      expect(delegateAgentCompletions?.some((item) => item.value === 'reset --all')).toBe(true);
+
       await pi.getCommand('run-agent').handler?.('', ctx);
       expect(ctx.notifications.at(-1)?.message).toContain('Usage: /run-agent');
 
-      const { bundledAgentsDir } = await import('../packages/subagent/extensions/subagent/agents.ts');
+      await pi.getCommand('run-agent').handler?.('worker fix the failing tests', ctx);
+      expect(ctx.forkCalls).toHaveLength(1);
+      expect(ctx.forkCalls[0]?.entryId).toBe('leaf');
+      expect(ctx.forkCalls[0]?.options?.position).toBe('at');
+      expect(typeof ctx.forkCalls[0]?.options?.withSession).toBe('function');
+
+      const { bundledAgentsDir } =
+        await import('../packages/subagent/extensions/subagent/agents.ts');
       const workerAgentPath = path.join(bundledAgentsDir, 'worker.md');
       const reviewerAgentPath = path.join(bundledAgentsDir, 'reviewer.md');
       const workerAgent = await readFile(workerAgentPath, 'utf8');
@@ -438,7 +457,9 @@ describe('Pi extension compatibility harness', () => {
         expect(content.explore.tools).toEqual(['read', 'lsp', 'context7_*', 'questionnaire']);
         expect(content.explore.thinkingLevel).toBe('high');
         expect(
-          ctx.notifications.some((entry) => entry.message.includes('created starter global presets')),
+          ctx.notifications.some((entry) =>
+            entry.message.includes('created starter global presets'),
+          ),
         ).toBe(true);
       });
     });
@@ -481,7 +502,9 @@ describe('Pi extension compatibility harness', () => {
         expect(content.explore.tools).toEqual(['read']);
         expect(content.explore.instructions).toBe('Custom user explore preset');
         expect(
-          ctx.notifications.some((entry) => entry.message.includes('created starter global presets')),
+          ctx.notifications.some((entry) =>
+            entry.message.includes('created starter global presets'),
+          ),
         ).toBe(false);
       });
     });
@@ -537,7 +560,16 @@ describe('Pi extension compatibility harness', () => {
         const ctx = createMockContext({ cwd: projectDir, hasUI: false });
         await pi.emit('session_start', { reason: 'startup' }, ctx);
 
-        const inputResults = await pi.emit('input', { source: 'interactive', text: '/explore' }, ctx);
+        const presetCompletions = await pi.getCommand('preset').getArgumentCompletions?.('ex');
+        expect(presetCompletions?.some((item) => item.value === 'explore')).toBe(true);
+        const modeCompletions = await pi.getCommand('mode').getArgumentCompletions?.('off');
+        expect(modeCompletions?.some((item) => item.value === 'off')).toBe(true);
+
+        const inputResults = await pi.emit(
+          'input',
+          { source: 'interactive', text: '/explore' },
+          ctx,
+        );
         expect(inputResults[0]).toEqual({ action: 'transform', text: '/preset explore' });
 
         expect(pi.api.getActiveTools()).toEqual([
@@ -581,5 +613,110 @@ describe('Pi extension compatibility harness', () => {
         expect(ctx.statuses.get('mode')).toBeUndefined();
       });
     });
+  });
+
+  test('Plan mode extension enforces read-only planning and can fall back to plan-file prompts', async () => {
+    const pi = createMockPi();
+    for (const toolName of [
+      'read',
+      'bash',
+      'grep',
+      'find',
+      'ls',
+      'edit',
+      'write',
+      'questionnaire',
+      'lsp',
+      'context7_get_library_docs',
+    ]) {
+      pi.api.registerTool({ name: toolName });
+    }
+    pi.setFlag('plan', true);
+
+    const { default: planModeExtension } = await import(
+      `../packages/plan-mode/extensions/plan-mode/index.ts?plan=${Date.now()}-${Math.random()}`
+    );
+    planModeExtension(pi.api as any);
+
+    expect([...pi.commands.keys()].sort()).toEqual([
+      'plan',
+      'plan-domain',
+      'plan-execute',
+      'plan-plans',
+      'plan-status',
+    ]);
+    expect(pi.countHandlers('session_start')).toBeGreaterThan(0);
+    expect(pi.countHandlers('before_agent_start')).toBeGreaterThan(0);
+    expect(pi.countHandlers('tool_call')).toBeGreaterThan(0);
+
+    const ctx = createMockContext({ hasUI: false });
+    await pi.emit('session_start', { reason: 'startup' }, ctx);
+
+    const planCompletions = await pi.getCommand('plan').getArgumentCompletions?.('sta');
+    expect(planCompletions?.some((item) => item.value === 'status')).toBe(true);
+
+    expect(pi.api.getActiveTools()).toEqual([
+      'read',
+      'bash',
+      'grep',
+      'find',
+      'ls',
+      'questionnaire',
+      'lsp',
+      'context7_get_library_docs',
+    ]);
+    expect(ctx.statuses.get('plan-mode')).toBe('plan');
+
+    const beforeAgentStartResults = await pi.emit(
+      'before_agent_start',
+      {
+        prompt: 'plan this feature',
+        images: [],
+        systemPrompt: 'Base prompt',
+        systemPromptOptions: {
+          selectedTools: ['read', 'questionnaire'],
+        },
+      },
+      ctx,
+    );
+    expect(beforeAgentStartResults[0].systemPrompt).toContain('PLAN MODE ACTIVE.');
+    expect(beforeAgentStartResults[0].systemPrompt).toContain('Enabled tools: read, questionnaire');
+    expect(beforeAgentStartResults[0].systemPrompt).toContain('questionnaire tool is available');
+
+    const toolCallResults = await pi.emit(
+      'tool_call',
+      {
+        toolName: 'bash',
+        input: { command: 'rm -rf build' },
+      },
+      ctx,
+    );
+    expect(toolCallResults[0]).toEqual(
+      expect.objectContaining({
+        block: true,
+      }),
+    );
+
+    await pi.getCommand('plan-plans').handler?.('', ctx);
+    expect(pi.api.getActiveTools()).toEqual([
+      'read',
+      'bash',
+      'grep',
+      'find',
+      'ls',
+      'edit',
+      'write',
+      'questionnaire',
+      'lsp',
+      'context7_get_library_docs',
+    ]);
+    expect(pi.sentMessages.at(-1)).toEqual(
+      expect.objectContaining({
+        type: 'user',
+        message: expect.stringContaining(
+          'Create self-contained implementation plan files for the current approved plan.',
+        ),
+      }),
+    );
   });
 });

@@ -1,5 +1,5 @@
 import { StringEnum } from '@mariozechner/pi-ai';
-import { Type, type Static } from '@sinclair/typebox';
+import { Type, type Static } from 'typebox';
 
 export const SelectionModeSchema = StringEnum(['single', 'multiple'] as const, {
   description: 'Selection mode: single choice or multiple choices.',
