@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-modes",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Config-driven preset and mode switching for pi — hard-enforced tool whitelists, mode aliases, and session persistence",
   "keywords": [
     "pi-package",

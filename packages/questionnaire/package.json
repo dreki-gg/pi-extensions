@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-questionnaire",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Tool-first questionnaire flow for pi with shared tabbed TUI and custom rendering",
   "keywords": [
     "pi-package"
