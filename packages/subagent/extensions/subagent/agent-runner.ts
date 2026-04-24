@@ -43,6 +43,8 @@ export type OnPhaseUpdate = (phaseName: string, agentName: string, result: Agent
 export interface RunAgentOptions {
   agentScope?: AgentScope;
   cwd?: string;
+  model?: string;
+  thinking?: string;
   onUpdate?: OnPhaseUpdate;
   phaseName?: string;
   signal?: AbortSignal;
@@ -70,9 +72,12 @@ export async function runAgent(
     };
   }
 
+  const selectedModel = options.model ?? agent.model;
+  const selectedThinking = options.thinking ?? agent.thinking;
+
   const args: string[] = ['--mode', 'json', '-p', '--no-session'];
-  if (agent.model) args.push('--model', agent.model);
-  if (agent.thinking) args.push('--thinking', agent.thinking);
+  if (selectedModel) args.push('--model', selectedModel);
+  if (selectedThinking) args.push('--thinking', selectedThinking);
   if (agent.tools && agent.tools.length > 0) args.push('--tools', agent.tools.join(','));
 
   let tmpPromptDir: string | null = null;
@@ -85,7 +90,7 @@ export async function runAgent(
     messages: [],
     stderr: '',
     usage: emptyUsage(),
-    model: agent.model,
+    model: selectedModel,
   };
 
   try {

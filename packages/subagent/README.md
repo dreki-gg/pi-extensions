@@ -18,6 +18,14 @@ The `subagent` tool supports three modes:
 | Parallel | `{ tasks: [...] }` — multiple agents concurrently |
 | Chain | `{ chain: [...] }` — sequential with `{previous}` placeholder |
 
+Optional overrides:
+- `model` — override the agent's default model for one run, or set a default for all tasks/steps in a call
+- `thinking` — override the agent's default reasoning level for one run, or set a default for all tasks/steps in a call
+
+Notes:
+- `/run-agent` provides autocomplete for `--model` and `--thinking`
+- the `subagent` tool supports the same fields in its schema, but this package does not currently add custom interactive autocomplete for tool-call JSON parameters
+
 ## Opinionated Defaults
 
 This package is intentionally opinionated about orchestration:
@@ -49,7 +57,12 @@ For direct user-invoked single-agent runs, use:
 
 ```text
 /run-agent worker implement the auth flow we discussed
+/run-agent --model anthropic/claude-opus-4-6 --thinking high reviewer review the latest diff
 ```
+
+Autocomplete notes:
+- `/run-agent --model` suggests available configured models plus models referenced by discovered agents
+- `/run-agent --thinking` suggests supported reasoning levels such as `off`, `minimal`, `low`, `medium`, `high`, and `xhigh`
 
 For reusable multi-step workflows, prefer the main agent calling the `subagent` tool directly in `single` / `parallel` / `chain` mode rather than relying on canned slash workflows.
 
@@ -77,7 +90,7 @@ Recommended pattern in practice:
 Run one agent directly from the current session:
 
 ```text
-/run-agent [--scope user|project|both] [--yes-project-agents] <agent> [task]
+/run-agent [--scope user|project|both] [--model <id>] [--thinking <level>] [--yes-project-agents] <agent> [task]
 ```
 
 Examples:
@@ -99,6 +112,8 @@ If the chosen agent frontmatter sets `sessionStrategy: fork-at`, the command clo
 | Flag | Meaning |
 |------|---------|
 | `--scope user|project|both` | Which agent layers to use. Default: `user` |
+| `--model <id>` | Override the agent model for this run |
+| `--thinking <level>` | Override the default reasoning level for this run |
 | `--yes-project-agents` | Disable the confirmation prompt for project-local agents |
 
 ## Agent Definitions
@@ -121,21 +136,27 @@ System prompt for the agent.
 
 The package ships with these agents out of the box:
 
-- `scout` — fast codebase recon
-- `docs-scout` — Context7-first documentation lookup
-- `planner` — implementation planning
-- `worker` — general-purpose implementation (`sessionStrategy: fork-at` by default)
-- `reviewer` — code review (`sessionStrategy: fork-at` by default)
-- `validator` — validate or falsify a specific bug or behavior claim from code, tests, and commands
-- `bug-prover` — create the smallest failing repro for a suspected bug (`sessionStrategy: fork-at` by default)
-- `advisor` — focused second-opinion consult for tricky planning, implementation, or review decisions
-- `manager` — bounded orchestration for multi-slice work (`sessionStrategy: fork-at` by default)
-- `ux-designer` — frontend UI design
+| Agent | Purpose | Default model | Default reasoning level |
+|------|---------|---------------|-------------------------|
+| `scout` | Fast codebase recon | `openai/gpt-5.4-mini` | `medium` |
+| `docs-scout` | Context7-first documentation lookup | `openai/gpt-5.4-mini` | `medium` |
+| `planner` | Implementation planning | `openai/gpt-5.4` | `high` |
+| `worker` | General-purpose implementation | `openai/gpt-5.4` | `medium` |
+| `reviewer` | Code review | `openai/gpt-5.4` | `medium` |
+| `validator` | Validate or falsify a specific bug or behavior claim from code, tests, and commands | `openai/gpt-5.4` | `medium` |
+| `bug-prover` | Create the smallest failing repro for a suspected bug | `openai/gpt-5.4` | `medium` |
+| `advisor` | Focused second-opinion consult for tricky planning, implementation, or review decisions | `openai/gpt-5.4` | `medium` |
+| `manager` | Bounded orchestration for multi-slice work | `openai/gpt-5.4` | `high` |
+| `ux-designer` | Frontend UI design | `anthropic/claude-opus-4-6` | `medium` |
+
+Notes:
+- `worker`, `reviewer`, `bug-prover`, and `manager` default to `sessionStrategy: fork-at`.
+- "Default reasoning level" maps to the frontmatter field `thinking` and can be overridden per run.
 
 Resolution order is: bundled → user (`~/.pi/agent/agents/`) → project (`.pi/agents/`). Project agents override user and bundled agents by name.
 
 Optional frontmatter:
-- `thinking` — reasoning effort for the spawned pi process
+- `thinking` — default reasoning effort for the spawned pi process
 - `sessionStrategy: fork-at` — when used with `/run-agent`, clone the current active branch into a new session before running
 
 > Note: pi now supports package-shipped agents via `pi.agents` (or conventional `agents/` directories). This package publishes its bundled agents that way, while user agents in `~/.pi/agent/agents/` and project agents in `.pi/agents/` still override them by name.

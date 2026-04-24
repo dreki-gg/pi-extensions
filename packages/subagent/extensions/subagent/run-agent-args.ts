@@ -3,6 +3,8 @@ import type { AgentScope } from './agents';
 export interface RunAgentCommandOptions {
   agentScope: AgentScope;
   confirmProjectAgents: boolean;
+  model?: string;
+  thinking?: string;
   agentName?: string;
   explicitTask?: string;
 }
@@ -12,7 +14,7 @@ function tokenize(input: string): string[] {
 }
 
 export function formatRunAgentUsage(): string {
-  return 'Usage: /run-agent [--scope user|project|both] [--yes-project-agents] <agent> [task]';
+  return 'Usage: /run-agent [--scope user|project|both] [--model <id>] [--thinking <level>] [--yes-project-agents] <agent> [task]';
 }
 
 export function parseRunAgentArgs(rawArgs?: string):
@@ -23,6 +25,8 @@ export function parseRunAgentArgs(rawArgs?: string):
 
   let agentScope: AgentScope = 'user';
   let confirmProjectAgents = true;
+  let model: string | undefined;
+  let thinking: string | undefined;
   let agentName: string | undefined;
 
   for (let i = 0; i < tokens.length; i++) {
@@ -34,6 +38,24 @@ export function parseRunAgentArgs(rawArgs?: string):
         return { ok: false, error: `Invalid --scope value.\n\n${formatRunAgentUsage()}` };
       }
       agentScope = value as AgentScope;
+      continue;
+    }
+
+    if (token === '--model') {
+      const value = tokens[++i];
+      if (!value) {
+        return { ok: false, error: `Missing --model value.\n\n${formatRunAgentUsage()}` };
+      }
+      model = value;
+      continue;
+    }
+
+    if (token === '--thinking' || token === '--reasoning-level') {
+      const value = tokens[++i];
+      if (!value) {
+        return { ok: false, error: `Missing ${token} value.\n\n${formatRunAgentUsage()}` };
+      }
+      thinking = value;
       continue;
     }
 
@@ -59,6 +81,8 @@ export function parseRunAgentArgs(rawArgs?: string):
     options: {
       agentScope,
       confirmProjectAgents,
+      model,
+      thinking,
       agentName,
       explicitTask: taskTokens.join(' ').trim() || undefined,
     },

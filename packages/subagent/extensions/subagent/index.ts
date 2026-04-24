@@ -25,9 +25,11 @@ import { StringEnum } from '@mariozechner/pi-ai';
 import {
   type ExtensionAPI,
   type ExtensionCommandContext,
+  AuthStorage,
   DefaultPackageManager,
   getAgentDir,
   getMarkdownTheme,
+  ModelRegistry,
   SettingsManager,
   withFileMutationQueue,
 } from '@mariozechner/pi-coding-agent';
@@ -294,6 +296,8 @@ async function runSingleAgent(
   agentName: string,
   task: string,
   cwd: string | undefined,
+  modelOverride: string | undefined,
+  thinkingOverride: string | undefined,
   step: number | undefined,
   signal: AbortSignal | undefined,
   onUpdate: OnUpdateCallback | undefined,
@@ -323,9 +327,12 @@ async function runSingleAgent(
     };
   }
 
+  const selectedModel = modelOverride ?? agent.model;
+  const selectedThinking = thinkingOverride ?? agent.thinking;
+
   const args: string[] = ['--mode', 'json', '-p', '--no-session'];
-  if (agent.model) args.push('--model', agent.model);
-  if (agent.thinking) args.push('--thinking', agent.thinking);
+  if (selectedModel) args.push('--model', selectedModel);
+  if (selectedThinking) args.push('--thinking', selectedThinking);
   if (agent.tools && agent.tools.length > 0) args.push('--tools', agent.tools.join(','));
 
   let tmpPromptDir: string | null = null;
@@ -347,7 +354,7 @@ async function runSingleAgent(
       contextTokens: 0,
       turns: 0,
     },
-    model: agent.model,
+    model: selectedModel,
     step,
   };
 
@@ -472,12 +479,20 @@ async function runSingleAgent(
 const TaskItem = Type.Object({
   agent: Type.String({ description: 'Name of the agent to invoke' }),
   task: Type.String({ description: 'Task to delegate to the agent' }),
+  model: Type.Optional(Type.String({ description: 'Optional model override for this task' })),
+  thinking: Type.Optional(
+    Type.String({ description: 'Optional reasoning level override for this task' }),
+  ),
   cwd: Type.Optional(Type.String({ description: 'Working directory for the agent process' })),
 });
 
 const ChainItem = Type.Object({
   agent: Type.String({ description: 'Name of the agent to invoke' }),
   task: Type.String({ description: 'Task with optional {previous} placeholder for prior output' }),
+  model: Type.Optional(Type.String({ description: 'Optional model override for this step' })),
+  thinking: Type.Optional(
+    Type.String({ description: 'Optional reasoning level override for this step' }),
+  ),
   cwd: Type.Optional(Type.String({ description: 'Working directory for the agent process' })),
 });
 
@@ -492,11 +507,17 @@ const SubagentParams = Type.Object({
     Type.String({ description: 'Name of the agent to invoke (for single mode)' }),
   ),
   task: Type.Optional(Type.String({ description: 'Task to delegate (for single mode)' })),
+  model: Type.Optional(
+    Type.String({ description: 'Optional default model override for the run or all steps/tasks' }),
+  ),
+  thinking: Type.Optional(
+    Type.String({ description: 'Optional default reasoning level override for the run or all steps/tasks' }),
+  ),
   tasks: Type.Optional(
-    Type.Array(TaskItem, { description: 'Array of {agent, task} for parallel execution' }),
+    Type.Array(TaskItem, { description: 'Array of {agent, task, model?, thinking?} for parallel execution' }),
   ),
   chain: Type.Optional(
-    Type.Array(ChainItem, { description: 'Array of {agent, task} for sequential execution' }),
+    Type.Array(ChainItem, { description: 'Array of {agent, task, model?, thinking?} for sequential execution' }),
   ),
   agentScope: Type.Optional(AgentScopeSchema),
   confirmProjectAgents: Type.Optional(
@@ -582,12 +603,48 @@ export default function (pi: ExtensionAPI) {
     return discoverAgentsWithPackages(autocompleteCwd, scope, resolvedPaths).agents;
   }
 
+  async function getAutocompleteModels(scope: AgentScope): Promise<
+    Array<{ value: string; label?: string; description?: string }>
+  > {
+    const items = new Map<string, { value: string; label?: string; description?: string }>();
+
+    try {
+      const authStorage = AuthStorage.create();
+      const modelRegistry = ModelRegistry.create(authStorage);
+      const available = await modelRegistry.getAvailable();
+      for (const model of available) {
+        const value = `${model.provider}/${model.id}`;
+        items.set(value, {
+          value,
+          label: value,
+          description: 'Configured model with available credentials',
+        });
+      }
+    } catch {
+      // Fall back to models referenced by discovered agents.
+    }
+
+    const agents = await getAutocompleteAgents(scope);
+    for (const agent of agents) {
+      if (!agent.model) continue;
+      if (items.has(agent.model)) continue;
+      items.set(agent.model, {
+        value: agent.model,
+        label: agent.model,
+        description: `Default model on agent ${agent.name}`,
+      });
+    }
+
+    return [...items.values()];
+  }
+
   pi.registerTool({
     name: 'subagent',
     label: 'Subagent',
     description: [
       'Delegate tasks to specialized subagents with isolated context.',
       'Modes: single (agent + task), parallel (tasks array), chain (sequential with {previous} placeholder).',
+      'Optional per-run or per-step model and reasoning-level overrides are supported via model/thinking.',
       'Default agent scope is "user" (from ~/.pi/agent/agents).',
       'To enable project-local agents in .pi/agents, set agentScope: "both" (or "project").',
     ].join(' '),
@@ -685,6 +742,8 @@ export default function (pi: ExtensionAPI) {
             step.agent,
             taskWithContext,
             step.cwd,
+            step.model ?? params.model,
+            step.thinking ?? params.thinking,
             i + 1,
             signal,
             chainUpdate,
@@ -796,6 +855,8 @@ export default function (pi: ExtensionAPI) {
               t.agent,
               t.task,
               t.cwd,
+              t.model ?? params.model,
+              t.thinking ?? params.thinking,
               undefined,
               signal,
               // Per-task update callback
@@ -836,6 +897,8 @@ export default function (pi: ExtensionAPI) {
           params.agent,
           params.task,
           params.cwd,
+          params.model,
+          params.thinking,
           undefined,
           signal,
           onUpdate,
@@ -1487,6 +1550,8 @@ export default function (pi: ExtensionAPI) {
       const { completedTokens } = parseArgumentText(argumentText);
       let agentScope: AgentScope = 'user';
       let expectsScopeValue = false;
+      let expectsThinkingValue = false;
+      let expectsModelValue = false;
       let agentName: string | undefined;
 
       for (const token of completedTokens) {
@@ -1497,8 +1562,24 @@ export default function (pi: ExtensionAPI) {
           expectsScopeValue = false;
           continue;
         }
+        if (expectsThinkingValue) {
+          expectsThinkingValue = false;
+          continue;
+        }
+        if (expectsModelValue) {
+          expectsModelValue = false;
+          continue;
+        }
         if (token === '--scope') {
           expectsScopeValue = true;
+          continue;
+        }
+        if (token === '--thinking' || token === '--reasoning-level') {
+          expectsThinkingValue = true;
+          continue;
+        }
+        if (token === '--model') {
+          expectsModelValue = true;
           continue;
         }
         if (token === '--yes-project-agents') continue;
@@ -1514,11 +1595,29 @@ export default function (pi: ExtensionAPI) {
         ]);
       }
 
+      if (expectsThinkingValue) {
+        return buildArgumentCompletions(argumentText, [
+          { value: 'off', description: 'Disable reasoning if the model supports it' },
+          { value: 'minimal', description: 'Minimal reasoning effort' },
+          { value: 'low', description: 'Lower reasoning effort' },
+          { value: 'medium', description: 'Balanced reasoning effort' },
+          { value: 'high', description: 'Higher reasoning effort' },
+          { value: 'xhigh', description: 'Maximum reasoning effort on supported models' },
+        ]);
+      }
+
+      if (expectsModelValue) {
+        const models = await getAutocompleteModels(agentScope);
+        return buildArgumentCompletions(argumentText, models);
+      }
       if (agentName) return null;
 
       const agents = await getAutocompleteAgents(agentScope);
       return buildArgumentCompletions(argumentText, [
         { value: '--scope', description: 'Choose which agent directories are searched' },
+        { value: '--model', description: 'Override the agent model for this run' },
+        { value: '--thinking', description: 'Override the reasoning level for this run' },
+        { value: '--reasoning-level', description: 'Alias for --thinking' },
         { value: '--yes-project-agents', description: 'Skip the project-agent trust confirmation prompt' },
         ...agents.map((agent) => ({
           value: agent.name,
@@ -1535,7 +1634,7 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      const { agentName, explicitTask, agentScope, confirmProjectAgents } = parsed.options;
+      const { agentName, explicitTask, agentScope, confirmProjectAgents, model, thinking } = parsed.options;
       if (!agentName) {
         ctx.ui.notify(formatRunAgentUsage(), 'warning');
         return;
@@ -1581,12 +1680,20 @@ export default function (pi: ExtensionAPI) {
         }) => Promise<void> | void,
         forked: boolean,
       ) => {
+        const selectedModel = model ?? agent.model;
+        const selectedThinking = thinking ?? agent.thinking;
+
         commandUi.notify(
-          `Running agent: ${agent.name} [${agent.source}${forked ? ', forked' : ', inline'}]`,
+          `Running agent: ${agent.name} [${agent.source}${forked ? ', forked' : ', inline'}${selectedModel ? `, model=${selectedModel}` : ''}${selectedThinking ? `, thinking=${selectedThinking}` : ''}]`,
           'info',
         );
 
-        const result = await runAgent(commandCwd, agent.name, task, { agentScope, resolvedPaths });
+        const result = await runAgent(commandCwd, agent.name, task, {
+          agentScope,
+          resolvedPaths,
+          model,
+          thinking,
+        });
         const failed = result.exitCode !== 0 || result.stopReason === 'error';
         const output = getFinalText(result).trim();
 
