@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-context7",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Pi-native Context7 documentation tools — direct HTTP, persistent cache, no MCP dependency",
   "keywords": [
     "pi-package"

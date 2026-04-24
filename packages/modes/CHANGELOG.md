@@ -1,5 +1,17 @@
 # @dreki-gg/pi-modes
 
+## 0.1.3
+
+### Patch Changes
+
+- [`0be7b68`](https://github.com/dreki-gg/pi-extensions/commit/0be7b6877e9874b46c756b58c99d599db623ef11) Thanks [@jalbarrang](https://github.com/jalbarrang)! - Migrate TypeBox usage and session replacement flows for Pi 0.69 compatibility.
+
+  - switch extension imports from `@sinclair/typebox` to `typebox`
+  - update package peer dependencies to require `typebox`
+  - move subagent `/run-agent` fork-at follow-up work into `withSession` so post-fork operations use the replacement session safely
+  - add command argument completions for `/run-agent`, `/delegate-agents`, `/preset`, `/mode`, and `/plan`
+  - align local development dependencies with Pi 0.69 for typechecking and compatibility checks
+
 ## 0.1.2
 
 ### Patch Changes

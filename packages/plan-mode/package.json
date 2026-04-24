@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-plan-mode",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Cursor-like planning workflow for pi — read-only plan mode, questionnaire-first clarification, domain-model handoffs, and implementation-plan generation",
   "keywords": [
     "pi-package"
