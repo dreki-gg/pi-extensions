@@ -4,13 +4,13 @@ overview: "Document `@dreki-gg/pi-subagent` as an opinionated orchestration tool
 todo:
   - id: "docs-refresh-1"
     task: "Add a package-local orchestration principles doc that explains when to use single, parallel, and chain modes—and when not to"
-    status: pending
+    status: done
   - id: "docs-refresh-2"
     task: "Update the package README so one-writer guidance appears near the top instead of being implied"
-    status: pending
+    status: done
   - id: "docs-refresh-3"
     task: "Tighten the spawn-subagents skill and bundled prompt descriptions so they consistently recommend parallel recon, not parallel conflicting edits"
-    status: pending
+    status: done
 ---
 
 # Goal

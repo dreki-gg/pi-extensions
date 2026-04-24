@@ -4,13 +4,13 @@ overview: "Add a bundled `advisor` role and lightweight escalation guidance so s
 todo:
   - id: "advisor-routing-1"
     task: "Add a bundled `advisor` agent with a focused consultative contract: diagnose, suggest next investigation, and surface risks without taking ownership of implementation"
-    status: pending
+    status: done
   - id: "advisor-routing-2"
     task: "Teach bundled worker/planner/reviewer prompts when to call the advisor and what context to send"
-    status: pending
+    status: done
   - id: "advisor-routing-3"
     task: "Add a reusable prompt entry point and docs examples for advisor-assisted workflows"
-    status: pending
+    status: done
 ---
 
 # Goal

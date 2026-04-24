@@ -1,6 +1,6 @@
 # @dreki-gg/pi-subagent
 
-Subagent tool and direct agent runs for pi — isolated agents, parallel scouts, bundled agents, and workflow templates.
+Subagent tool and direct agent runs for pi — isolated agents, parallel scouts, manager workflows, and bundled agents.
 
 ## Install
 
@@ -18,15 +18,32 @@ The `subagent` tool supports three modes:
 | Parallel | `{ tasks: [...] }` — multiple agents concurrently |
 | Chain | `{ chain: [...] }` — sequential with `{previous}` placeholder |
 
+## Opinionated Defaults
+
+This package is intentionally opinionated about orchestration:
+
+- Use **parallel mode for discovery, not competing edits**.
+- Prefer **one worker** and surround it with scouts, planners, and reviewers.
+- Use **chain mode** when work needs ordered handoffs.
+- Treat `reviewer` as a **verifier with fresh context**, not as a second writer.
+- Use `advisor` for **targeted second opinions** on tricky or high-risk cases, not as a default extra hop.
+- Only split implementation across multiple workers when file ownership is clearly partitioned.
+
+A good default mental model is: **parallel readers, single writer**.
+
+See [`docs/orchestration-principles.md`](./docs/orchestration-principles.md) for the fuller guidance.
+
 ## Recommended Usage
 
 In day-to-day use, the main agent should usually call the `subagent` tool from normal conversation.
 
-Examples:
+Safe defaults:
 - "spawn a scout for the auth code"
 - "run scout and docs-scout in parallel"
 - "have planner make a plan, then worker implement it"
 - "send this to reviewer"
+- "ask advisor whether this migration should be split before sending it to worker"
+- "use manager for this cross-package migration"
 
 For direct user-invoked single-agent runs, use:
 
@@ -34,15 +51,26 @@ For direct user-invoked single-agent runs, use:
 /run-agent worker implement the auth flow we discussed
 ```
 
-For reusable multi-step workflows, prefer the bundled prompt templates or have the main agent call the `subagent` tool in `chain`/`parallel` mode directly.
+For reusable multi-step workflows, prefer the main agent calling the `subagent` tool directly in `single` / `parallel` / `chain` mode rather than relying on canned slash workflows.
 
 Examples:
 
 ```text
-/implement add auth session refresh support
-/scout-and-plan migrate the subagent docs
-/implement-and-review tighten questionnaire validation
+spawn scout and docs-scout in parallel for auth session refresh
+have worker implement the questionnaire validation fix
+send this diff to reviewer, and if a claim needs proof use validator or bug-prover
+ask advisor whether this migration should be split before implementation
+use manager for this cross-package migration
 ```
+
+Recommended pattern in practice:
+- `parallel`: `scout` + `docs-scout` for repo and docs recon
+- `chain`: `scout` → `planner` → `worker` for coherent implementation
+- `chain`: `worker` → `reviewer`, then optionally `validator` / `bug-prover`, then `worker` for a prove-before-fix loop
+- `single`: `advisor` for a focused second opinion on a hard decision, failing test loop, or high-risk change
+- `single`: `manager` for multi-slice work that needs bounded delegation and synthesis
+
+`advisor` and `manager` are higher-level entry points built on the same `single` / `parallel` / `chain` primitives. `advisor` is for capability routing and second opinions; `manager` is for coherent delegation, not arbitrary peer-to-peer swarms. `validator` and `bug-prover` support evidence-driven review: validate a claim first, then build the smallest repro only when needed.
 
 ## Direct Agent Runs
 
@@ -56,6 +84,10 @@ Examples:
 
 ```text
 /run-agent scout trace how auth state is loaded
+/run-agent validator validate whether this suspected regression is real
+/run-agent bug-prover create a minimal failing repro for the auth refresh bug
+/run-agent advisor sanity-check whether this migration should be split
+/run-agent manager coordinate a multi-package migration plan
 /run-agent worker implement the refactor we just planned
 /run-agent --scope project reviewer review the latest changes
 ```
@@ -94,6 +126,10 @@ The package ships with these agents out of the box:
 - `planner` — implementation planning
 - `worker` — general-purpose implementation (`sessionStrategy: fork-at` by default)
 - `reviewer` — code review (`sessionStrategy: fork-at` by default)
+- `validator` — validate or falsify a specific bug or behavior claim from code, tests, and commands
+- `bug-prover` — create the smallest failing repro for a suspected bug (`sessionStrategy: fork-at` by default)
+- `advisor` — focused second-opinion consult for tricky planning, implementation, or review decisions
+- `manager` — bounded orchestration for multi-slice work (`sessionStrategy: fork-at` by default)
 - `ux-designer` — frontend UI design
 
 Resolution order is: bundled → user (`~/.pi/agent/agents/`) → project (`.pi/agents/`). Project agents override user and bundled agents by name.
@@ -118,7 +154,10 @@ Optional frontmatter:
 ### Skill
 - `spawn-subagents` — guides the model on when/how to spawn specialized subagents conversationally
 
-### Prompt Templates
-- `/implement` — scout → planner → worker
-- `/scout-and-plan` — scout → planner
-- `/implement-and-review` — worker → reviewer → worker
+### No Prompt Templates by Design
+This package intentionally does **not** ship canned workflow prompts.
+
+Prefer:
+- normal conversation that leads the main agent to call `subagent`
+- direct `/run-agent <agent> ...` for explicit single-agent runs
+- examples in this README and `docs/orchestration-principles.md` for common orchestration shapes
