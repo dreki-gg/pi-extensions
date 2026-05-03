@@ -76,7 +76,8 @@ async function loadJsonFile<T>(path: string): Promise<T | null> {
 
 function commandAvailableVia(command: string, cwd: string): 'global' | 'npx' | null {
   try {
-    execSync(`which ${command}`, { stdio: 'pipe', timeout: 5_000 });
+    const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+    execSync(`${whichCmd} ${command}`, { stdio: 'pipe', timeout: 5_000 });
     return 'global';
   } catch {
     // not global

@@ -30,7 +30,10 @@ import type {
 
 export function pathToUri(filePath: string): string {
   const abs = filePath.startsWith('/') ? filePath : resolve(filePath);
-  return `file://${abs}`;
+  const normalized = abs.replace(/\\/g, '/');
+  // Windows paths need file:///C:/... (three slashes)
+  if (/^[A-Za-z]:/.test(normalized)) return `file:///${normalized}`;
+  return `file://${normalized}`;
 }
 
 export function uriToPath(uri: string): string {
