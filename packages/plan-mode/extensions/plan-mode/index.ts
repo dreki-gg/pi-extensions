@@ -238,13 +238,28 @@ export default function planMode(pi: ExtensionAPI): void {
 
   // ── Block destructive bash in plan mode ───────────────────────────────────
   pi.on('tool_call', async (event) => {
-    if (!planEnabled || event.toolName !== 'bash') return;
-    const command = event.input.command as string;
-    if (!isSafeCommand(command)) {
-      return {
-        block: true,
-        reason: `Plan mode: command blocked. Use /plan to exit plan mode first.\nCommand: ${command}`,
-      };
+    if (!planEnabled) return;
+
+    // Block bash commands that aren't on the safe allowlist
+    if (event.toolName === 'bash') {
+      const command = event.input.command as string;
+      if (!isSafeCommand(command)) {
+        return {
+          block: true,
+          reason: `Plan mode: command blocked. Use /plan to exit plan mode first.\nCommand: ${command}`,
+        };
+      }
+    }
+
+    // Block edit/write to paths outside .plans/
+    if (event.toolName === 'edit' || event.toolName === 'write') {
+      const path = (event.input as { path?: string }).path ?? '';
+      if (!path.startsWith('.plans/') && !path.startsWith('.plans\\')) {
+        return {
+          block: true,
+          reason: `Plan mode: file modifications are restricted to .plans/ directory.\nPath: ${path}`,
+        };
+      }
     }
   });
 
