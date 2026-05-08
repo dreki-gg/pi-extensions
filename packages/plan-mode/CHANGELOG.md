@@ -1,5 +1,19 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.3.0
+
+### Minor Changes
+
+- [`5c9d134`](https://github.com/dreki-gg/pi-extensions/commit/5c9d134131599cd102f77d3849660e3e6f885f70) Thanks [@jalbarrang](https://github.com/jalbarrang)! - Redesign plan mode as a two-phase workflow with file-based handoff
+
+  - Plan phase uses `claude-opus-4-6:medium` with read-only tools + strict bash allowlist
+  - Plans are written to `.plans/<kebab-name>/PLAN.md` with a `START-PROMPT.md` for clean context handoff
+  - Execute phase uses `gpt-5.5:low` with full tool access, starting from START-PROMPT.md in a clean context
+  - Todo extraction is deferred to execution time (extracted from PLAN.md on "Execute Plan")
+  - New menu: Execute Plan, Refine Plan (adversarial self-review), Follow up, Exit plan mode
+  - Model and thinking level are saved/restored across phase transitions
+  - Removed domain-model, plan-files, and autocomplete sub-workflows
+
 ## 0.2.0
 
 ### Minor Changes
