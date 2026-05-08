@@ -1,5 +1,11 @@
 # @dreki-gg/pi-lsp
 
+## 0.2.0
+
+### Minor Changes
+
+- [`d1c6d0b`](https://github.com/dreki-gg/pi-extensions/commit/d1c6d0b7da843700a7381790d9323f78dd26b152) Thanks [@jalbarrang](https://github.com/jalbarrang)! - Add Windows support for the LSP extension: spawn with `shell: true` on win32 for `.cmd` wrappers, use `where` instead of `which` for command lookup, normalize file URIs with `file:///` and forward slashes for drive-letter paths per RFC 8089, and fix `uriToPath` to correctly round-trip Windows URIs.
+
 ## 0.1.3
 
 ### Patch Changes
