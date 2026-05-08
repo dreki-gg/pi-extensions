@@ -1,13 +1,8 @@
 # @dreki-gg/pi-plan-mode
 
-Cursor-like planning workflow for [pi](https://github.com/badlogic/pi-mono).
+Two-phase planning workflow for [pi](https://github.com/badlogic/pi-mono).
 
-It gives pi a dedicated **plan mode** that:
-- locks the agent into a read-only planning pass
-- nudges it to use `questionnaire` before planning when scope is unclear
-- hands off to `/skill:domain-model` when you want terminology/design pressure-testing
-- hands off to `/skill:create-implementation-plans` when you want self-contained `*.plan.md` files
-- restores full tool access for execution once the plan is approved
+Plan with `claude-opus-4-6:medium`, execute with `gpt-5.5:low`. Plans are persisted as files in `.plans/` for clean context handoff between models.
 
 ## Install
 
@@ -21,89 +16,68 @@ Recommended companions:
 pi install npm:@dreki-gg/pi-questionnaire
 ```
 
-And make sure these skills are available globally or project-locally if you want the full workflow:
-- `domain-model`
-- `create-implementation-plans`
-
-If those skills are missing, the extension falls back to plain prompts that emulate the same workflow.
-
 ## What it provides
 
-| Feature | Name | Notes |
-|---|---|---|
-| Flag | `--plan` | Start pi in read-only planning mode |
-| Command | `/plan [prompt]` | Enable plan mode or immediately send a planning prompt |
-| Command | `/plan-status` | Show current phase + extracted plan steps |
-| Command | `/plan-domain [prompt]` | Stress-test the current plan against the domain model |
-| Command | `/plan-plans [prompt]` | Generate self-contained implementation plan files |
-| Command | `/plan-execute [prompt]` | Restore full tool access and execute the approved plan |
-| Shortcut | `Ctrl+Alt+P` | Toggle plan mode |
+| Feature  | Name           | Notes                                          |
+| -------- | -------------- | ---------------------------------------------- |
+| Flag     | `--plan`       | Start pi in plan mode                          |
+| Command  | `/plan [prompt]` | Enter plan mode, optionally with a starting prompt |
+| Command  | `/todos`       | Show current plan progress                     |
+| Shortcut | `Ctrl+Alt+P`   | Toggle plan mode                               |
 
 ## Workflow
 
-### 1. Start planning
+### 1. Plan (`claude-opus-4-6:medium`)
 
 ```text
-/plan add a plan mode similar to Cursor for this repo
+/plan add authentication middleware with JWT support
 ```
 
-While planning, the extension restricts tools to a read-only set such as:
-- `read`
-- `bash` (allowlisted read-only commands only)
-- `grep`
-- `find`
-- `ls`
-- `questionnaire` (if installed)
-- `lsp` / `context7_*` (if installed)
+The planner has access to read-only tools plus `edit`/`write` restricted to `.plans/` files. Bash is locked to a strict allowlist of safe commands.
 
-The system prompt tells pi to:
-- inspect the real codebase first
-- use `questionnaire` when the task is still underspecified
-- respond with a numbered plan under a `Plan:` header
-- stay read-only
+The planner:
+- Inspects the codebase using read-only tools
+- Uses `questionnaire` when requirements are underspecified
+- Creates `.plans/<kebab-name>/PLAN.md` with the full numbered plan
+- Creates `.plans/<kebab-name>/START-PROMPT.md` — a self-contained handoff prompt with all context needed to execute without the planning conversation
+- Can add supporting files in the same directory for extra context
 
-### 2. Stress-test the design
+### 2. Choose next step
 
-```text
-/plan-domain
+When the planner finishes, a menu appears:
+
+| Option           | Description                                                            |
+| ---------------- | ---------------------------------------------------------------------- |
+| **Execute Plan** | Extract todos from PLAN.md, switch to gpt-5.5:low, start with START-PROMPT.md |
+| **Refine Plan**  | Adversarial review — planner critiques its own plan and updates files  |
+| **Follow up**    | Open an editor for additional instructions to the planner              |
+| **Exit plan mode** | Disable plan mode and restore original model                        |
+
+### 3. Execute (`gpt-5.5:low`)
+
+When **Execute Plan** is selected:
+1. Todos are extracted from `PLAN.md`
+2. Model switches to `gpt-5.5:low` with full tool access
+3. The executor starts with a **clean context window** using `START-PROMPT.md`
+4. Each step must be marked with `[DONE:n]` before moving to the next
+5. Progress is tracked in a widget in the status bar
+6. When all steps complete, the original model and thinking level are restored
+
+## Plan directory structure
+
+```
+.plans/
+└── add-auth-middleware/
+    ├── PLAN.md           # Numbered plan with context
+    ├── START-PROMPT.md   # Self-contained executor handoff prompt
+    └── ...               # Optional supporting files
 ```
 
-If `domain-model` is installed, the extension invokes:
+## Footer indicators
 
-```text
-/skill:domain-model
-```
+- `📝 plan` — plan mode active (opus-4-6:medium, strict bash)
+- `📋 exec 2/5` — executing plan with gpt-5.5:low, 2 of 5 steps done
 
-Otherwise it sends an equivalent fallback prompt.
+## Bash safety
 
-### 3. Write implementation plan files
-
-```text
-/plan-plans
-```
-
-This temporarily enables `edit`/`write`, but only for plan-file authoring. The prompt explicitly forbids product-code changes in this phase.
-
-If `create-implementation-plans` is installed, the extension invokes:
-
-```text
-/skill:create-implementation-plans
-```
-
-Otherwise it falls back to a plain prompt that asks pi to create grounded `*.plan.md` files.
-
-### 4. Execute
-
-```text
-/plan-execute
-```
-
-That restores the original tool set and asks pi to execute the approved plan. If the plan has numbered steps, the extension tracks progress via `[DONE:n]` tags.
-
-## Notes
-
-- Planning mode is **hard enforced** by tool restriction, not just prompt wording.
-- `bash` is restricted to read-only commands while planning.
-- Plan steps are extracted from `Plan:` sections and shown in a widget/status area.
-- State is persisted across session resume and tree navigation.
-- The implementation-plan phase is a **controlled write phase** intended for planning docs, not code changes.
+In plan mode, bash is restricted to read-only commands (ls, grep, git status, cat, rg, etc.). Destructive commands (rm, mv, git commit, etc.) are blocked.

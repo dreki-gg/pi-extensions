@@ -1,9 +1,14 @@
+/**
+ * Pure utility functions for plan mode.
+ */
+
 export interface TodoItem {
   step: number;
   text: string;
   completed: boolean;
 }
 
+// ── Destructive bash patterns (blocked in plan mode) ────────────────────────
 const DESTRUCTIVE_PATTERNS = [
   /\brm\b/i,
   /\brmdir\b/i,
@@ -40,6 +45,7 @@ const DESTRUCTIVE_PATTERNS = [
   /\b(vim?|nano|emacs|code|subl)\b/i,
 ];
 
+// ── Safe read-only bash patterns (allowed in plan mode) ─────────────────────
 const SAFE_PATTERNS = [
   /^\s*cat\b/,
   /^\s*head\b/,
@@ -80,6 +86,7 @@ const SAFE_PATTERNS = [
   /^\s*git\s+ls-/i,
   /^\s*npm\s+(list|ls|view|info|search|outdated|audit)/i,
   /^\s*yarn\s+(list|info|why|audit)/i,
+  /^\s*pnpm\s+(list|ls|why|audit|outdated)/i,
   /^\s*node\s+--version/i,
   /^\s*python\s+--version/i,
   /^\s*curl\s/i,
@@ -94,24 +101,26 @@ const SAFE_PATTERNS = [
 ];
 
 export function isSafeCommand(command: string): boolean {
-  const isDestructive = DESTRUCTIVE_PATTERNS.some((pattern) => pattern.test(command));
-  const isSafe = SAFE_PATTERNS.some((pattern) => pattern.test(command));
+  const isDestructive = DESTRUCTIVE_PATTERNS.some((p) => p.test(command));
+  const isSafe = SAFE_PATTERNS.some((p) => p.test(command));
   return !isDestructive && isSafe;
 }
+
+// ── Plan extraction ─────────────────────────────────────────────────────────
 
 export function cleanStepText(text: string): string {
   let cleaned = text
     .replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
-    .replace(
-      /^(Use|Run|Execute|Create|Write|Read|Check|Verify|Update|Modify|Add|Remove|Delete|Install)\s+(the\s+)?/i,
-      '',
-    )
     .replace(/\s+/g, ' ')
     .trim();
 
-  if (cleaned.length > 0) cleaned = cleaned[0].toUpperCase() + cleaned.slice(1);
-  if (cleaned.length > 80) cleaned = `${cleaned.slice(0, 77)}...`;
+  if (cleaned.length > 0) {
+    cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  }
+  if (cleaned.length > 60) {
+    cleaned = `${cleaned.slice(0, 57)}...`;
+  }
   return cleaned;
 }
 
@@ -153,12 +162,18 @@ export function extractDoneSteps(message: string): number[] {
 export function markCompletedSteps(text: string, items: TodoItem[]): number {
   const doneSteps = extractDoneSteps(text);
   for (const step of doneSteps) {
-    const item = items.find((candidate) => candidate.step === step);
+    const item = items.find((t) => t.step === step);
     if (item) item.completed = true;
   }
   return doneSteps.length;
 }
 
-export function formatTodoList(items: TodoItem[]): string {
-  return items.map((item) => `${item.step}. ${item.text}`).join('\n');
+// ── Plan name utilities ─────────────────────────────────────────────────────
+
+export function toKebabCase(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
 }
