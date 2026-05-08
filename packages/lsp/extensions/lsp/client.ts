@@ -29,12 +29,19 @@ import type {
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 export function pathToUri(filePath: string): string {
-  const abs = filePath.startsWith('/') ? filePath : resolve(filePath);
-  return `file://${abs}`;
+  const abs = resolve(filePath);
+  const normalized = abs.replace(/\\/g, '/');
+  // Windows paths need file:///C:/... (three slashes)
+  if (/^[A-Za-z]:/.test(normalized)) return `file:///${normalized}`;
+  return `file://${normalized}`;
 }
 
 export function uriToPath(uri: string): string {
-  return uri.startsWith('file://') ? uri.slice(7) : uri;
+  if (!uri.startsWith('file://')) return uri;
+  const path = uri.slice(7);
+  // Remove leading slash before Windows drive letter: /C:/... → C:/...
+  if (/^\/[A-Za-z]:/.test(path)) return path.slice(1);
+  return path;
 }
 
 function languageIdForFile(filePath: string): string {
