@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { withFileMutationQueue } from '@mariozechner/pi-coding-agent';
+import { withFileMutationQueue } from '@earendil-works/pi-coding-agent';
 import type {
   CacheLookup,
   CacheSearchSelector,

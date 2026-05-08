@@ -1,5 +1,5 @@
-import type { ExtensionAPI, Theme } from '@mariozechner/pi-coding-agent';
-import { Container, Spacer, Text } from '@mariozechner/pi-tui';
+import type { ExtensionAPI, Theme } from '@earendil-works/pi-coding-agent';
+import { Container, Spacer, Text } from '@earendil-works/pi-tui';
 import {
   formatCancelledSummary,
   formatCompletedSummary,
@@ -138,6 +138,7 @@ export default function questionnaireExtension(pi: ExtensionAPI) {
       return {
         content: [{ type: 'text' as const, text: formatToolContentSummary(uiResult) }],
         details: uiResult,
+        terminate: true,
       };
     },
 

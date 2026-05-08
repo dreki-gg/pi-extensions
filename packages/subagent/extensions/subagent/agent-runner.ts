@@ -2,9 +2,9 @@ import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { withFileMutationQueue } from '@mariozechner/pi-coding-agent';
-import type { ResolvedPaths } from '@mariozechner/pi-coding-agent';
-import type { Message } from '@mariozechner/pi-ai';
+import { withFileMutationQueue } from '@earendil-works/pi-coding-agent';
+import type { ResolvedPaths } from '@earendil-works/pi-coding-agent';
+import type { Message } from '@earendil-works/pi-ai';
 import { discoverAgentsWithPackages, type AgentScope } from './agents.js';
 import type { AgentResult, UsageStats } from './agent-runner-types.js';
 

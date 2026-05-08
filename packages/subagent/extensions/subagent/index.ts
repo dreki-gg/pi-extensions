@@ -19,9 +19,9 @@ import { copyFile, mkdir, readdir, unlink } from 'node:fs/promises';
 import * as os from 'node:os';
 import { join } from 'node:path';
 import * as path from 'node:path';
-import type { AgentToolResult } from '@mariozechner/pi-agent-core';
-import type { Message } from '@mariozechner/pi-ai';
-import { StringEnum } from '@mariozechner/pi-ai';
+import type { AgentToolResult } from '@earendil-works/pi-agent-core';
+import type { Message } from '@earendil-works/pi-ai';
+import { StringEnum } from '@earendil-works/pi-ai';
 import {
   type ExtensionAPI,
   type ExtensionCommandContext,
@@ -32,9 +32,9 @@ import {
   ModelRegistry,
   SettingsManager,
   withFileMutationQueue,
-} from '@mariozechner/pi-coding-agent';
-import type { ResolvedPaths } from '@mariozechner/pi-coding-agent';
-import { Box, Container, Markdown, Spacer, Text, type AutocompleteItem } from '@mariozechner/pi-tui';
+} from '@earendil-works/pi-coding-agent';
+import type { ResolvedPaths } from '@earendil-works/pi-coding-agent';
+import { Box, Container, Markdown, Spacer, Text, type AutocompleteItem } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
 import {
   type AgentConfig,
@@ -736,6 +736,10 @@ export default function (pi: ExtensionAPI) {
               }
             : undefined;
 
+          if (ctx.hasUI) {
+            ctx.ui.setWorkingMessage(`Chain step ${i + 1}/${params.chain.length}: ${step.agent}`);
+          }
+
           const result = await runSingleAgent(
             ctx.cwd,
             agents,
@@ -781,6 +785,9 @@ export default function (pi: ExtensionAPI) {
               output: finalOutput,
             }),
           );
+        }
+        if (ctx.hasUI) {
+          ctx.ui.setWorkingMessage();
         }
         return {
           content: [
@@ -845,6 +852,10 @@ export default function (pi: ExtensionAPI) {
           }
         };
 
+        if (ctx.hasUI) {
+          ctx.ui.setWorkingMessage(`Running ${params.tasks.length} agents in parallel`);
+        }
+
         const results = await mapWithConcurrencyLimit(
           params.tasks,
           MAX_CONCURRENCY,
@@ -874,6 +885,10 @@ export default function (pi: ExtensionAPI) {
           },
         );
 
+        if (ctx.hasUI) {
+          ctx.ui.setWorkingMessage();
+        }
+
         const successCount = results.filter((r) => r.exitCode === 0).length;
         const summaries = results.map((r) => {
           const output = getFinalOutput(r.messages);
@@ -891,6 +906,10 @@ export default function (pi: ExtensionAPI) {
       }
 
       if (params.agent && params.task) {
+        if (ctx.hasUI) {
+          ctx.ui.setWorkingMessage(`Running agent: ${params.agent}`);
+        }
+
         const result = await runSingleAgent(
           ctx.cwd,
           agents,
@@ -904,6 +923,10 @@ export default function (pi: ExtensionAPI) {
           onUpdate,
           makeDetails('single'),
         );
+        if (ctx.hasUI) {
+          ctx.ui.setWorkingMessage();
+        }
+
         const isError =
           result.exitCode !== 0 || result.stopReason === 'error' || result.stopReason === 'aborted';
         if (isError) {

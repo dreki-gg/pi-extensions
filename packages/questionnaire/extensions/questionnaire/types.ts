@@ -1,4 +1,4 @@
-import { StringEnum } from '@mariozechner/pi-ai';
+import { StringEnum } from '@earendil-works/pi-ai';
 import { Type, type Static } from 'typebox';
 import {
   type QuestionInput as QuestionInputSchema,

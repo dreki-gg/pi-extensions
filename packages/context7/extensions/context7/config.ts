@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getAgentDir } from '@mariozechner/pi-coding-agent';
+import { getAgentDir } from '@earendil-works/pi-coding-agent';
 import type { Context7ConfigFile, Context7Settings } from './types';
 
 export const DEFAULT_RESOLVE_TTL_HOURS = 24 * 7;
