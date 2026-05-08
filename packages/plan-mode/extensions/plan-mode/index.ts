@@ -28,6 +28,12 @@ import {
   markCompletedSteps,
   type TodoItem,
 } from './utils.js';
+import {
+  extractPlanTitle,
+  readPlansJson,
+  serializePlansJson,
+  type PlansManifest,
+} from './plans-json.js';
 
 // ── Tool sets ────────────────────────────────────────────────────────────────
 // Plan phase: read-only + edit/write (for .plans/ files only, enforced by prompt)
@@ -97,6 +103,29 @@ export default function planMode(pi: ExtensionAPI): void {
       planDir,
       todos,
     });
+  }
+
+  // ── plans.json tracking ───────────────────────────────────────────────────
+  async function updatePlansManifest(
+    planName: string,
+    status: 'in-progress' | 'done',
+    title?: string,
+  ): Promise<void> {
+    const manifest = await readPlansJson((cmd, args) => pi.exec(cmd, args));
+    const existing = manifest[planName];
+    const now = new Date().toISOString();
+
+    manifest[planName] = {
+      status,
+      title: title ?? existing?.title ?? 'Untitled plan',
+      created: existing?.created ?? now,
+      completed: status === 'done' ? now : null,
+    };
+
+    await pi.exec('mkdir', ['-p', '.plans']);
+    const content = serializePlansJson(manifest);
+    // Write via a temp approach — use bash echo to avoid needing the write tool
+    await pi.exec('bash', ['-c', `cat > .plans/plans.json << 'PLANS_EOF'\n${content}PLANS_EOF`]);
   }
 
   // ── UI updates ────────────────────────────────────────────────────────────
@@ -384,7 +413,33 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
     const match = path.match(/\.plans\/([^/]+)\//);
     if (match && !planDir) {
       planDir = `.plans/${match[1]}`;
+      const planName = match[1];
+
+      // Read PLAN.md to extract the title for plans.json
+      let title = 'Untitled plan';
+      if (path.endsWith('PLAN.md')) {
+        try {
+          const result = await pi.exec('cat', [path]);
+          if (result.code === 0) {
+            title = extractPlanTitle(result.stdout);
+          }
+        } catch {
+          // Fall through
+        }
+      }
+      await updatePlansManifest(planName, 'in-progress', title);
       persist();
+    } else if (match && planDir && path.endsWith('PLAN.md')) {
+      // planDir already set but PLAN.md just written — update title
+      try {
+        const result = await pi.exec('cat', [path]);
+        if (result.code === 0) {
+          const title = extractPlanTitle(result.stdout);
+          await updatePlansManifest(match[1], 'in-progress', title);
+        }
+      } catch {
+        // Fall through
+      }
     }
   });
 
@@ -393,6 +448,12 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
     // Check execution completion
     if (executing && todos.length > 0) {
       if (todos.every((t) => t.completed)) {
+        // Mark plan as done in plans.json
+        if (planDir) {
+          const planName = planDir.replace(/^\.plans\//, '');
+          await updatePlansManifest(planName, 'done');
+        }
+
         const list = todos.map((t) => `~~${t.text}~~`).join('\n');
         pi.sendMessage(
           {

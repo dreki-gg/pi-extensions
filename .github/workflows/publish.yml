@@ -60,3 +60,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
+
+      - name: Clean completed plans
+        run: node packages/plan-mode/bin/clean-plans.js clean
+
+      - name: Commit plan cleanup
+        run: |
+          git add .plans/
+          git diff --cached --quiet || git commit -m 'chore: clean completed plans'
+          git push

@@ -13,17 +13,21 @@
     "directory": "packages/plan-mode"
   },
   "type": "module",
+  "bin": {
+    "pi-plan-mode": "./bin/clean-plans.js"
+  },
   "files": [
     "extensions",
+    "bin",
     "README.md",
     "CHANGELOG.md",
     "package.json"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint extensions",
-    "format": "oxfmt --write extensions",
-    "format:check": "oxfmt --check extensions"
+    "lint": "oxlint extensions bin",
+    "format": "oxfmt --write extensions bin",
+    "format:check": "oxfmt --check extensions bin"
   },
   "pi": {
     "extensions": [
