@@ -1,5 +1,11 @@
 # @dreki-gg/pi-context7
 
+## 0.1.8
+
+### Patch Changes
+
+- [`90899a5`](https://github.com/dreki-gg/pi-extensions/commit/90899a52d3910bcf4860c1dfbb376b0d203addcd) Thanks [@jalbarrang](https://github.com/jalbarrang)! - Fix promptGuidelines to include explicit tool names instead of "this tool", following pi extension best practices. Guidelines are appended flat to the system prompt, so each bullet must name the tool it refers to.
+
 ## 0.1.7
 
 ### Patch Changes
