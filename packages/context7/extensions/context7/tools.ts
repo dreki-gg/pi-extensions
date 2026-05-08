@@ -363,7 +363,7 @@ function createResolveTool(name: string, description: string, promptVisible: boo
           promptSnippet:
             'Resolve a library or package name to a Context7 library ID before fetching docs when the exact ID is unknown.',
           promptGuidelines: [
-            'Use this tool when the user asks for library documentation and you do not already know the exact Context7 library ID.',
+            'Use context7_resolve_library_id when the user asks for library documentation and you do not already know the exact Context7 library ID.',
           ],
         }
       : {}),
@@ -409,8 +409,8 @@ function createDocsTool(
           promptSnippet:
             'Fetch curated, up-to-date Context7 docs for a library by ID or by name. Equivalent to Context7 MCP get-library-docs/query-docs.',
           promptGuidelines: [
-            'Prefer this tool over raw cached docs retrieval; use it first for normal documentation lookup.',
-            'If you only know the library name, pass libraryName and let the tool auto-resolve it.',
+            'Prefer context7_get_library_docs over raw cached docs retrieval; use it first for normal documentation lookup.',
+            'If you only know the library name, pass libraryName to context7_get_library_docs and let it auto-resolve.',
           ],
         }
       : {}),
@@ -482,8 +482,8 @@ function createRawDocsTool() {
     promptSnippet:
       'Read the full raw cached Context7 document by docRef or semantic lookup when curated docs were insufficient.',
     promptGuidelines: [
-      'Use this tool only after context7_get_library_docs when you need the full cached raw documentation.',
-      'Prefer docRef from an earlier tool result. If semantic lookup matches multiple cached docs, this tool will not guess.',
+      'Use context7_get_cached_doc_raw only after context7_get_library_docs when you need the full cached raw documentation.',
+      'When calling context7_get_cached_doc_raw, prefer docRef from an earlier tool result. If semantic lookup matches multiple cached docs, the tool will not guess.',
     ],
     parameters: Type.Object({
       docRef: Type.Optional(
