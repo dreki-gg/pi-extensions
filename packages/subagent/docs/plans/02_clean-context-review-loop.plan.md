@@ -28,8 +28,8 @@ Improve the bundled review loop so the reviewer reasons from a fresh, diff-first
 
 Current relevant file tree on disk:
 
-- `packages/subagent/agents/reviewer.md`
-- `packages/subagent/agents/worker.md`
+- `packages/subagent/prompts/reviewer.md`
+- `packages/subagent/prompts/worker.md`
 - `packages/subagent/prompts/implement-and-review.md`
 - `packages/subagent/skills/spawn-subagents/SKILL.md`
 - `packages/subagent/extensions/subagent/index.ts`
@@ -43,10 +43,10 @@ Actual current behavior on disk:
   3. run `worker` again to apply review feedback from `{previous}`
 - Chain execution in `packages/subagent/extensions/subagent/index.ts:658-716` performs raw `{previous}` replacement with the previous step’s final assistant text. There is no review-specific minimization layer in code today.
 - The current reviewer prompt already points in the right direction:
-  - `packages/subagent/agents/reviewer.md:12-18` restricts bash to read-only commands and tells the agent to start with `git diff`, then read modified files.
+  - `packages/subagent/prompts/reviewer.md:12-18` restricts bash to read-only commands and tells the agent to start with `git diff`, then read modified files.
   - But the prompt does **not** explicitly tell the reviewer to distrust or deprioritize the worker’s implementation narrative when that narrative is also passed through `{previous}`.
 - The current worker prompt includes a helpful but minimal handoff hint:
-  - `packages/subagent/agents/worker.md:13-26` asks for `Completed`, `Files Changed`, and `Notes`, and says that if handing off to another agent it should include exact file paths changed and key functions/types touched.
+  - `packages/subagent/prompts/worker.md:13-26` asks for `Completed`, `Files Changed`, and `Notes`, and says that if handing off to another agent it should include exact file paths changed and key functions/types touched.
   - There is no required section for validation run, constraints, or unresolved risk, so the review handoff is underspecified.
 - The `spawn-subagents` skill currently recommends a `reviewer` loop after implementation and says the main agent may apply fixes directly or send a focused follow-up to `worker` (`packages/subagent/skills/spawn-subagents/SKILL.md:44-58`). It does not yet describe “clean context” review explicitly.
 - There is no additional workflow prompt for “clean review”; the current `/implement-and-review` prompt is the only bundled implementation review loop.
@@ -55,7 +55,7 @@ Actual current behavior on disk:
 
 ## Existing reviewer and worker contracts
 
-From `packages/subagent/agents/reviewer.md`:
+From `packages/subagent/prompts/reviewer.md`:
 
 ```md
 Strategy:
@@ -80,7 +80,7 @@ Output format:
 Overall assessment in 2-3 sentences.
 ```
 
-From `packages/subagent/agents/worker.md`:
+From `packages/subagent/prompts/worker.md`:
 
 ```md
 Output format when finished:
@@ -126,7 +126,7 @@ This means the review workflow can be improved significantly even with prompt-on
 ## 1. Tighten the reviewer prompt so review starts from `git diff` and re-discovered code context
 
 ### Files
-- Modify `packages/subagent/agents/reviewer.md`
+- Modify `packages/subagent/prompts/reviewer.md`
 
 ### What to change
 - Keep the reviewer read-only.
@@ -149,7 +149,7 @@ This means the review workflow can be improved significantly even with prompt-on
 ## 2. Change the worker output contract so implementation handoff becomes a compact review packet
 
 ### Files
-- Modify `packages/subagent/agents/worker.md`
+- Modify `packages/subagent/prompts/worker.md`
 
 ### What to change
 - Keep the worker autonomous and implementation-focused.
@@ -217,8 +217,8 @@ This means the review workflow can be improved significantly even with prompt-on
 
 # Files to modify
 
-- `packages/subagent/agents/reviewer.md` — make clean-context review an explicit prompt rule
-- `packages/subagent/agents/worker.md` — emit a compact review packet instead of only freeform notes
+- `packages/subagent/prompts/reviewer.md` — make clean-context review an explicit prompt rule
+- `packages/subagent/prompts/worker.md` — emit a compact review packet instead of only freeform notes
 - `packages/subagent/prompts/implement-and-review.md` — encode diff-first review semantics in the bundled workflow
 
 # Testing notes
@@ -233,8 +233,8 @@ This means the review workflow can be improved significantly even with prompt-on
 
 # Patterns to follow
 
-- `packages/subagent/agents/reviewer.md:12-18` — existing diff-first reviewer stance to strengthen, not replace
-- `packages/subagent/agents/worker.md:24-26` — current handoff hints to make mandatory and more compact
+- `packages/subagent/prompts/reviewer.md:12-18` — existing diff-first reviewer stance to strengthen, not replace
+- `packages/subagent/prompts/worker.md:24-26` — current handoff hints to make mandatory and more compact
 - `packages/subagent/prompts/implement-and-review.md:4-10` — current workflow entry point to refine
 - `packages/subagent/skills/spawn-subagents/SKILL.md:44-58` — current review-loop guidance
 - `packages/subagent/skills/write-an-agent/SKILL.md:15-20` and `:62-67` — keep prompt files sharp, minimal, and output-contract-driven

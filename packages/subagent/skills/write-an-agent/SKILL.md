@@ -1,6 +1,6 @@
 ---
 name: write-an-agent
-description: Writes or refines concise pi subagent definitions for this repo, keeping each agent under 100 lines with a sharp role, tool policy, and output contract. Use when creating, rewriting, or tightening agent prompts in `.pi/agents/` or `packages/subagent/agents/`.
+description: Writes or refines concise pi subagent definitions for this repo, keeping each agent under 100 lines with a sharp role, tool policy, and output contract. Use when creating, rewriting, or tightening agent prompts in `.pi/prompts/` or `packages/subagent/prompts/`.
 ---
 
 # Write an Agent
@@ -8,8 +8,8 @@ description: Writes or refines concise pi subagent definitions for this repo, ke
 Goal: produce a high-signal agent file in fewer than 100 lines.
 
 ## Use this for
-- new repo-local agents in `.pi/agents/`
-- bundled package agents in `packages/subagent/agents/`
+- new repo-local agent prompts in `.pi/prompts/`
+- bundled package agent prompts in `packages/subagent/prompts/`
 - tightening bloated prompts into a crisp reusable worker
 
 ## Design rules
@@ -53,8 +53,8 @@ Output:
 7. Count lines. Trim anything decorative.
 
 ## Repo conventions
-- Repo-local overrides belong in `.pi/agents/`.
-- Bundled reusable agents belong in `packages/subagent/agents/`.
+- Repo-local overrides belong in `.pi/prompts/`.
+- Bundled reusable agent prompts belong in `packages/subagent/prompts/`.
 - For this repo, default roles are `scout`, `docs-scout`, `planner`, `worker`, `reviewer`.
 - Prefer local pi docs before external docs when writing `docs-scout`.
 - Mention validation commands in planner/worker/reviewer when package behavior changes.

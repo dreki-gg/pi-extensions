@@ -1,6 +1,6 @@
 # @dreki-gg/pi-subagent
 
-Subagent tool and direct agent runs for pi — isolated agents, parallel scouts, manager workflows, and bundled agents.
+Subagent tool and direct agent runs for pi — isolated agents, parallel scouts, manager workflows, and bundled prompts.
 
 ## Install
 
@@ -118,7 +118,7 @@ If the chosen agent frontmatter sets `sessionStrategy: fork-at`, the command clo
 
 ## Agent Definitions
 
-Create agent files in `~/.pi/agent/agents/` or `.pi/agents/` as markdown with YAML frontmatter:
+Create agent prompt files in `~/.pi/agent/prompts/` or `.pi/prompts/` as markdown with YAML frontmatter:
 
 ```markdown
 ---
@@ -153,22 +153,13 @@ Notes:
 - `worker`, `reviewer`, `bug-prover`, and `manager` default to `sessionStrategy: fork-at`.
 - "Default reasoning level" maps to the frontmatter field `thinking` and can be overridden per run.
 
-Resolution order is: bundled → user (`~/.pi/agent/agents/`) → project (`.pi/agents/`). Project agents override user and bundled agents by name.
+Resolution order is: bundled → user (`~/.pi/agent/prompts/`) → project (`.pi/prompts/`). Project agents override user and bundled agents by name.
 
 Optional frontmatter:
 - `thinking` — default reasoning effort for the spawned pi process
 - `sessionStrategy: fork-at` — when used with `/run-agent`, clone the current active branch into a new session before running
 
-> Note: pi now supports package-shipped agents via `pi.agents` (or conventional `agents/` directories). This package publishes its bundled agents that way, while user agents in `~/.pi/agent/agents/` and project agents in `.pi/agents/` still override them by name.
-
-### Managing Agents
-
-```
-/delegate-agents              # list all agents with source
-/delegate-agents reset scout  # restore bundled version
-/delegate-agents reset --all  # restore all bundled versions
-/delegate-agents edit scout   # copy bundled to user dir for customization
-```
+> Note: pi supports package-shipped prompts via `pi.prompts` (or conventional `prompts/` directories). This package publishes its bundled agent prompts that way, while user prompts in `~/.pi/agent/prompts/` and project prompts in `.pi/prompts/` still override them by name.
 
 ## Bundled Resources
 

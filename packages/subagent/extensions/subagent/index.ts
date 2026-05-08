@@ -12,13 +12,7 @@
  * Uses JSON mode to capture structured output from subagents.
  */
 
-import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import * as fs from 'node:fs';
-import { copyFile, mkdir, readdir, unlink } from 'node:fs/promises';
 import * as os from 'node:os';
-import { join } from 'node:path';
-import * as path from 'node:path';
 import type { AgentToolResult } from '@earendil-works/pi-agent-core';
 import type { Message } from '@earendil-works/pi-ai';
 import { StringEnum } from '@earendil-works/pi-ai';
@@ -31,7 +25,6 @@ import {
   getMarkdownTheme,
   ModelRegistry,
   SettingsManager,
-  withFileMutationQueue,
 } from '@earendil-works/pi-coding-agent';
 import type { ResolvedPaths } from '@earendil-works/pi-coding-agent';
 import { Box, Container, Markdown, Spacer, Text, type AutocompleteItem } from '@earendil-works/pi-tui';
@@ -40,8 +33,7 @@ import {
   type AgentConfig,
   type AgentScope,
   type AgentSource,
-  bundledAgentsDir,
-  discoverAgentsWithPackages,
+  discoverAgents,
 } from './agents.js';
 import { formatRunAgentUsage, parseRunAgentArgs } from './run-agent-args.js';
 import { runAgent } from './agent-runner.js';
@@ -49,6 +41,7 @@ import { extractRecentConversation } from './synthesis.js';
 import type { AgentResult } from './agent-runner-types.js';
 import { getFinalText } from './agent-result-utils.js';
 import { buildHandoffFromResult, renderHandoffForPrompt } from './handoffs.js';
+import { emptyUsage, spawnPiAgent } from './spawn-utils.js';
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
@@ -200,7 +193,7 @@ interface SingleResult {
 interface SubagentDetails {
   mode: 'single' | 'parallel' | 'chain';
   agentScope: AgentScope;
-  projectAgentsDir: string | null;
+  projectPromptsDir: string | null;
   results: SingleResult[];
 }
 
@@ -254,39 +247,6 @@ async function mapWithConcurrencyLimit<TIn, TOut>(
   return results;
 }
 
-async function writePromptToTempFile(
-  agentName: string,
-  prompt: string,
-): Promise<{ dir: string; filePath: string }> {
-  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'pi-subagent-'));
-  const safeName = agentName.replace(/[^\w.-]+/g, '_');
-  const filePath = path.join(tmpDir, `prompt-${safeName}.md`);
-  await withFileMutationQueue(filePath, async () => {
-    await fs.promises.writeFile(filePath, prompt, { encoding: 'utf-8', mode: 0o600 });
-  });
-  return { dir: tmpDir, filePath };
-}
-
-function getPiInvocation(args: string[]): { command: string; args: string[] } {
-  const currentScript = process.argv[1];
-
-  // Bun standalone binaries set argv[1] to a virtual FS path (e.g. /$bunfs/root/pi)
-  // that only resolves inside the running Bun process. Skip it — the binary IS the entry point.
-  const isBunVirtualPath = currentScript?.startsWith('/$bunfs/');
-
-  if (currentScript && !isBunVirtualPath && fs.existsSync(currentScript)) {
-    return { command: process.execPath, args: [currentScript, ...args] };
-  }
-
-  const execName = path.basename(process.execPath).toLowerCase();
-  const isGenericRuntime = /^(node|bun)(\.exe)?$/.test(execName);
-  if (!isGenericRuntime) {
-    // Standalone binary (e.g. pi compiled with Bun) — invoke directly
-    return { command: process.execPath, args };
-  }
-
-  return { command: 'pi', args };
-}
 
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
 
@@ -314,29 +274,13 @@ async function runSingleAgent(
       exitCode: 1,
       messages: [],
       stderr: `Unknown agent: "${agentName}". Available agents: ${available}.`,
-      usage: {
-        input: 0,
-        output: 0,
-        cacheRead: 0,
-        cacheWrite: 0,
-        cost: 0,
-        contextTokens: 0,
-        turns: 0,
-      },
+      usage: emptyUsage(),
       step,
     };
   }
 
   const selectedModel = modelOverride ?? agent.model;
   const selectedThinking = thinkingOverride ?? agent.thinking;
-
-  const args: string[] = ['--mode', 'json', '-p', '--no-session'];
-  if (selectedModel) args.push('--model', selectedModel);
-  if (selectedThinking) args.push('--thinking', selectedThinking);
-  if (agent.tools && agent.tools.length > 0) args.push('--tools', agent.tools.join(','));
-
-  let tmpPromptDir: string | null = null;
-  let tmpPromptPath: string | null = null;
 
   const currentResult: SingleResult = {
     agent: agentName,
@@ -345,15 +289,7 @@ async function runSingleAgent(
     exitCode: 0,
     messages: [],
     stderr: '',
-    usage: {
-      input: 0,
-      output: 0,
-      cacheRead: 0,
-      cacheWrite: 0,
-      cost: 0,
-      contextTokens: 0,
-      turns: 0,
-    },
+    usage: emptyUsage(),
     model: selectedModel,
     step,
   };
@@ -367,113 +303,39 @@ async function runSingleAgent(
     }
   };
 
-  try {
-    if (agent.systemPrompt.trim()) {
-      const tmp = await writePromptToTempFile(agent.name, agent.systemPrompt);
-      tmpPromptDir = tmp.dir;
-      tmpPromptPath = tmp.filePath;
-      args.push('--append-system-prompt', tmpPromptPath);
-    }
+  const spawnResult = await spawnPiAgent({
+    cwd: cwd ?? defaultCwd,
+    agentName: agent.name,
+    task,
+    systemPrompt: agent.systemPrompt,
+    model: selectedModel,
+    thinking: selectedThinking,
+    tools: agent.tools,
+    signal,
+    onMessage: (msg) => {
+      currentResult.messages = spawnResult.messages;
+      currentResult.usage = spawnResult.usage;
+      currentResult.model = spawnResult.model ?? currentResult.model;
+      currentResult.stopReason = spawnResult.stopReason;
+      currentResult.errorMessage = spawnResult.errorMessage;
+      emitUpdate();
+    },
+    onToolResult: () => {
+      currentResult.messages = spawnResult.messages;
+      emitUpdate();
+    },
+  });
 
-    args.push(`Task: ${task}`);
-    let wasAborted = false;
+  currentResult.exitCode = spawnResult.exitCode;
+  currentResult.messages = spawnResult.messages;
+  currentResult.stderr = spawnResult.stderr;
+  currentResult.usage = spawnResult.usage;
+  currentResult.model = spawnResult.model ?? currentResult.model;
+  currentResult.stopReason = spawnResult.stopReason;
+  currentResult.errorMessage = spawnResult.errorMessage;
 
-    const exitCode = await new Promise<number>((resolve) => {
-      const invocation = getPiInvocation(args);
-      const proc = spawn(invocation.command, invocation.args, {
-        cwd: cwd ?? defaultCwd,
-        shell: false,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      let buffer = '';
-
-      const processLine = (line: string) => {
-        if (!line.trim()) return;
-        let event: any;
-        try {
-          event = JSON.parse(line);
-        } catch {
-          return;
-        }
-
-        if (event.type === 'message_end' && event.message) {
-          const msg = event.message as Message;
-          currentResult.messages.push(msg);
-
-          if (msg.role === 'assistant') {
-            currentResult.usage.turns++;
-            const usage = msg.usage;
-            if (usage) {
-              currentResult.usage.input += usage.input || 0;
-              currentResult.usage.output += usage.output || 0;
-              currentResult.usage.cacheRead += usage.cacheRead || 0;
-              currentResult.usage.cacheWrite += usage.cacheWrite || 0;
-              currentResult.usage.cost += usage.cost?.total || 0;
-              currentResult.usage.contextTokens = usage.totalTokens || 0;
-            }
-            if (!currentResult.model && msg.model) currentResult.model = msg.model;
-            if (msg.stopReason) currentResult.stopReason = msg.stopReason;
-            if (msg.errorMessage) currentResult.errorMessage = msg.errorMessage;
-          }
-          emitUpdate();
-        }
-
-        if (event.type === 'tool_result_end' && event.message) {
-          currentResult.messages.push(event.message as Message);
-          emitUpdate();
-        }
-      };
-
-      proc.stdout.on('data', (data) => {
-        buffer += data.toString();
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-        for (const line of lines) processLine(line);
-      });
-
-      proc.stderr.on('data', (data) => {
-        currentResult.stderr += data.toString();
-      });
-
-      proc.on('close', (code) => {
-        if (buffer.trim()) processLine(buffer);
-        resolve(code ?? 0);
-      });
-
-      proc.on('error', () => {
-        resolve(1);
-      });
-
-      if (signal) {
-        const killProc = () => {
-          wasAborted = true;
-          proc.kill('SIGTERM');
-          setTimeout(() => {
-            if (!proc.killed) proc.kill('SIGKILL');
-          }, 5000);
-        };
-        if (signal.aborted) killProc();
-        else signal.addEventListener('abort', killProc, { once: true });
-      }
-    });
-
-    currentResult.exitCode = exitCode;
-    if (wasAborted) throw new Error('Subagent was aborted');
-    return currentResult;
-  } finally {
-    if (tmpPromptPath)
-      try {
-        fs.unlinkSync(tmpPromptPath);
-      } catch {
-        /* ignore */
-      }
-    if (tmpPromptDir)
-      try {
-        fs.rmdirSync(tmpPromptDir);
-      } catch {
-        /* ignore */
-      }
-  }
+  if (spawnResult.wasAborted) throw new Error('Subagent was aborted');
+  return currentResult;
 }
 
 const TaskItem = Type.Object({
@@ -531,24 +393,15 @@ const SubagentParams = Type.Object({
   ),
 });
 
-/**
- * Try to resolve package paths including the agents resource.
- * Returns null if the pi version does not support ResolvedPaths.agents.
- */
-async function tryResolvePackagePaths(cwd: string): Promise<ResolvedPaths | undefined> {
+async function resolvePackagePaths(cwd: string): Promise<ResolvedPaths | undefined> {
   try {
     const agentDir = getAgentDir();
     const settingsManager = SettingsManager.create(cwd, agentDir);
     const packageManager = new DefaultPackageManager({ cwd, agentDir, settingsManager });
-    const resolved = await packageManager.resolve();
-    // Check if this pi version has agents support
-    if ('agents' in resolved && Array.isArray((resolved as Record<string, unknown>).agents)) {
-      return resolved;
-    }
+    return await packageManager.resolve();
   } catch {
-    // Incompatible pi version or missing API
+    return undefined;
   }
-  return undefined;
 }
 
 export default function (pi: ExtensionAPI) {
@@ -599,8 +452,8 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function getAutocompleteAgents(scope: AgentScope): Promise<AgentConfig[]> {
-    const resolvedPaths = await tryResolvePackagePaths(autocompleteCwd);
-    return discoverAgentsWithPackages(autocompleteCwd, scope, resolvedPaths).agents;
+    const resolvedPaths = await resolvePackagePaths(autocompleteCwd);
+    return discoverAgents(autocompleteCwd, scope, resolvedPaths).agents;
   }
 
   async function getAutocompleteModels(scope: AgentScope): Promise<
@@ -645,15 +498,15 @@ export default function (pi: ExtensionAPI) {
       'Delegate tasks to specialized subagents with isolated context.',
       'Modes: single (agent + task), parallel (tasks array), chain (sequential with {previous} placeholder).',
       'Optional per-run or per-step model and reasoning-level overrides are supported via model/thinking.',
-      'Default agent scope is "user" (from ~/.pi/agent/agents).',
-      'To enable project-local agents in .pi/agents, set agentScope: "both" (or "project").',
+      'Default agent scope is "user" (from ~/.pi/agent/prompts).',
+      'To enable project-local agents in .pi/prompts, set agentScope: "both" (or "project").',
     ].join(' '),
     parameters: SubagentParams,
 
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
       const agentScope: AgentScope = params.agentScope ?? 'user';
-      const resolvedPaths = await tryResolvePackagePaths(ctx.cwd);
-      const discovery = discoverAgentsWithPackages(ctx.cwd, agentScope, resolvedPaths);
+      const resolvedPaths = await resolvePackagePaths(ctx.cwd);
+      const discovery = discoverAgents(ctx.cwd, agentScope, resolvedPaths);
       const agents = discovery.agents;
       const confirmProjectAgents = params.confirmProjectAgents ?? true;
 
@@ -667,7 +520,7 @@ export default function (pi: ExtensionAPI) {
         (results: SingleResult[]): SubagentDetails => ({
           mode,
           agentScope,
-          projectAgentsDir: discovery.projectAgentsDir,
+          projectPromptsDir: discovery.projectPromptsDir,
           results,
         });
 
@@ -700,7 +553,7 @@ export default function (pi: ExtensionAPI) {
 
         if (projectAgentsRequested.length > 0) {
           const names = projectAgentsRequested.map((a) => a.name).join(', ');
-          const dir = discovery.projectAgentsDir ?? '(unknown)';
+          const dir = discovery.projectPromptsDir ?? '(unknown)';
           const ok = await ctx.ui.confirm(
             'Run project-local agents?',
             `Agents: ${names}\nSource: ${dir}\n\nProject agents are repo-controlled. Only continue for trusted repositories.`,
@@ -1294,13 +1147,13 @@ export default function (pi: ExtensionAPI) {
   async function confirmProjectAgentsIfNeeded(
     ctx: ExtensionCommandContext,
     agents: AgentConfig[],
-    projectAgentsDir: string | null,
+    projectPromptsDir: string | null,
     confirmProjectAgents: boolean,
   ): Promise<boolean> {
     if (!ctx.hasUI || !confirmProjectAgents || agents.length === 0) return true;
 
     const names = Array.from(new Set(agents.map((agent) => agent.name))).join(', ');
-    const dir = projectAgentsDir ?? '(unknown)';
+    const dir = projectPromptsDir ?? '(unknown)';
     return ctx.ui.confirm(
       'Run project-local agents?',
       `Agents: ${names}\nSource: ${dir}\n\nProject agents are repo-controlled. Only continue for trusted repositories.`,
@@ -1415,155 +1268,8 @@ export default function (pi: ExtensionAPI) {
     return box;
   });
 
-  async function listMdFiles(dir: string): Promise<Set<string>> {
-    if (!existsSync(dir)) return new Set();
-    try {
-      const entries = await readdir(dir);
-      return new Set(entries.filter((f) => f.endsWith('.md')).map((f) => f.replace(/\.md$/, '')));
-    } catch {
-      return new Set();
-    }
-  }
-
   pi.on('session_start', async (_event, ctx) => {
     autocompleteCwd = ctx.cwd;
-  });
-
-  pi.registerCommand('delegate-agents', {
-    description: 'List, customize, or reset delegate agents',
-    getArgumentCompletions: async (argumentText) => {
-      const userDir = join(getAgentDir(), 'agents');
-      const { completedTokens } = parseArgumentText(argumentText);
-      const action = completedTokens[0];
-
-      if (!action) {
-        return buildArgumentCompletions(argumentText, [
-          { value: 'list', description: 'Show bundled and overridden agents' },
-          { value: 'reset', description: 'Restore bundled agents by removing user overrides' },
-          { value: 'edit', description: 'Copy a bundled agent into your user agents directory' },
-        ]);
-      }
-
-      if (action === 'reset') {
-        if (completedTokens.length > 1) return null;
-        const bundled = await listMdFiles(bundledAgentsDir);
-        const user = await listMdFiles(userDir);
-        const resettable = [...user].filter((name) => bundled.has(name)).sort();
-        return buildArgumentCompletions(argumentText, [
-          { value: '--all', description: 'Reset all user overrides that have bundled versions' },
-          ...resettable.map((name) => ({
-            value: name,
-            description: 'Reset this user override to the bundled version',
-          })),
-        ]);
-      }
-
-      if (action === 'edit') {
-        if (completedTokens.length > 1) return null;
-        const bundled = [...(await listMdFiles(bundledAgentsDir))].sort();
-        return buildArgumentCompletions(
-          argumentText,
-          bundled.map((name) => ({
-            value: name,
-            description: 'Copy this bundled agent into your user agents directory',
-          })),
-        );
-      }
-
-      return null;
-    },
-    handler: async (args, ctx) => {
-      autocompleteCwd = ctx.cwd;
-      const userDir = join(getAgentDir(), 'agents');
-      const parts = args?.trim().split(/\s+/) || [];
-      const action = parts[0] || 'list';
-
-      if (action === 'list') {
-        const bundled = await listMdFiles(bundledAgentsDir);
-        const user = await listMdFiles(userDir);
-        const allNames = new Set([...bundled, ...user]);
-
-        const lines: string[] = ['## Delegate Agents\n'];
-        for (const name of [...allNames].sort()) {
-          const isBundled = bundled.has(name);
-          const isUser = user.has(name);
-          if (isUser && isBundled) {
-            lines.push(`- **${name}** — user override (bundled version available, \`/delegate-agents reset ${name}\` to restore)`);
-          } else if (isUser) {
-            lines.push(`- **${name}** — user-only`);
-          } else {
-            lines.push(`- **${name}** — bundled`);
-          }
-        }
-        pi.sendMessage({ customType: 'delegate-agents-list', content: lines.join('\n'), display: true });
-        return;
-      }
-
-      if (action === 'reset') {
-        const name = parts[1];
-        if (!name) {
-          ctx.ui.notify('Usage: /delegate-agents reset <name|--all>', 'warning');
-          return;
-        }
-
-        if (name === '--all') {
-          const user = await listMdFiles(userDir);
-          const bundled = await listMdFiles(bundledAgentsDir);
-          let count = 0;
-          for (const n of user) {
-            if (bundled.has(n)) {
-              await unlink(join(userDir, `${n}.md`));
-              count++;
-            }
-          }
-          ctx.ui.notify(count > 0 ? `Reset ${count} agent(s) to bundled versions.` : 'No user overrides to reset.', 'info');
-          return;
-        }
-
-        const userFile = join(userDir, `${name}.md`);
-        const bundledFile = join(bundledAgentsDir, `${name}.md`);
-
-        if (!existsSync(userFile)) {
-          ctx.ui.notify(`No user override for "${name}" — already using bundled version.`, 'info');
-          return;
-        }
-        if (!existsSync(bundledFile)) {
-          ctx.ui.notify(`"${name}" is user-only (no bundled version). Delete manually if needed.`, 'warning');
-          return;
-        }
-
-        await unlink(userFile);
-        ctx.ui.notify(`Reset "${name}" — now using bundled version.`, 'info');
-        return;
-      }
-
-      if (action === 'edit') {
-        const name = parts[1];
-        if (!name) {
-          ctx.ui.notify('Usage: /delegate-agents edit <name>', 'warning');
-          return;
-        }
-
-        const bundledFile = join(bundledAgentsDir, `${name}.md`);
-        const userFile = join(userDir, `${name}.md`);
-
-        if (existsSync(userFile)) {
-          ctx.ui.notify(`User override already exists: ${userFile}`, 'info');
-          return;
-        }
-        if (!existsSync(bundledFile)) {
-          ctx.ui.notify(`No bundled agent named "${name}".`, 'warning');
-          return;
-        }
-
-        await mkdir(userDir, { recursive: true });
-        await copyFile(bundledFile, userFile);
-        ctx.ui.notify(`Copied "${name}" to ${userFile} — edit it there to customize.`, 'info');
-        return;
-      }
-
-      ctx.ui.notify('Unknown action. Usage: /delegate-agents [list|reset <name|--all>|edit <name>]', 'warning');
-    },
   });
 
   pi.registerCommand('run-agent', {
@@ -1612,8 +1318,8 @@ export default function (pi: ExtensionAPI) {
 
       if (expectsScopeValue) {
         return buildArgumentCompletions(argumentText, [
-          { value: 'user', description: 'Only user/global agents from ~/.pi/agent/agents' },
-          { value: 'project', description: 'Only project-local agents from .pi/agents' },
+          { value: 'user', description: 'Only user/global agents from ~/.pi/agent/prompts' },
+          { value: 'project', description: 'Only project-local agents from .pi/prompts' },
           { value: 'both', description: 'User/global agents plus project-local agents' },
         ]);
       }
@@ -1663,8 +1369,8 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      const resolvedPaths = await tryResolvePackagePaths(ctx.cwd);
-      const discovery = discoverAgentsWithPackages(ctx.cwd, agentScope, resolvedPaths);
+      const resolvedPaths = await resolvePackagePaths(ctx.cwd);
+      const discovery = discoverAgents(ctx.cwd, agentScope, resolvedPaths);
       const agent = discovery.agents.find((candidate) => candidate.name === agentName);
 
       if (!agent) {
@@ -1677,7 +1383,7 @@ export default function (pi: ExtensionAPI) {
       const approved = await confirmProjectAgentsIfNeeded(
         ctx,
         requestedProjectAgents,
-        discovery.projectAgentsDir,
+        discovery.projectPromptsDir,
         confirmProjectAgents,
       );
       if (!approved) {

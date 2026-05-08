@@ -28,11 +28,11 @@ Introduce a first-class manager workflow that can decompose larger tasks into bo
 
 Current relevant file tree on disk:
 
-- `packages/subagent/agents/scout.md`
-- `packages/subagent/agents/docs-scout.md`
-- `packages/subagent/agents/planner.md`
-- `packages/subagent/agents/worker.md`
-- `packages/subagent/agents/reviewer.md`
+- `packages/subagent/prompts/scout.md`
+- `packages/subagent/prompts/docs-scout.md`
+- `packages/subagent/prompts/planner.md`
+- `packages/subagent/prompts/worker.md`
+- `packages/subagent/prompts/reviewer.md`
 - `packages/subagent/prompts/implement.md`
 - `packages/subagent/prompts/scout-and-plan.md`
 - `packages/subagent/prompts/implement-and-review.md`
@@ -65,7 +65,7 @@ Actual current state on disk:
   - `runSingleAgent()` in `index.ts:325-328` only passes `--tools` when the agent frontmatter declares a tool list.
   - `runAgent()` in `agent-runner.ts:73-76` behaves the same way.
   - This means a new `manager` agent can omit `tools:` in frontmatter if it needs access to the full tool set, including the `subagent` tool itself.
-- There is no project-local `.pi/agents/*.md` manager override in this repo right now; `.pi/agents/` exists but is empty.
+- There is no project-local `.pi/prompts/*.md` manager override in this repo right now; `.pi/prompts/` exists but is empty.
 
 # API inventory
 
@@ -154,7 +154,7 @@ Create a prompt contract that is directly usable by the main agent or a human:
 ## 1. Add a bundled `manager` agent with a narrow orchestration role
 
 ### Files
-- Create `packages/subagent/agents/manager.md`
+- Create `packages/subagent/prompts/manager.md`
 
 ### What to add
 Author a concise bundled agent prompt that:
@@ -221,7 +221,7 @@ The manager should:
 
 # Files to create
 
-- `packages/subagent/agents/manager.md`
+- `packages/subagent/prompts/manager.md`
 - `packages/subagent/prompts/manage.md`
 
 # Files to modify
@@ -243,6 +243,6 @@ The manager should:
 
 - `packages/subagent/skills/spawn-subagents/SKILL.md:31-58` — existing orchestration philosophy to extend upward
 - `packages/subagent/skills/write-an-agent/SKILL.md:15-20` and `:46-67` — agent-authoring constraints for concise, high-signal prompts
-- `packages/subagent/agents/planner.md:9-38` — good example of a narrow role with a clear output contract
-- `packages/subagent/agents/worker.md:9-26` — example of a task-focused executor the manager should call, not replace
+- `packages/subagent/prompts/planner.md:9-38` — good example of a narrow role with a clear output contract
+- `packages/subagent/prompts/worker.md:9-26` — example of a task-focused executor the manager should call, not replace
 - `packages/subagent/README.md:88-124` — bundled-agent and bundled-prompt sections to update

@@ -39,12 +39,12 @@ Current relevant file tree on disk:
 - `packages/subagent/extensions/subagent/agent-result-utils.ts`
 - `packages/subagent/extensions/subagent/run-agent-args.ts`
 - `packages/subagent/extensions/subagent/synthesis.ts`
-- `packages/subagent/agents/docs-scout.md`
-- `packages/subagent/agents/planner.md`
-- `packages/subagent/agents/reviewer.md`
-- `packages/subagent/agents/scout.md`
-- `packages/subagent/agents/ux-designer.md`
-- `packages/subagent/agents/worker.md`
+- `packages/subagent/prompts/docs-scout.md`
+- `packages/subagent/prompts/planner.md`
+- `packages/subagent/prompts/reviewer.md`
+- `packages/subagent/prompts/scout.md`
+- `packages/subagent/prompts/ux-designer.md`
+- `packages/subagent/prompts/worker.md`
 - `packages/subagent/prompts/implement.md`
 - `packages/subagent/prompts/implement-and-review.md`
 - `packages/subagent/prompts/scout-and-plan.md`
@@ -326,10 +326,10 @@ export function buildHandoffFromResult(input: {
 ## 3. Tighten bundled prompts so handoffs have stable sections to summarize
 
 ### Files
-- Modify `packages/subagent/agents/scout.md`
-- Modify `packages/subagent/agents/docs-scout.md`
-- Modify `packages/subagent/agents/planner.md`
-- Modify `packages/subagent/agents/worker.md`
+- Modify `packages/subagent/prompts/scout.md`
+- Modify `packages/subagent/prompts/docs-scout.md`
+- Modify `packages/subagent/prompts/planner.md`
+- Modify `packages/subagent/prompts/worker.md`
 - Modify `packages/subagent/prompts/implement.md`
 - Modify `packages/subagent/prompts/scout-and-plan.md`
 
@@ -352,10 +352,10 @@ export function buildHandoffFromResult(input: {
 # Files to modify
 
 - `packages/subagent/extensions/subagent/index.ts` — switch chain substitution from raw final text to rendered structured handoff
-- `packages/subagent/agents/scout.md` — make scout output easier to summarize deterministically
-- `packages/subagent/agents/docs-scout.md` — make docs handoff more consistent
-- `packages/subagent/agents/planner.md` — preserve plan structure but expose constraints explicitly
-- `packages/subagent/agents/worker.md` — add explicit decision / unresolved sections for downstream agents
+- `packages/subagent/prompts/scout.md` — make scout output easier to summarize deterministically
+- `packages/subagent/prompts/docs-scout.md` — make docs handoff more consistent
+- `packages/subagent/prompts/planner.md` — preserve plan structure but expose constraints explicitly
+- `packages/subagent/prompts/worker.md` — add explicit decision / unresolved sections for downstream agents
 - `packages/subagent/prompts/implement.md` — document structured `{previous}` expectations
 - `packages/subagent/prompts/scout-and-plan.md` — document structured `{previous}` expectations
 

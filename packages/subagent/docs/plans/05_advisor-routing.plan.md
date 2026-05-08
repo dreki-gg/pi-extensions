@@ -28,10 +28,10 @@ Introduce a lightweight advisor pattern so primary agents can consult a strong s
 
 Current relevant file tree on disk:
 
-- `packages/subagent/agents/planner.md`
-- `packages/subagent/agents/reviewer.md`
-- `packages/subagent/agents/worker.md`
-- `packages/subagent/agents/docs-scout.md`
+- `packages/subagent/prompts/planner.md`
+- `packages/subagent/prompts/reviewer.md`
+- `packages/subagent/prompts/worker.md`
+- `packages/subagent/prompts/docs-scout.md`
 - `packages/subagent/prompts/implement.md`
 - `packages/subagent/prompts/implement-and-review.md`
 - `packages/subagent/README.md`
@@ -42,12 +42,12 @@ Current relevant file tree on disk:
 
 Actual current state on disk:
 
-- There is no bundled `advisor` agent in `packages/subagent/agents/`.
+- There is no bundled `advisor` agent in `packages/subagent/prompts/`.
 - There is no advisor-oriented prompt template in `packages/subagent/prompts/`.
 - The current bundled roles are:
-  - `planner` for planning (`packages/subagent/agents/planner.md`)
-  - `worker` for implementation (`packages/subagent/agents/worker.md`)
-  - `reviewer` for verification (`packages/subagent/agents/reviewer.md`)
+  - `planner` for planning (`packages/subagent/prompts/planner.md`)
+  - `worker` for implementation (`packages/subagent/prompts/worker.md`)
+  - `reviewer` for verification (`packages/subagent/prompts/reviewer.md`)
   - plus `scout`, `docs-scout`, and `ux-designer`
 - The package runner already supports spawned agents consulting tools as needed:
   - in `packages/subagent/extensions/subagent/index.ts:325-328`, `runSingleAgent()` passes `--tools` only when frontmatter declares them
@@ -63,21 +63,21 @@ Actual current state on disk:
 
 ## Existing agent prompt contracts that may invoke advisor
 
-From `packages/subagent/agents/planner.md`:
+From `packages/subagent/prompts/planner.md`:
 
 ```md
 You are a planning specialist.
 You must NOT make any changes. Only read, analyze, and plan.
 ```
 
-From `packages/subagent/agents/worker.md`:
+From `packages/subagent/prompts/worker.md`:
 
 ```md
 You are a worker agent with full capabilities.
 Work autonomously to complete the assigned task. Use all available tools as needed.
 ```
 
-From `packages/subagent/agents/reviewer.md`:
+From `packages/subagent/prompts/reviewer.md`:
 
 ```md
 You are a senior code reviewer.
@@ -124,7 +124,7 @@ The advisor should not claim to have implemented or verified anything it did not
 ## 1. Add a bundled `advisor` agent with a focused consultative contract
 
 ### Files
-- Create `packages/subagent/agents/advisor.md`
+- Create `packages/subagent/prompts/advisor.md`
 
 ### What to add
 Create a concise bundled agent whose sole job is to provide focused second-opinion guidance.
@@ -150,9 +150,9 @@ Create a concise bundled agent whose sole job is to provide focused second-opini
 ## 2. Teach bundled prompts when to call the advisor and what context to send
 
 ### Files
-- Modify `packages/subagent/agents/worker.md`
-- Modify `packages/subagent/agents/planner.md`
-- Modify `packages/subagent/agents/reviewer.md`
+- Modify `packages/subagent/prompts/worker.md`
+- Modify `packages/subagent/prompts/planner.md`
+- Modify `packages/subagent/prompts/reviewer.md`
 
 ### What to change
 Add small, explicit escalation rules to the existing bundled roles.
@@ -215,14 +215,14 @@ The advisor should:
 
 # Files to create
 
-- `packages/subagent/agents/advisor.md`
+- `packages/subagent/prompts/advisor.md`
 - `packages/subagent/prompts/consult-advisor.md`
 
 # Files to modify
 
-- `packages/subagent/agents/worker.md` — add narrow escalation guidance
-- `packages/subagent/agents/planner.md` — add narrow escalation guidance
-- `packages/subagent/agents/reviewer.md` — add narrow escalation guidance
+- `packages/subagent/prompts/worker.md` — add narrow escalation guidance
+- `packages/subagent/prompts/planner.md` — add narrow escalation guidance
+- `packages/subagent/prompts/reviewer.md` — add narrow escalation guidance
 - `packages/subagent/README.md` — document the new advisor role and one or two examples
 - `packages/subagent/skills/spawn-subagents/SKILL.md` — explain when to use advisor vs. planner/reviewer
 
@@ -238,7 +238,7 @@ The advisor should:
 # Patterns to follow
 
 - `packages/subagent/skills/write-an-agent/SKILL.md:15-20` and `:46-67` — keep the new agent narrow, concise, and output-contract-driven
-- `packages/subagent/agents/planner.md:9-38` — example of a specialist planner role that the advisor should complement, not replace
-- `packages/subagent/agents/reviewer.md:10-37` — example of a verifier role that may occasionally need escalation
-- `packages/subagent/agents/worker.md:9-26` — example of a primary owner role that should remain in charge after consulting advisor
+- `packages/subagent/prompts/planner.md:9-38` — example of a specialist planner role that the advisor should complement, not replace
+- `packages/subagent/prompts/reviewer.md:10-37` — example of a verifier role that may occasionally need escalation
+- `packages/subagent/prompts/worker.md:9-26` — example of a primary owner role that should remain in charge after consulting advisor
 - `packages/subagent/skills/spawn-subagents/SKILL.md:23-58` — existing specialist-selection guidance to extend with optional escalation

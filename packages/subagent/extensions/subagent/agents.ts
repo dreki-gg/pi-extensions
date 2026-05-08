@@ -1,12 +1,9 @@
 /**
  * Agent discovery and configuration
  *
- * Supports two discovery strategies:
- * 1. Package-resolved: Uses pi's ResolvedPaths.agents from the package manager
- *    when available (pi forks with first-class agents resource support).
- *    Package agents are resolved, filtered, and toggleable via pi config.
- * 2. Legacy: Manual filesystem discovery from bundled, user, and project dirs.
- *    Used as fallback when ResolvedPaths.agents is not available.
+ * Uses pi's ResolvedPaths.prompts from the package manager to discover
+ * agent prompts from installed packages. User and project prompts are
+ * discovered from the filesystem and override package prompts by name.
  */
 
 import * as fs from 'node:fs';
@@ -15,7 +12,7 @@ import { getAgentDir, parseFrontmatter } from '@earendil-works/pi-coding-agent';
 import type { ResolvedPaths } from '@earendil-works/pi-coding-agent';
 
 export type AgentScope = 'user' | 'project' | 'both';
-export type AgentSource = 'bundled' | 'user' | 'project' | 'package';
+export type AgentSource = 'user' | 'project' | 'package';
 export type AgentSessionStrategy = 'inline' | 'fork-at';
 
 export interface AgentConfig {
@@ -32,11 +29,8 @@ export interface AgentConfig {
 
 export interface AgentDiscoveryResult {
   agents: AgentConfig[];
-  projectAgentsDir: string | null;
+  projectPromptsDir: string | null;
 }
-
-/** Bundled agents ship with the package (../../agents relative to extensions/subagent/) */
-const bundledAgentsDir = path.resolve(import.meta.dirname, '..', '..', 'agents');
 
 function parseSessionStrategy(value?: string): AgentSessionStrategy | undefined {
   if (!value) return undefined;
@@ -106,10 +100,10 @@ function isDirectory(p: string): boolean {
   }
 }
 
-function findNearestProjectAgentsDir(cwd: string): string | null {
+function findNearestProjectPromptsDir(cwd: string): string | null {
   let currentDir = cwd;
   while (true) {
-    const candidate = path.join(currentDir, '.pi', 'agents');
+    const candidate = path.join(currentDir, '.pi', 'prompts');
     if (isDirectory(candidate)) return candidate;
 
     const parentDir = path.dirname(currentDir);
@@ -119,18 +113,14 @@ function findNearestProjectAgentsDir(cwd: string): string | null {
 }
 
 /**
- * Load agents from package-manager resolved paths (enabled only).
- * This is called with pre-resolved paths from an async context.
+ * Load agents from package-manager resolved prompt paths (enabled only).
  */
-export function loadAgentsFromResolvedPaths(resolvedPaths: ResolvedPaths): AgentConfig[] {
-  // Check if the agents field exists (compatibility with upstream pi)
-  const agentResources = (resolvedPaths as unknown as Record<string, unknown>).agents;
-  if (!agentResources || !Array.isArray(agentResources)) {
-    return [];
-  }
+function loadAgentsFromResolvedPaths(resolvedPaths: ResolvedPaths): AgentConfig[] {
+  const promptResources = (resolvedPaths as unknown as Record<string, unknown>).prompts;
+  if (!Array.isArray(promptResources)) return [];
 
   const agents: AgentConfig[] = [];
-  for (const resource of agentResources) {
+  for (const resource of promptResources) {
     if (!resource.enabled) continue;
     const agent = loadAgentFromFile(resource.path, 'package');
     if (agent) agents.push(agent);
@@ -169,21 +159,28 @@ function loadAgentFromFile(filePath: string, source: AgentSource): AgentConfig |
   };
 }
 
-export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryResult {
-  const userDir = path.join(getAgentDir(), 'agents');
-  const projectAgentsDir = findNearestProjectAgentsDir(cwd);
+/**
+ * Discover agents from package-resolved prompts, user, and project directories.
+ *
+ * Priority: package (lowest) → user → project (highest, overrides by name).
+ */
+export function discoverAgents(
+  cwd: string,
+  scope: AgentScope,
+  resolvedPaths?: ResolvedPaths,
+): AgentDiscoveryResult {
+  const userDir = path.join(getAgentDir(), 'prompts');
+  const projectPromptsDir = findNearestProjectPromptsDir(cwd);
 
-  // Bundled agents from the package itself (lowest priority)
-  const bundledAgents = loadAgentsFromDir(bundledAgentsDir, 'bundled');
-
+  const packageAgents = resolvedPaths ? loadAgentsFromResolvedPaths(resolvedPaths) : [];
   const userAgents = scope === 'project' ? [] : loadAgentsFromDir(userDir, 'user');
   const projectAgents =
-    scope === 'user' || !projectAgentsDir ? [] : loadAgentsFromDir(projectAgentsDir, 'project');
+    scope === 'user' || !projectPromptsDir ? [] : loadAgentsFromDir(projectPromptsDir, 'project');
 
-  // Priority: bundled (lowest) → user → project (highest, overrides by name)
   const agentMap = new Map<string, AgentConfig>();
 
-  for (const agent of bundledAgents) agentMap.set(agent.name, agent);
+  // Package agents are lowest priority
+  for (const agent of packageAgents) agentMap.set(agent.name, agent);
 
   if (scope === 'both') {
     for (const agent of userAgents) agentMap.set(agent.name, agent);
@@ -194,48 +191,5 @@ export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryRe
     for (const agent of projectAgents) agentMap.set(agent.name, agent);
   }
 
-  return { agents: Array.from(agentMap.values()), projectAgentsDir };
-}
-
-/**
- * Discover agents with package-resolved paths merged in.
- * Package-resolved agents (from pi.agents in installed packages) are loaded
- * at lowest priority, then overridden by bundled, user, and project agents.
- *
- * Falls back to discoverAgents() when resolvedPaths is not provided or
- * does not contain the agents field (upstream pi compatibility).
- */
-export function discoverAgentsWithPackages(
-  cwd: string,
-  scope: AgentScope,
-  resolvedPaths?: ResolvedPaths,
-): AgentDiscoveryResult {
-  const base = discoverAgents(cwd, scope);
-
-  if (!resolvedPaths) return base;
-
-  const packageAgents = loadAgentsFromResolvedPaths(resolvedPaths);
-  if (packageAgents.length === 0) return base;
-
-  // Package agents are lowest priority: existing agents override by name
-  const agentMap = new Map<string, AgentConfig>();
-  for (const agent of packageAgents) agentMap.set(agent.name, agent);
-  for (const agent of base.agents) agentMap.set(agent.name, agent);
-
-  return { agents: Array.from(agentMap.values()), projectAgentsDir: base.projectAgentsDir };
-}
-
-export { bundledAgentsDir };
-
-export function formatAgentList(
-  agents: AgentConfig[],
-  maxItems: number,
-): { text: string; remaining: number } {
-  if (agents.length === 0) return { text: 'none', remaining: 0 };
-  const listed = agents.slice(0, maxItems);
-  const remaining = agents.length - listed.length;
-  return {
-    text: listed.map((a) => `${a.name} (${a.source}): ${a.description}`).join('; '),
-    remaining,
-  };
+  return { agents: Array.from(agentMap.values()), projectPromptsDir };
 }

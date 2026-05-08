@@ -33,10 +33,10 @@ Current relevant file tree on disk:
 - `packages/subagent/prompts/implement.md`
 - `packages/subagent/prompts/scout-and-plan.md`
 - `packages/subagent/prompts/implement-and-review.md`
-- `packages/subagent/agents/scout.md`
-- `packages/subagent/agents/planner.md`
-- `packages/subagent/agents/reviewer.md`
-- `packages/subagent/agents/worker.md`
+- `packages/subagent/prompts/scout.md`
+- `packages/subagent/prompts/planner.md`
+- `packages/subagent/prompts/reviewer.md`
+- `packages/subagent/prompts/worker.md`
 - `packages/subagent/package.json`
 - `packages/subagent/CHANGELOG.md`
 
