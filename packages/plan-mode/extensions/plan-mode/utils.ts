@@ -24,7 +24,8 @@ const DESTRUCTIVE_PATTERNS = [
   /\btruncate\b/i,
   /\bdd\b/i,
   /\bshred\b/i,
-  /(^|[^<])>(?!>)/,
+  // stdout redirect — but NOT stderr redirects like 2>/dev/null or 2>&1
+  /(?<!\d)>(?!>|&)/,
   />>/,
   /\bnpm\s+(install|uninstall|update|ci|link|publish)/i,
   /\byarn\s+(add|remove|install|publish)/i,
@@ -117,10 +118,70 @@ const SAFE_PATTERNS = [
   /^\s*tasklist\b/,
 ];
 
+/**
+ * Check if a command is safe for plan mode.
+ *
+ * For simple commands, checks that the command starts with a safe pattern and
+ * doesn't contain destructive patterns. For piped commands, each segment is
+ * checked individually. Special exceptions allow `mkdir -p` for `.plans/` paths.
+ */
 export function isSafeCommand(command: string): boolean {
-  const isDestructive = DESTRUCTIVE_PATTERNS.some((p) => p.test(command));
-  const isSafe = SAFE_PATTERNS.some((p) => p.test(command));
-  return !isDestructive && isSafe;
+  // Special case: allow mkdir for .plans/ directory (planner needs this)
+  if (/^\s*mkdir\s+(-p\s+)?\.plans(\/|\\|\s|$)/.test(command)) {
+    return true;
+  }
+
+  // Split piped commands and check each segment independently
+  const segments = splitPipeSegments(command);
+  return segments.every((seg) => {
+    const trimmed = seg.trim();
+    const isDestructive = DESTRUCTIVE_PATTERNS.some((p) => p.test(trimmed));
+    const isSafe = SAFE_PATTERNS.some((p) => p.test(trimmed));
+    return !isDestructive && isSafe;
+  });
+}
+
+/**
+ * Split a command on unquoted pipe (`|`) characters.
+ * Respects single/double quotes and escaped characters.
+ */
+function splitPipeSegments(command: string): string[] {
+  const segments: string[] = [];
+  let current = '';
+  let inSingle = false;
+  let inDouble = false;
+  let escaped = false;
+
+  for (const ch of command) {
+    if (escaped) {
+      current += ch;
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      current += ch;
+      escaped = true;
+      continue;
+    }
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle;
+      current += ch;
+      continue;
+    }
+    if (ch === '"' && !inSingle) {
+      inDouble = !inDouble;
+      current += ch;
+      continue;
+    }
+    if (ch === '|' && !inSingle && !inDouble) {
+      segments.push(current);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  if (current) segments.push(current);
+  return segments;
 }
 
 // ── Plan extraction ─────────────────────────────────────────────────────────
