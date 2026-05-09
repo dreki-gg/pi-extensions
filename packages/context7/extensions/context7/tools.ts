@@ -388,7 +388,6 @@ function createResolveTool(name: string, description: string, promptVisible: boo
           ambiguous: formatted.ambiguous,
           results: resolved.response.results,
         },
-        terminate: true,
       };
     },
   });
@@ -440,7 +439,6 @@ function createDocsTool(
         return {
           content: [{ type: 'text' as const, text: result.text }],
           details: result.details,
-          terminate: true,
         };
       }
 
@@ -467,7 +465,6 @@ function createDocsTool(
           topic: entry.topic,
           effectiveQuery: entry.effectiveQuery,
         },
-        terminate: true,
       };
     },
   });
@@ -537,7 +534,6 @@ function createRawDocsTool() {
             topic: cached.entry.topic,
             page: cached.entry.page,
           },
-          terminate: true,
         };
       }
 
@@ -571,7 +567,6 @@ function createRawDocsTool() {
             ambiguous: true,
             candidates,
           },
-          terminate: true,
         };
       }
 
@@ -594,7 +589,6 @@ function createRawDocsTool() {
           topic: entry.topic,
           page: entry.page,
         },
-        terminate: true,
       };
     },
   });
