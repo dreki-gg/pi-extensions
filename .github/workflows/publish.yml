@@ -66,6 +66,6 @@ jobs:
 
       - name: Commit plan cleanup
         run: |
-          git add .plans/
+          git add .plans/ 2>/dev/null || true
           git diff --cached --quiet || git commit -m 'chore: clean completed plans'
           git push
