@@ -1,5 +1,13 @@
 # @dreki-gg/pi-questionnaire
 
+## 0.2.4
+
+### Patch Changes
+
+- [`54e5fd9`](https://github.com/dreki-gg/pi-extensions/commit/54e5fd9b15573fd4729f89ed85e31cd4648cb6c8) Thanks [@jalbarrang](https://github.com/jalbarrang)! - fix(questionnaire): prevent navigation keys from interrupting "Other" text input
+
+  When typing custom text in the "Other" input field, keys like Space, Left/Right arrows, and 'r' were intercepted by tab navigation handlers instead of being sent to the text editor. This caused accidental tab switches that cleared the input mode and lost any typed text.
+
 ## 0.2.3
 
 ### Patch Changes

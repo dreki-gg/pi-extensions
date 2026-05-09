@@ -1,5 +1,11 @@
 # @dreki-gg/pi-context7
 
+## 0.1.9
+
+### Patch Changes
+
+- [`938048f`](https://github.com/dreki-gg/pi-extensions/commit/938048ffd15f8b4174e369f2042a101a42486ed8) Thanks [@jalbarrang](https://github.com/jalbarrang)! - disable terminate: true on context7 tool calls
+
 ## 0.1.8
 
 ### Patch Changes
