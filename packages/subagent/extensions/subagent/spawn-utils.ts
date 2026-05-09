@@ -114,9 +114,10 @@ export async function spawnPiAgent(options: SpawnPiAgentOptions): Promise<SpawnP
 
     const exitCode = await new Promise<number>((resolve) => {
       const invocation = getPiInvocation(args);
+      const needsShell = process.platform === 'win32' && invocation.command === 'pi';
       const proc = spawn(invocation.command, invocation.args, {
         cwd: options.cwd,
-        shell: false,
+        shell: needsShell,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       let buffer = '';

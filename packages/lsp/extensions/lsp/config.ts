@@ -21,7 +21,8 @@ import type { LspConfigFile, LspServerUserConfig, ResolvedServerConfig } from '.
 // ── Paths ───────────────────────────────────────────────────────────────────
 
 function globalConfigPath(): string {
-  return join(process.env.HOME ?? homedir(), '.pi', 'agent', 'extensions', 'lsp', 'config.json');
+  const home = process.platform === 'win32' ? homedir() : (process.env.HOME ?? homedir());
+  return join(home, '.pi', 'agent', 'extensions', 'lsp', 'config.json');
 }
 
 function projectConfigPath(cwd: string): string {

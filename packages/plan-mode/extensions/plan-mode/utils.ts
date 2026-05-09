@@ -43,6 +43,17 @@ const DESTRUCTIVE_PATTERNS = [
   /\bsystemctl\s+(start|stop|restart|enable|disable)/i,
   /\bservice\s+\S+\s+(start|stop|restart)/i,
   /\b(vim?|nano|emacs|code|subl)\b/i,
+  // Windows equivalents
+  /\bdel\b/i,
+  /\brd\b/i,
+  /\bcopy\b/i,
+  /\bmove\b/i,
+  /\bren\b/i,
+  /\brename\b/i,
+  /\bicacls\b/i,
+  /\battrib\b/i,
+  /\bpowershell\b/i,
+  /\bpwsh\b/i,
 ];
 
 // ── Safe read-only bash patterns (allowed in plan mode) ─────────────────────
@@ -98,6 +109,12 @@ const SAFE_PATTERNS = [
   /^\s*fd\b/,
   /^\s*bat\b/,
   /^\s*eza\b/,
+  // Windows equivalents
+  /^\s*dir\b/,
+  /^\s*where\b/,
+  /^\s*set\b/,
+  /^\s*systeminfo\b/,
+  /^\s*tasklist\b/,
 ];
 
 export function isSafeCommand(command: string): boolean {

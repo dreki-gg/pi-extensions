@@ -8,9 +8,10 @@ const STDOUT_STDERR_EXCERPT_LENGTH = 1_000;
 const BROWSER_TOOLS_SESSION_ID = `pi-browser-tools-${process.pid}`;
 const AGENT_BROWSER_INSTALL_GUIDANCE = [
   'agent-browser backend selected, but the CLI is unavailable.',
-  'Install with either:',
-  '  brew install agent-browser && agent-browser install',
-  'or',
+  'Install with one of:',
+  ...(process.platform === 'darwin'
+    ? ['  brew install agent-browser && agent-browser install', 'or']
+    : []),
   '  npm install -g agent-browser && agent-browser install',
 ].join('\n');
 let agentBrowserAvailabilityCheck: Promise<void> | null = null;
@@ -54,6 +55,7 @@ export async function runAgentBrowser(
       cwd: options.cwd,
       env: process.env,
       stdio: ['ignore', 'pipe', 'pipe'],
+      shell: process.platform === 'win32',
     });
 
     let stdout = '';
@@ -182,7 +184,9 @@ function createSpawnError(args: string[], error: unknown): Error {
         `Failed to run agent-browser command: ${command}`,
         'The `agent-browser` executable was not found in PATH.',
         'Install with one of:',
-        '  brew install agent-browser && agent-browser install',
+        ...(process.platform === 'darwin'
+          ? ['  brew install agent-browser && agent-browser install']
+          : []),
         '  npm install -g agent-browser && agent-browser install',
       ].join('\n'),
     );
@@ -212,7 +216,11 @@ function formatCommand(args: string[]): string {
 }
 
 function shellEscape(value: string): string {
-  return /^[A-Za-z0-9_./:@=-]+$/u.test(value) ? value : `'${value.replaceAll("'", `'\\''`)}'`;
+  if (/^[A-Za-z0-9_./:@=-]+$/u.test(value)) return value;
+  if (process.platform === 'win32') {
+    return `"${value.replaceAll('"', '""')}"`;
+  }
+  return `'${value.replaceAll("'", `'\\''`)}'`;
 }
 
 function excerpt(value: string): string {

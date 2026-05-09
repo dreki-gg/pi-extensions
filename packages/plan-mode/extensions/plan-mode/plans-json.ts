@@ -25,12 +25,15 @@ export type PlansManifest = Record<string, PlanEntry>;
 
 const PLANS_JSON = '.plans/plans.json';
 
-/** Read plans.json via pi.exec, returning current manifest (empty object if missing). */
-export async function readPlansJson(exec: (cmd: string, args: string[]) => Promise<{ code: number; stdout: string }>): Promise<PlansManifest> {
+/** Read plans.json, returning current manifest (empty object if missing). */
+export async function readPlansJson(): Promise<PlansManifest> {
   try {
-    const result = await exec('cat', [PLANS_JSON]);
-    if (result.code === 0 && result.stdout.trim()) {
-      return JSON.parse(result.stdout) as PlansManifest;
+    const file = Bun.file(PLANS_JSON);
+    if (await file.exists()) {
+      const text = await file.text();
+      if (text.trim()) {
+        return JSON.parse(text) as PlansManifest;
+      }
     }
   } catch {
     // File doesn't exist or isn't valid JSON

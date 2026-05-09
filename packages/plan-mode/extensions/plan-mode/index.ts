@@ -22,6 +22,7 @@ import type { AgentMessage } from '@earendil-works/pi-agent-core';
 import type { AssistantMessage, TextContent } from '@earendil-works/pi-ai';
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
 import { Key } from '@earendil-works/pi-tui';
+import { mkdir } from 'node:fs/promises';
 import {
   extractTodoItems,
   isSafeCommand,
@@ -111,7 +112,7 @@ export default function planMode(pi: ExtensionAPI): void {
     status: 'in-progress' | 'done',
     title?: string,
   ): Promise<void> {
-    const manifest = await readPlansJson((cmd, args) => pi.exec(cmd, args));
+    const manifest = await readPlansJson();
     const existing = manifest[planName];
     const now = new Date().toISOString();
 
@@ -122,10 +123,9 @@ export default function planMode(pi: ExtensionAPI): void {
       completed: status === 'done' ? now : null,
     };
 
-    await pi.exec('mkdir', ['-p', '.plans']);
+    await mkdir('.plans', { recursive: true });
     const content = serializePlansJson(manifest);
-    // Write via a temp approach — use bash echo to avoid needing the write tool
-    await pi.exec('bash', ['-c', `cat > .plans/plans.json << 'PLANS_EOF'\n${content}PLANS_EOF`]);
+    await Bun.write('.plans/plans.json', content);
   }
 
   // ── UI updates ────────────────────────────────────────────────────────────
@@ -419,10 +419,8 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
       let title = 'Untitled plan';
       if (path.endsWith('PLAN.md')) {
         try {
-          const result = await pi.exec('cat', [path]);
-          if (result.code === 0) {
-            title = extractPlanTitle(result.stdout);
-          }
+          const content = await Bun.file(path).text();
+          title = extractPlanTitle(content);
         } catch {
           // Fall through
         }
@@ -432,11 +430,9 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
     } else if (match && planDir && path.endsWith('PLAN.md')) {
       // planDir already set but PLAN.md just written — update title
       try {
-        const result = await pi.exec('cat', [path]);
-        if (result.code === 0) {
-          const title = extractPlanTitle(result.stdout);
-          await updatePlansManifest(match[1], 'in-progress', title);
-        }
+        const content = await Bun.file(path).text();
+        const title = extractPlanTitle(content);
+        await updatePlansManifest(match[1], 'in-progress', title);
       } catch {
         // Fall through
       }
@@ -500,10 +496,7 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
       // Read the plan to extract todos
       let planContent = '';
       try {
-        const result = await pi.exec('cat', [planMdPath]);
-        if (result.code === 0) {
-          planContent = result.stdout;
-        }
+        planContent = await Bun.file(planMdPath).text();
       } catch {
         // Fall through — will use empty plan content
       }
@@ -516,10 +509,7 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
       // Read the start prompt for clean handoff
       let startPrompt = '';
       try {
-        const result = await pi.exec('cat', [startPromptPath]);
-        if (result.code === 0) {
-          startPrompt = result.stdout.trim();
-        }
+        startPrompt = (await Bun.file(startPromptPath).text()).trim();
       } catch {
         // Fall through
       }

@@ -6,9 +6,9 @@
     "completed": "2026-05-09T01:37:59.710Z"
   },
   "windows-compat": {
-    "status": "in-progress",
+    "status": "done",
     "title": "Windows Compatibility for pi-extensions",
     "created": "2026-05-09T04:44:02.095Z",
-    "completed": null
+    "completed": "2026-05-09T06:33:39.513Z"
   }
 }
