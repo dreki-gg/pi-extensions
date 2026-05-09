@@ -1,5 +1,17 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.5.1
+
+### Patch Changes
+
+- [`8e9aa09`](https://github.com/dreki-gg/pi-extensions/commit/8e9aa0963fe81286e9c5972f6a9d666645807f1a) Thanks [@jalbarrang](https://github.com/jalbarrang)! - fix(plan-mode): allow safe bash commands that were incorrectly blocked in plan mode
+
+  Three fixes to `isSafeCommand`:
+
+  - Allow `mkdir -p .plans/` since the planner needs to create plan directories
+  - Fix redirect pattern to not false-positive on stderr redirects like `2>/dev/null`
+  - Split piped commands and validate each segment independently, so `curl ... | grep ... | head` works correctly
+
 ## 0.5.0
 
 ### Minor Changes
