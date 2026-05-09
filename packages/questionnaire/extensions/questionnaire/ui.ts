@@ -221,8 +221,13 @@ export async function runQuestionnaireUI(
     }
 
     function handleInput(data: string) {
-      if (uiState.inputMode === 'otherInput' && matchesKey(data, Key.escape)) {
-        clearInputMode();
+      if (uiState.inputMode === 'otherInput') {
+        if (matchesKey(data, Key.escape)) {
+          clearInputMode();
+          invalidate();
+          return;
+        }
+        editor.handleInput(data);
         invalidate();
         return;
       }
@@ -239,12 +244,6 @@ export async function runQuestionnaireUI(
 
       if (isRKey(data)) {
         jumpToReview();
-        return;
-      }
-
-      if (uiState.inputMode === 'otherInput') {
-        editor.handleInput(data);
-        invalidate();
         return;
       }
 
