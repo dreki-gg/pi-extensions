@@ -1,5 +1,13 @@
 # @dreki-gg/pi-questionnaire
 
+## 0.2.5
+
+### Patch Changes
+
+- [`2a08c1d`](https://github.com/dreki-gg/pi-extensions/commit/2a08c1d0b10a1ca74dfab74f93dd200570537e0f) Thanks [@jalbarrang](https://github.com/jalbarrang)! - fix(questionnaire): remove `terminate: true` from successful tool result
+
+  The questionnaire tool was returning `terminate: true` on successful completion, which caused the agent's turn to end immediately after the user submitted answers. The agent never got to process the responses and continue working. Now the agent receives the answers and continues its turn normally.
+
 ## 0.2.4
 
 ### Patch Changes
