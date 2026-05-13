@@ -12,7 +12,8 @@
     "format": "bun run --filter '*' format",
     "changeset": "changeset",
     "version": "changeset version",
-    "publish": "changeset publish",
+    "build": "bun run --filter '@dreki-gg/pi-command-sandbox' build",
+    "publish": "bun run build && changeset publish",
     "prepare": "husky"
   },
   "devDependencies": {

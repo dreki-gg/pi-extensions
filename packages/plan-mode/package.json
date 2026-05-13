@@ -24,6 +24,8 @@
     "package.json"
   ],
   "scripts": {
+    "prepack": "node --experimental-strip-types scripts/prepack.js",
+    "postpack": "rm -rf node_modules/@dreki-gg",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint extensions bin",
     "format": "oxfmt --write extensions bin",
@@ -33,6 +35,12 @@
     "extensions": [
       "./extensions/plan-mode"
     ]
+  },
+  "bundledDependencies": [
+    "@dreki-gg/pi-command-sandbox"
+  ],
+  "dependencies": {
+    "@dreki-gg/pi-command-sandbox": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "24",

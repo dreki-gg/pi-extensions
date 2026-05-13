@@ -20,6 +20,8 @@
     "package.json"
   ],
   "scripts": {
+    "prepack": "node --experimental-strip-types scripts/prepack.js",
+    "postpack": "rm -rf node_modules/@dreki-gg",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint extensions",
     "format": "oxfmt --write extensions",
@@ -29,6 +31,12 @@
     "extensions": [
       "./extensions/ask-mode"
     ]
+  },
+  "bundledDependencies": [
+    "@dreki-gg/pi-command-sandbox"
+  ],
+  "dependencies": {
+    "@dreki-gg/pi-command-sandbox": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "24",

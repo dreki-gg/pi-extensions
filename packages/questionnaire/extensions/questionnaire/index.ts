@@ -138,7 +138,6 @@ export default function questionnaireExtension(pi: ExtensionAPI) {
       return {
         content: [{ type: 'text' as const, text: formatToolContentSummary(uiResult) }],
         details: uiResult,
-        terminate: true,
       };
     },
 
