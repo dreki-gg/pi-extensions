@@ -5,7 +5,8 @@
     "packages/*"
   ],
   "scripts": {
-    "typecheck": "bun run build && bun run --filter '*' typecheck",
+    "pretypecheck": "bun run build",
+    "typecheck": "bun run --filter '*' typecheck",
     "compat": "bun test test/pi-compat.test.ts",
     "test": "bun run compat && bun run --filter '@dreki-gg/pi-lsp' test",
     "lint": "bun run --filter '*' lint",
