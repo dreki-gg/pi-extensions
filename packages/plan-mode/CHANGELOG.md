@@ -1,5 +1,13 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.6.1
+
+### Patch Changes
+
+- [`d95dad2`](https://github.com/dreki-gg/pi-extensions/commit/d95dad2ac85c4e5428252ee691152a0db83a0ced) Thanks [@jalbarrang](https://github.com/jalbarrang)! - fix(plan-mode): replace Bun-specific APIs with Node.js `fs/promises`
+
+  `pi` runs under Node.js (`#!/usr/bin/env node`), so `Bun.file()` and `Bun.write()` are unavailable at runtime. Replaced all usages with `readFile` and `writeFile` from `node:fs/promises`, which work in both runtimes.
+
 ## 0.6.0
 
 ### Minor Changes
