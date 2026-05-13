@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+
+  "entry": [
+    "packages/*/extensions/*/index.ts",
+    "packages/*/test/*.test.ts",
+    "packages/*/test/*.integration.test.ts",
+    "test/*.test.ts"
+  ],
+
+  "ignorePatterns": [
+    "**/*.d.ts",
+    "**/bin/**"
+  ],
+
+  "ignoreDependencies": [
+    "@earendil-works/pi-agent-core",
+    "@earendil-works/pi-ai",
+    "@earendil-works/pi-tui",
+    "@earendil-works/pi-coding-agent",
+    "typebox",
+    "typescript-language-server"
+  ],
+
+  "rules": {
+    "unused-files": "warn",
+    "unused-exports": "warn",
+    "unused-types": "warn",
+    "unused-class-members": "warn",
+    "unused-dependencies": "error",
+    "unused-dev-dependencies": "warn",
+    "unlisted-dependencies": "off",
+    "duplicate-exports": "warn",
+    "unresolved-imports": "error"
+  },
+
+  "duplicates": {
+    "minLines": 15
+  },
+
+  "health": {
+    "maxCyclomatic": 20,
+    "maxCognitive": 25
+  },
+
+  "overrides": [
+    {
+      "files": ["**/test/**/*.ts"],
+      "rules": {
+        "unused-exports": "off",
+        "unused-files": "off"
+      }
+    }
+  ]
+}
