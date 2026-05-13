@@ -22,13 +22,8 @@ import type { AgentMessage } from '@earendil-works/pi-agent-core';
 import type { AssistantMessage, TextContent } from '@earendil-works/pi-ai';
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
 import { Key } from '@earendil-works/pi-tui';
-import { mkdir } from 'node:fs/promises';
-import {
-  extractTodoItems,
-  isSafeCommand,
-  markCompletedSteps,
-  type TodoItem,
-} from './utils.js';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { extractTodoItems, isSafeCommand, markCompletedSteps, type TodoItem } from './utils.js';
 import {
   extractPlanTitle,
   readPlansJson,
@@ -125,7 +120,7 @@ export default function planMode(pi: ExtensionAPI): void {
 
     await mkdir('.plans', { recursive: true });
     const content = serializePlansJson(manifest);
-    await Bun.write('.plans/plans.json', content);
+    await writeFile('.plans/plans.json', content, 'utf-8');
   }
 
   // ── UI updates ────────────────────────────────────────────────────────────
@@ -253,9 +248,7 @@ export default function planMode(pi: ExtensionAPI): void {
         ctx.ui.notify('No plan yet. Use /plan to start planning.', 'info');
         return;
       }
-      const list = todos
-        .map((t, i) => `${i + 1}. ${t.completed ? '✓' : '○'} ${t.text}`)
-        .join('\n');
+      const list = todos.map((t, i) => `${i + 1}. ${t.completed ? '✓' : '○'} ${t.text}`).join('\n');
       ctx.ui.notify(`Plan Progress:\n${list}`, 'info');
     },
   });
@@ -419,7 +412,7 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
       let title = 'Untitled plan';
       if (path.endsWith('PLAN.md')) {
         try {
-          const content = await Bun.file(path).text();
+          const content = await readFile(path, 'utf-8');
           title = extractPlanTitle(content);
         } catch {
           // Fall through
@@ -430,7 +423,7 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
     } else if (match && planDir && path.endsWith('PLAN.md')) {
       // planDir already set but PLAN.md just written — update title
       try {
-        const content = await Bun.file(path).text();
+        const content = await readFile(path, 'utf-8');
         const title = extractPlanTitle(content);
         await updatePlansManifest(match[1], 'in-progress', title);
       } catch {
@@ -496,7 +489,7 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
       // Read the plan to extract todos
       let planContent = '';
       try {
-        planContent = await Bun.file(planMdPath).text();
+        planContent = await readFile(planMdPath, 'utf-8');
       } catch {
         // Fall through — will use empty plan content
       }
@@ -509,7 +502,7 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
       // Read the start prompt for clean handoff
       let startPrompt = '';
       try {
-        startPrompt = (await Bun.file(startPromptPath).text()).trim();
+        startPrompt = (await readFile(startPromptPath, 'utf-8')).trim();
       } catch {
         // Fall through
       }

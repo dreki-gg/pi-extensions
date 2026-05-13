@@ -23,17 +23,16 @@ export interface PlanEntry {
 
 export type PlansManifest = Record<string, PlanEntry>;
 
+import { readFile } from 'node:fs/promises';
+
 const PLANS_JSON = '.plans/plans.json';
 
 /** Read plans.json, returning current manifest (empty object if missing). */
 export async function readPlansJson(): Promise<PlansManifest> {
   try {
-    const file = Bun.file(PLANS_JSON);
-    if (await file.exists()) {
-      const text = await file.text();
-      if (text.trim()) {
-        return JSON.parse(text) as PlansManifest;
-      }
+    const text = await readFile(PLANS_JSON, 'utf-8');
+    if (text.trim()) {
+      return JSON.parse(text) as PlansManifest;
     }
   } catch {
     // File doesn't exist or isn't valid JSON
