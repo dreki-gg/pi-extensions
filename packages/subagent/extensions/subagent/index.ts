@@ -27,14 +27,16 @@ import {
   SettingsManager,
 } from '@earendil-works/pi-coding-agent';
 import type { ResolvedPaths } from '@earendil-works/pi-coding-agent';
-import { Box, Container, Markdown, Spacer, Text, type AutocompleteItem } from '@earendil-works/pi-tui';
-import { Type } from 'typebox';
 import {
-  type AgentConfig,
-  type AgentScope,
-  type AgentSource,
-  discoverAgents,
-} from './agents.js';
+  Box,
+  Container,
+  Markdown,
+  Spacer,
+  Text,
+  type AutocompleteItem,
+} from '@earendil-works/pi-tui';
+import { Type } from 'typebox';
+import { type AgentConfig, type AgentScope, type AgentSource, discoverAgents } from './agents.js';
 import { formatRunAgentUsage, parseRunAgentArgs } from './run-agent-args.js';
 import { runAgent } from './agent-runner.js';
 import { extractRecentConversation } from './synthesis.js';
@@ -247,7 +249,6 @@ async function mapWithConcurrencyLimit<TIn, TOut>(
   return results;
 }
 
-
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
 
 async function runSingleAgent(
@@ -303,7 +304,8 @@ async function runSingleAgent(
     }
   };
 
-  const spawnResult = await spawnPiAgent({
+  let spawnResult: Awaited<ReturnType<typeof spawnPiAgent>> | undefined;
+  spawnResult = await spawnPiAgent({
     cwd: cwd ?? defaultCwd,
     agentName: agent.name,
     task,
@@ -313,15 +315,23 @@ async function runSingleAgent(
     tools: agent.tools,
     signal,
     onMessage: (msg) => {
-      currentResult.messages = spawnResult.messages;
-      currentResult.usage = spawnResult.usage;
-      currentResult.model = spawnResult.model ?? currentResult.model;
-      currentResult.stopReason = spawnResult.stopReason;
-      currentResult.errorMessage = spawnResult.errorMessage;
+      if (!spawnResult) {
+        currentResult.messages = [...currentResult.messages, msg];
+      } else {
+        currentResult.messages = spawnResult.messages;
+        currentResult.usage = spawnResult.usage;
+        currentResult.model = spawnResult.model ?? currentResult.model;
+        currentResult.stopReason = spawnResult.stopReason;
+        currentResult.errorMessage = spawnResult.errorMessage;
+      }
       emitUpdate();
     },
-    onToolResult: () => {
-      currentResult.messages = spawnResult.messages;
+    onToolResult: (msg) => {
+      if (!spawnResult) {
+        currentResult.messages = [...currentResult.messages, msg];
+      } else {
+        currentResult.messages = spawnResult.messages;
+      }
       emitUpdate();
     },
   });
@@ -373,13 +383,19 @@ const SubagentParams = Type.Object({
     Type.String({ description: 'Optional default model override for the run or all steps/tasks' }),
   ),
   thinking: Type.Optional(
-    Type.String({ description: 'Optional default reasoning level override for the run or all steps/tasks' }),
+    Type.String({
+      description: 'Optional default reasoning level override for the run or all steps/tasks',
+    }),
   ),
   tasks: Type.Optional(
-    Type.Array(TaskItem, { description: 'Array of {agent, task, model?, thinking?} for parallel execution' }),
+    Type.Array(TaskItem, {
+      description: 'Array of {agent, task, model?, thinking?} for parallel execution',
+    }),
   ),
   chain: Type.Optional(
-    Type.Array(ChainItem, { description: 'Array of {agent, task, model?, thinking?} for sequential execution' }),
+    Type.Array(ChainItem, {
+      description: 'Array of {agent, task, model?, thinking?} for sequential execution',
+    }),
   ),
   agentScope: Type.Optional(AgentScopeSchema),
   confirmProjectAgents: Type.Optional(
@@ -424,9 +440,7 @@ export default function (pi: ExtensionAPI) {
     if (!trimmedEnd) return replacement;
     if (/\s$/.test(argumentText)) return `${trimmedEnd} ${replacement}`;
     const lastSpace = trimmedEnd.lastIndexOf(' ');
-    return lastSpace === -1
-      ? replacement
-      : `${trimmedEnd.slice(0, lastSpace + 1)}${replacement}`;
+    return lastSpace === -1 ? replacement : `${trimmedEnd.slice(0, lastSpace + 1)}${replacement}`;
   }
 
   function buildArgumentCompletions(
@@ -456,9 +470,9 @@ export default function (pi: ExtensionAPI) {
     return discoverAgents(autocompleteCwd, scope, resolvedPaths).agents;
   }
 
-  async function getAutocompleteModels(scope: AgentScope): Promise<
-    Array<{ value: string; label?: string; description?: string }>
-  > {
+  async function getAutocompleteModels(
+    scope: AgentScope,
+  ): Promise<Array<{ value: string; label?: string; description?: string }>> {
     const items = new Map<string, { value: string; label?: string; description?: string }>();
 
     try {
@@ -1238,7 +1252,9 @@ export default function (pi: ExtensionAPI) {
         title,
         modeLine,
         theme.fg('muted', `Task: ${details.task}`),
-        failed && details.errorMessage ? theme.fg('error', `Error: ${details.errorMessage}`) : previewLines,
+        failed && details.errorMessage
+          ? theme.fg('error', `Error: ${details.errorMessage}`)
+          : previewLines,
         usageLine ? theme.fg('dim', usageLine) : undefined,
         theme.fg('muted', '(Ctrl+O to expand)'),
       ]
@@ -1347,7 +1363,10 @@ export default function (pi: ExtensionAPI) {
         { value: '--model', description: 'Override the agent model for this run' },
         { value: '--thinking', description: 'Override the reasoning level for this run' },
         { value: '--reasoning-level', description: 'Alias for --thinking' },
-        { value: '--yes-project-agents', description: 'Skip the project-agent trust confirmation prompt' },
+        {
+          value: '--yes-project-agents',
+          description: 'Skip the project-agent trust confirmation prompt',
+        },
         ...agents.map((agent) => ({
           value: agent.name,
           label: agent.name,
@@ -1363,7 +1382,8 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      const { agentName, explicitTask, agentScope, confirmProjectAgents, model, thinking } = parsed.options;
+      const { agentName, explicitTask, agentScope, confirmProjectAgents, model, thinking } =
+        parsed.options;
       if (!agentName) {
         ctx.ui.notify(formatRunAgentUsage(), 'warning');
         return;
@@ -1394,7 +1414,10 @@ export default function (pi: ExtensionAPI) {
       const conversation = extractRecentConversation(ctx);
       const task = buildRunAgentTask(conversation, explicitTask);
       if (!task) {
-        ctx.ui.notify(`No conversation context and no task specified.\n\n${formatRunAgentUsage()}`, 'warning');
+        ctx.ui.notify(
+          `No conversation context and no task specified.\n\n${formatRunAgentUsage()}`,
+          'warning',
+        );
         return;
       }
 
@@ -1486,5 +1509,4 @@ export default function (pi: ExtensionAPI) {
       await runAndReport(ctx.cwd, ctx.ui, (message) => pi.sendMessage(message), false);
     },
   });
-
 }
