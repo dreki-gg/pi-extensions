@@ -1,5 +1,29 @@
 # @dreki-gg/pi-lsp
 
+## 0.3.0
+
+### Minor Changes
+
+- [#43](https://github.com/dreki-gg/pi-extensions/pull/43) [`c8dc964`](https://github.com/dreki-gg/pi-extensions/commit/c8dc96448bd8cf1a594daf42a1ab0d56f932d629) Thanks [@jalbarrang](https://github.com/jalbarrang)! - feat(lsp): improve reliability and LLM guidance based on real-world usage feedback
+
+  - **documentSymbol now includes column positions** — output shows `line:col` instead of just `line`, eliminating the need for a follow-up `rg --column` to get positions for other LSP operations.
+  - **Retry with backoff during server indexing** — `hover`, `definition`, `references`, `implementation`, `documentSymbol`, and `workspaceSymbol` automatically retry (up to 2 times, 2s delay) when the server was recently initialized and returns empty results.
+  - **Send `didSave` notification** — the client now sends `textDocument/didSave` after opening or updating documents, fixing diagnostics for servers like `rust-analyzer` that require save events.
+  - **Improved diagnostics wait logic** — stale cached diagnostics are cleared on document re-sync, and the arbitrary 500ms delay is removed in favor of resolving immediately when fresh diagnostics arrive.
+  - **Rewritten `promptGuidelines`** — 9 targeted guidelines that teach LLMs (especially smaller models) how to use LSP tools effectively: prefer `hover` for quick inspection, position cursor in the middle of symbols, use compiler tools for diagnostics in compiled languages, and more.
+  - **Enhanced tool description** — includes tips section and notes that `incomingCalls`/`outgoingCalls` auto-prepare the call hierarchy.
+  - **Removed unused code** — `pathToUri` export, `capabilities` getter, and `closeDocument` method removed.
+
+### Patch Changes
+
+- [`87baca4`](https://github.com/dreki-gg/pi-extensions/commit/87baca402f6afa0bba627a3c179bacf0bbbeacba) Thanks [@jalbarrang](https://github.com/jalbarrang)! - fix(lsp): Windows URI normalization and diagnostic waiter race conditions
+
+  - Add `normalizeUri()` to decode percent-encoded URIs (`%3A` → `:`) and uppercase Windows drive letters, fixing key mismatches between `pathToUri` and server responses.
+  - `pathToUri()` now always uppercases the drive letter for consistency.
+  - `uriToPath()` now applies `decodeURIComponent` so encoded URIs from the server produce valid file paths.
+  - Replace per-URI waiter arrays with a single `PendingDiagnostic` promise per URI, eliminating manual timer/splice management.
+  - Track `invalidatedUris` to distinguish first-open (empty diagnostics = clean file → resolve immediately) from re-open (empty diagnostics = server clearing stale state → wait for real results).
+
 ## 0.2.1
 
 ### Patch Changes
