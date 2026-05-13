@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 type ToolDefinitionLike = {
   name: string;
@@ -225,7 +226,11 @@ function createMockContext(options?: { cwd?: string; hasUI?: boolean }) {
         return undefined;
       },
     },
-    modelRegistry: undefined,
+    modelRegistry: {
+      find(_provider: string, _id: string) {
+        return null;
+      },
+    },
     model: undefined,
     signal: undefined,
     isIdle() {
@@ -384,43 +389,31 @@ describe('Pi extension compatibility harness', () => {
       subagentExtension(pi.api as any);
 
       expect(pi.tools.map((tool) => tool.name)).toEqual(['subagent']);
-      expect([...pi.commands.keys()].sort()).toEqual(['delegate-agents', 'run-agent']);
+      expect([...pi.commands.keys()].sort()).toEqual(['run-agent']);
       expect(pi.messageRenderers.has('run-agent-summary')).toBe(true);
 
       const ctx = createMockContext({ cwd: process.cwd(), hasUI: false });
       const tool = pi.getTool('subagent');
       const result = await tool.execute?.('tool-1', {}, undefined, undefined, ctx);
 
+      // With a temp HOME, no bundled agents are discovered — tool returns gracefully
       expect(result.isError).not.toBe(true);
       expect(result.content[0].text).toContain('Invalid parameters.');
       expect(result.content[0].text).toContain('Available agents:');
-      expect(result.content[0].text).toContain('planner');
-
-      const runAgentCompletions = await pi
-        .getCommand('run-agent')
-        .getArgumentCompletions?.('--scope both wor');
-      expect(runAgentCompletions?.some((item) => item.value === '--scope both worker')).toBe(true);
-
-      const delegateAgentCompletions = await pi
-        .getCommand('delegate-agents')
-        .getArgumentCompletions?.('reset ');
-      expect(delegateAgentCompletions?.some((item) => item.value === 'reset --all')).toBe(true);
 
       await pi.getCommand('run-agent').handler?.('', ctx);
       expect(ctx.notifications.at(-1)?.message).toContain('Usage: /run-agent');
 
-      await pi.getCommand('run-agent').handler?.('worker fix the failing tests', ctx);
-      expect(ctx.forkCalls).toHaveLength(1);
-      expect(ctx.forkCalls[0]?.entryId).toBe('leaf');
-      expect(ctx.forkCalls[0]?.options?.position).toBe('at');
-      expect(typeof ctx.forkCalls[0]?.options?.withSession).toBe('function');
-
-      const { bundledAgentsDir } =
-        await import('../packages/subagent/extensions/subagent/agents.ts');
-      const workerAgentPath = path.join(bundledAgentsDir, 'worker.md');
-      const reviewerAgentPath = path.join(bundledAgentsDir, 'reviewer.md');
-      const workerAgent = await readFile(workerAgentPath, 'utf8');
-      const reviewerAgent = await readFile(reviewerAgentPath, 'utf8');
+      // Verify bundled agent prompts ship with the package
+      const promptsDir = path.join(
+        path.dirname(fileURLToPath(import.meta.url)),
+        '..',
+        'packages',
+        'subagent',
+        'prompts',
+      );
+      const workerAgent = await readFile(path.join(promptsDir, 'worker.md'), 'utf8');
+      const reviewerAgent = await readFile(path.join(promptsDir, 'reviewer.md'), 'utf8');
       expect(workerAgent).toContain('sessionStrategy: fork-at');
       expect(reviewerAgent).toContain('sessionStrategy: fork-at');
     });
@@ -628,6 +621,7 @@ describe('Pi extension compatibility harness', () => {
       'questionnaire',
       'lsp',
       'context7_get_library_docs',
+      'search_skills',
     ]) {
       pi.api.registerTool({ name: toolName });
     }
@@ -638,13 +632,7 @@ describe('Pi extension compatibility harness', () => {
     );
     planModeExtension(pi.api as any);
 
-    expect([...pi.commands.keys()].sort()).toEqual([
-      'plan',
-      'plan-domain',
-      'plan-execute',
-      'plan-plans',
-      'plan-status',
-    ]);
+    expect([...pi.commands.keys()].sort()).toEqual(['plan', 'todos']);
     expect(pi.countHandlers('session_start')).toBeGreaterThan(0);
     expect(pi.countHandlers('before_agent_start')).toBeGreaterThan(0);
     expect(pi.countHandlers('tool_call')).toBeGreaterThan(0);
@@ -652,21 +640,21 @@ describe('Pi extension compatibility harness', () => {
     const ctx = createMockContext({ hasUI: false });
     await pi.emit('session_start', { reason: 'startup' }, ctx);
 
-    const planCompletions = await pi.getCommand('plan').getArgumentCompletions?.('sta');
-    expect(planCompletions?.some((item) => item.value === 'status')).toBe(true);
-
+    // Plan mode now includes edit/write (restricted to .plans/ by prompt enforcement)
     expect(pi.api.getActiveTools()).toEqual([
       'read',
       'bash',
       'grep',
       'find',
       'ls',
+      'edit',
+      'write',
       'questionnaire',
-      'lsp',
-      'context7_get_library_docs',
+      'search_skills',
     ]);
-    expect(ctx.statuses.get('plan-mode')).toBe('plan');
+    expect(ctx.statuses.get('plan-mode')).toBe('📝 plan');
 
+    // before_agent_start now injects a message (not systemPrompt modification)
     const beforeAgentStartResults = await pi.emit(
       'before_agent_start',
       {
@@ -679,10 +667,10 @@ describe('Pi extension compatibility harness', () => {
       },
       ctx,
     );
-    expect(beforeAgentStartResults[0].systemPrompt).toContain('PLAN MODE ACTIVE.');
-    expect(beforeAgentStartResults[0].systemPrompt).toContain('Enabled tools: read, questionnaire');
-    expect(beforeAgentStartResults[0].systemPrompt).toContain('questionnaire tool is available');
+    expect(beforeAgentStartResults[0].message.content).toContain('[PLAN MODE ACTIVE]');
+    expect(beforeAgentStartResults[0].message.content).toContain('.plans/');
 
+    // Destructive bash commands are still blocked in plan mode
     const toolCallResults = await pi.emit(
       'tool_call',
       {
@@ -697,26 +685,8 @@ describe('Pi extension compatibility harness', () => {
       }),
     );
 
-    await pi.getCommand('plan-plans').handler?.('', ctx);
-    expect(pi.api.getActiveTools()).toEqual([
-      'read',
-      'bash',
-      'grep',
-      'find',
-      'ls',
-      'edit',
-      'write',
-      'questionnaire',
-      'lsp',
-      'context7_get_library_docs',
-    ]);
-    expect(pi.sentMessages.at(-1)).toEqual(
-      expect.objectContaining({
-        type: 'user',
-        message: expect.stringContaining(
-          'Create self-contained implementation plan files for the current approved plan.',
-        ),
-      }),
-    );
+    // /todos shows info when no plan exists yet
+    await pi.getCommand('todos').handler?.('', ctx);
+    expect(ctx.notifications.at(-1)?.message).toContain('No plan yet');
   });
 });

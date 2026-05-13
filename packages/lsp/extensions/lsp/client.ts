@@ -25,10 +25,11 @@ import type {
   ResolvedServerConfig,
   SymbolInformation,
 } from './types';
+import { withRetry } from './retry';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-export function pathToUri(filePath: string): string {
+function pathToUri(filePath: string): string {
   const abs = resolve(filePath);
   const normalized = abs.replace(/\\/g, '/');
   // Windows paths need file:///C:/... (three slashes)
@@ -102,6 +103,7 @@ export class LspClient {
   private diagnosticWaiters = new Map<string, DiagnosticWaiter[]>();
   private serverCapabilities: Record<string, unknown> = {};
   private stderrLog: string[] = [];
+  private initTimestamp = 0;
 
   readonly config: ResolvedServerConfig;
   private rootPath: string;
@@ -209,6 +211,24 @@ export class LspClient {
     this.serverCapabilities = result?.capabilities ?? {};
     this.connection.sendNotification('initialized', {});
     this.initialized = true;
+    this.initTimestamp = Date.now();
+  }
+
+  /** Whether the server was initialized recently (within windowMs). */
+  private isRecentlyInitialized(windowMs = 30_000): boolean {
+    return this.initTimestamp > 0 && Date.now() - this.initTimestamp < windowMs;
+  }
+
+  /**
+   * Wrap an LSP operation with retry logic when the server was recently initialized.
+   * During indexing, servers may return empty results that resolve after a short wait.
+   */
+  private async retryIfIndexing<T>(
+    operation: () => Promise<T>,
+    isEmpty: (result: T) => boolean,
+  ): Promise<T> {
+    if (!this.isRecentlyInitialized()) return operation();
+    return withRetry(operation, isEmpty, { maxRetries: 2, delayMs: 2000 });
   }
 
   async shutdown(): Promise<void> {
@@ -235,10 +255,6 @@ export class LspClient {
     return this.initialized;
   }
 
-  get capabilities(): Record<string, unknown> {
-    return this.serverCapabilities;
-  }
-
   /** Check if the server advertised a specific capability. */
   hasCapability(name: string): boolean {
     return this.serverCapabilities[name] !== undefined && this.serverCapabilities[name] !== false;
@@ -258,6 +274,7 @@ export class LspClient {
 
     if (existing) {
       existing.version++;
+      this.diagnosticStore.delete(uri); // Clear stale diagnostics before re-sync
       this.connection.sendNotification('textDocument/didChange', {
         textDocument: { uri, version: existing.version },
         contentChanges: [{ text }],
@@ -270,19 +287,14 @@ export class LspClient {
       this.openDocs.set(uri, { uri, version, languageId });
     }
 
-    return uri;
-  }
-
-  async closeDocument(filePath: string): Promise<void> {
-    const uri = pathToUri(resolve(this.rootPath, filePath));
-    const doc = this.openDocs.get(uri);
-    if (!doc) return;
-
-    this.connection.sendNotification('textDocument/didClose', {
+    // Notify the server that the file was saved — some servers (e.g. rust-analyzer)
+    // only generate diagnostics after a didSave notification.
+    this.connection.sendNotification('textDocument/didSave', {
       textDocument: { uri },
+      text,
     });
-    this.openDocs.delete(uri);
-    this.diagnosticStore.delete(uri);
+
+    return uri;
   }
 
   // ── Diagnostics ───────────────────────────────────────────────────────
@@ -295,9 +307,11 @@ export class LspClient {
 
   private waitForDiagnostics(uri: string, timeoutMs: number): Promise<void> {
     return new Promise<void>((resolveWait) => {
+      // If diagnostics already arrived (from the didOpen/didChange/didSave notification
+      // handler), resolve immediately — no arbitrary delay.
       const existing = this.diagnosticStore.get(uri);
       if (existing !== undefined) {
-        setTimeout(resolveWait, 500);
+        resolveWait();
         return;
       }
 
@@ -331,65 +345,95 @@ export class LspClient {
 
   async hover(filePath: string, position: Position): Promise<Hover | null> {
     const uri = await this.openDocument(filePath);
-    const result = await this.connection.sendRequest('textDocument/hover', {
-      textDocument: { uri },
-      position,
-    });
-    return (result as Hover) ?? null;
+    return this.retryIfIndexing(
+      async () => {
+        const result = await this.connection.sendRequest('textDocument/hover', {
+          textDocument: { uri },
+          position,
+        });
+        return (result as Hover) ?? null;
+      },
+      (result) => result === null,
+    );
   }
 
   // ── Definition ────────────────────────────────────────────────────────
 
   async definition(filePath: string, position: Position): Promise<Location[]> {
     const uri = await this.openDocument(filePath);
-    const result = await this.connection.sendRequest('textDocument/definition', {
-      textDocument: { uri },
-      position,
-    });
-    return normalizeLocations(result);
+    return this.retryIfIndexing(
+      async () => {
+        const result = await this.connection.sendRequest('textDocument/definition', {
+          textDocument: { uri },
+          position,
+        });
+        return normalizeLocations(result);
+      },
+      (result) => result.length === 0,
+    );
   }
 
   // ── References ────────────────────────────────────────────────────────
 
   async references(filePath: string, position: Position): Promise<Location[]> {
     const uri = await this.openDocument(filePath);
-    const result = await this.connection.sendRequest('textDocument/references', {
-      textDocument: { uri },
-      position,
-      context: { includeDeclaration: true },
-    });
-    return normalizeLocations(result);
+    return this.retryIfIndexing(
+      async () => {
+        const result = await this.connection.sendRequest('textDocument/references', {
+          textDocument: { uri },
+          position,
+          context: { includeDeclaration: true },
+        });
+        return normalizeLocations(result);
+      },
+      (result) => result.length === 0,
+    );
   }
 
   // ── Implementation ────────────────────────────────────────────────────
 
   async implementation(filePath: string, position: Position): Promise<Location[]> {
     const uri = await this.openDocument(filePath);
-    const result = await this.connection.sendRequest('textDocument/implementation', {
-      textDocument: { uri },
-      position,
-    });
-    return normalizeLocations(result);
+    return this.retryIfIndexing(
+      async () => {
+        const result = await this.connection.sendRequest('textDocument/implementation', {
+          textDocument: { uri },
+          position,
+        });
+        return normalizeLocations(result);
+      },
+      (result) => result.length === 0,
+    );
   }
 
   // ── Document Symbols ──────────────────────────────────────────────────
 
   async documentSymbol(filePath: string): Promise<DocumentSymbol[] | SymbolInformation[]> {
     const uri = await this.openDocument(filePath);
-    const result = await this.connection.sendRequest('textDocument/documentSymbol', {
-      textDocument: { uri },
-    });
-    if (!Array.isArray(result)) return [];
-    return result as DocumentSymbol[] | SymbolInformation[];
+    return this.retryIfIndexing(
+      async () => {
+        const result = await this.connection.sendRequest('textDocument/documentSymbol', {
+          textDocument: { uri },
+        });
+        if (!Array.isArray(result)) return [];
+        return result as DocumentSymbol[] | SymbolInformation[];
+      },
+      (result) => result.length === 0,
+    );
   }
 
   // ── Workspace Symbols ─────────────────────────────────────────────────
 
   async workspaceSymbol(query: string): Promise<SymbolInformation[]> {
     await this.ensureInitialized();
-    const result = await this.connection.sendRequest('workspace/symbol', { query });
-    if (!Array.isArray(result)) return [];
-    return result as SymbolInformation[];
+    return this.retryIfIndexing(
+      async () => {
+        const result = await this.connection.sendRequest('workspace/symbol', { query });
+        if (!Array.isArray(result)) return [];
+        return result as SymbolInformation[];
+      },
+      (result) => result.length === 0,
+    );
   }
 
   // ── Call Hierarchy ────────────────────────────────────────────────────

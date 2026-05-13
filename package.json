@@ -10,18 +10,22 @@
     "test": "bun run compat && bun run --filter '@dreki-gg/pi-lsp' test",
     "lint": "bun run --filter '*' lint",
     "format": "bun run --filter '*' format",
-    "format:check": "bun run --filter '*' format:check",
     "changeset": "changeset",
     "version": "changeset version",
-    "publish": "changeset publish"
+    "publish": "changeset publish",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.1",
     "@changesets/cli": "^2.29.0",
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
     "@earendil-works/pi-agent-core": "^0.74.0",
     "@earendil-works/pi-ai": "^0.74.0",
     "@earendil-works/pi-coding-agent": "^0.74.0",
     "@earendil-works/pi-tui": "^0.74.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.4",
     "typebox": "^1.0.55"
   }
 }
