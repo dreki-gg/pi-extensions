@@ -1,5 +1,13 @@
 # @dreki-gg/pi-subagent
 
+## 0.8.3
+
+### Patch Changes
+
+- [`6f0b219`](https://github.com/dreki-gg/pi-extensions/commit/6f0b219ac357ce1607a7a8211fd1c66bd35c62f1) Thanks [@jalbarrang](https://github.com/jalbarrang)! - fix(subagent): resolve TDZ crash when onMessage/onToolResult callbacks fire before spawnResult is assigned
+
+  Previously, `runSingleAgent` declared `const spawnResult = await spawnPiAgent({...})` and referenced `spawnResult` inside the `onMessage`/`onToolResult` callbacks. Since callbacks fire during the await (before the const is assigned), this caused a `ReferenceError: Cannot access 'spawnResult' before initialization`. Now uses `let` with a guard to safely accumulate messages when the result is not yet available.
+
 ## 0.8.2
 
 ### Patch Changes
