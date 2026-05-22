@@ -1,0 +1,62 @@
+{
+  "name": "@dreki-gg/pi-code-reviewer",
+  "version": "0.1.0",
+  "description": "Multi-lens code review extension for pi — configurable review criteria per project",
+  "keywords": [
+    "pi-package"
+  ],
+  "author": "Juan Albarran <jalbarrandev@gmail.com>",
+  "license": "MIT",
+  "files": [
+    "extensions",
+    "skills",
+    "README.md",
+    "package.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dreki-gg/pi-extensions",
+    "directory": "packages/code-reviewer"
+  },
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint extensions",
+    "format": "oxfmt --write extensions",
+    "format:check": "oxfmt --check extensions"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/code-reviewer"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "oxfmt": "^0.43.0",
+    "oxlint": "^1.58.0",
+    "typescript": "^6.0.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-ai": {
+      "optional": true
+    },
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
+    },
+    "typebox": {
+      "optional": true
+    }
+  }
+}

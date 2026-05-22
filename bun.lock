@@ -20,7 +20,7 @@
     },
     "packages/ask-mode": {
       "name": "@dreki-gg/pi-ask-mode",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@dreki-gg/pi-command-sandbox": "workspace:*",
       },
@@ -65,6 +65,28 @@
         "typebox",
       ],
     },
+    "packages/code-reviewer": {
+      "name": "@dreki-gg/pi-code-reviewer",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/node": "24",
+        "oxfmt": "^0.43.0",
+        "oxlint": "^1.58.0",
+        "typescript": "^6.0.0",
+      },
+      "peerDependencies": {
+        "@earendil-works/pi-ai": "*",
+        "@earendil-works/pi-coding-agent": "*",
+        "@earendil-works/pi-tui": "*",
+        "typebox": "*",
+      },
+      "optionalPeers": [
+        "@earendil-works/pi-ai",
+        "@earendil-works/pi-coding-agent",
+        "@earendil-works/pi-tui",
+        "typebox",
+      ],
+    },
     "packages/command-sandbox": {
       "name": "@dreki-gg/pi-command-sandbox",
       "version": "0.1.0",
@@ -101,7 +123,7 @@
     },
     "packages/lsp": {
       "name": "@dreki-gg/pi-lsp",
-      "version": "0.2.1",
+      "version": "0.3.0",
       "devDependencies": {
         "@earendil-works/pi-ai": "^0.74.0",
         "@types/node": "24",
@@ -140,7 +162,7 @@
     },
     "packages/plan-mode": {
       "name": "@dreki-gg/pi-plan-mode",
-      "version": "0.5.1",
+      "version": "0.6.1",
       "bin": {
         "pi-plan-mode": "./bin/clean-plans.js",
       },
@@ -165,7 +187,7 @@
     },
     "packages/questionnaire": {
       "name": "@dreki-gg/pi-questionnaire",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "devDependencies": {
         "@types/node": "24",
         "oxfmt": "^0.43.0",
@@ -187,7 +209,7 @@
     },
     "packages/subagent": {
       "name": "@dreki-gg/pi-subagent",
-      "version": "0.8.2",
+      "version": "0.8.3",
       "devDependencies": {
         "@types/node": "24",
         "oxfmt": "^0.43.0",
@@ -378,6 +400,8 @@
     "@dreki-gg/pi-ask-mode": ["@dreki-gg/pi-ask-mode@workspace:packages/ask-mode"],
 
     "@dreki-gg/pi-browser-tools": ["@dreki-gg/pi-browser-tools@workspace:packages/browser-tools"],
+
+    "@dreki-gg/pi-code-reviewer": ["@dreki-gg/pi-code-reviewer@workspace:packages/code-reviewer"],
 
     "@dreki-gg/pi-command-sandbox": ["@dreki-gg/pi-command-sandbox@workspace:packages/command-sandbox"],
 

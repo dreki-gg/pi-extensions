@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+
+  "extends": ["../../.fallowrc.json"],
+
+  "entry": [
+    "extensions/code-reviewer/index.ts"
+  ],
+
+  "health": {
+    "maxCyclomatic": 20,
+    "maxCognitive": 25,
+    "maxCrap": 80
+  }
+}

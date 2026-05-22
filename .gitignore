@@ -27,3 +27,4 @@ packages/*/extensions/*/config.json
 # Bun
 bun.lockb
 .plans/
+.handoffs/
