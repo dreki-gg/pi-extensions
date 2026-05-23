@@ -1,5 +1,21 @@
 # @dreki-gg/pi-subagent
 
+## 0.8.4
+
+### Patch Changes
+
+- [`376864c`](https://github.com/dreki-gg/pi-extensions/commit/376864c37cefa47530363b47055311269c1724a8) Thanks [@jalbarrang](https://github.com/jalbarrang)! - feat(subagent): show live tool-aware status in working message during /run-agent
+
+  Previously `/run-agent` only showed a transient notification, leaving users with no visibility into what the background agent was doing (especially after a fork-at session switch that visually looks like a reload). Now the working message updates in real-time as the agent works:
+
+  - `scout · starting...`
+  - `scout · reading …/src/utils.ts`
+  - `scout · $ bun test --filter...`
+  - `scout · editing …/config.json`
+  - `scout · thinking...`
+
+  Added `onToolExecutionStart` callback to `spawnPiAgent` and `runAgent` to surface `tool_execution_start` events from the JSON stream.
+
 ## 0.8.3
 
 ### Patch Changes
