@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-ask-mode",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Read-only ask mode for pi — restricts tools to read-only operations, blocking file creation, editing, and deletion",
   "keywords": [
     "pi-package"

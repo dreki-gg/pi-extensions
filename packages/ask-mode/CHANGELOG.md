@@ -1,5 +1,13 @@
 # @dreki-gg/pi-ask-mode
 
+## 0.3.1
+
+### Patch Changes
+
+- [`da2522d`](https://github.com/dreki-gg/pi-extensions/commit/da2522d208461d1bf270cec2de7fa856b72c978e) Thanks [@jalbarrang](https://github.com/jalbarrang)! - fix(plan-mode, ask-mode): replace workspace:\* with actual version during prepack to fix npm install
+
+  The published packages contained `"workspace:*"` in their dependencies field, which npm doesn't understand (`EUNSUPPORTEDPROTOCOL`). The prepack script now rewrites `workspace:*` to the concrete version from command-sandbox's package.json before packing, and postpack restores it via `git checkout`.
+
 ## 0.3.0
 
 ### Minor Changes
