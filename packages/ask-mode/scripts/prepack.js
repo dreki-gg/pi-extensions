@@ -8,7 +8,7 @@
  * and npm pack only looks at the package-local node_modules/ for bundled deps.
  */
 
-import { cpSync, mkdirSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,3 +22,12 @@ cpSync(resolve(sandboxSrc, 'dist'), resolve(sandboxDest, 'dist'), { recursive: t
 cpSync(resolve(sandboxSrc, 'package.json'), resolve(sandboxDest, 'package.json'));
 
 console.log('✓ Copied @dreki-gg/pi-command-sandbox dist into local node_modules for bundling');
+
+// Replace workspace:* with the actual version so npm doesn't choke on the protocol
+const sandboxPkg = JSON.parse(readFileSync(resolve(sandboxSrc, 'package.json'), 'utf-8'));
+const pkgJsonPath = resolve(pkgRoot, 'package.json');
+const pkgJson = readFileSync(pkgJsonPath, 'utf-8');
+const updated = pkgJson.replace('"workspace:*"', `"${sandboxPkg.version}"`);
+writeFileSync(pkgJsonPath, updated);
+
+console.log(`✓ Replaced workspace:* with ${sandboxPkg.version} in package.json`);
