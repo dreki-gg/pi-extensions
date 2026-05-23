@@ -551,7 +551,14 @@ After your review, update PLAN.md and START-PROMPT.md with any improvements.`,
     } else if (choice === 'Follow up') {
       const followUp = await ctx.ui.editor('Follow-up instructions for the planner:', '');
       if (followUp?.trim()) {
-        pi.sendUserMessage(followUp.trim(), { deliverAs: 'followUp' });
+        pi.sendMessage(
+          {
+            customType: 'plan-mode-followup',
+            content: followUp.trim(),
+            display: true,
+          },
+          { triggerTurn: true, deliverAs: 'followUp' },
+        );
       }
     } else if (choice === 'Exit plan mode') {
       await exitPlanMode(ctx);
