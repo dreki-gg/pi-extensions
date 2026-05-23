@@ -1,5 +1,13 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.6.4
+
+### Patch Changes
+
+- [`1a0857f`](https://github.com/dreki-gg/pi-extensions/commit/1a0857f33c397eb560a94b963913c9aafeca3ec5) Thanks [@jalbarrang](https://github.com/jalbarrang)! - fix(plan-mode): use sendMessage with triggerTurn for Follow up action
+
+  sendUserMessage with deliverAs: 'followUp' only queues the message after the current turn, but inside agent_end there is no active turn — so the message sits in the queue forever. Switch to sendMessage with triggerTurn: true + deliverAs: 'followUp' to correctly queue and force a new turn.
+
 ## 0.6.3
 
 ### Patch Changes
