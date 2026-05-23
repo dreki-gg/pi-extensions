@@ -43,11 +43,60 @@ import { extractRecentConversation } from './synthesis.js';
 import type { AgentResult } from './agent-runner-types.js';
 import { getFinalText } from './agent-result-utils.js';
 import { buildHandoffFromResult, renderHandoffForPrompt } from './handoffs.js';
-import { emptyUsage, spawnPiAgent } from './spawn-utils.js';
+import { emptyUsage, spawnPiAgent, type ToolExecutionStartEvent } from './spawn-utils.js';
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
 const COLLAPSED_ITEM_COUNT = 10;
+
+function describeToolExecution(event: ToolExecutionStartEvent): string {
+  const shortenPath = (p: string) => {
+    const home = os.homedir();
+    const shortened = p.startsWith(home) ? `~${p.slice(home.length)}` : p;
+    // Show only the last 2 path segments for brevity
+    const parts = shortened.split('/');
+    return parts.length > 3 ? `…/${parts.slice(-2).join('/')}` : shortened;
+  };
+
+  const args = event.args;
+  switch (event.toolName) {
+    case 'bash': {
+      const cmd = (args.command as string) || '';
+      const preview = cmd.length > 50 ? `${cmd.slice(0, 50)}…` : cmd;
+      return `$ ${preview}`;
+    }
+    case 'read': {
+      const p = ((args.file_path || args.path) as string) || '';
+      return `reading ${shortenPath(p)}`;
+    }
+    case 'write': {
+      const p = ((args.file_path || args.path) as string) || '';
+      return `writing ${shortenPath(p)}`;
+    }
+    case 'edit': {
+      const p = ((args.file_path || args.path) as string) || '';
+      return `editing ${shortenPath(p)}`;
+    }
+    case 'grep': {
+      const pattern = (args.pattern as string) || '';
+      return `grep /${pattern}/`;
+    }
+    case 'find': {
+      const pattern = (args.pattern as string) || '*';
+      return `find ${pattern}`;
+    }
+    case 'ls':
+      return `ls ${shortenPath((args.path as string) || '.')}`;
+    case 'web_search':
+      return `searching: ${(args.query as string)?.slice(0, 40) || '…'}`;
+    case 'web_visit':
+      return 'visiting page';
+    case 'subagent':
+      return `spawning ${(args.agent as string) || 'subagent'}`;
+    default:
+      return event.toolName;
+  }
+}
 
 function formatTokens(count: number): string {
   if (count < 1000) return count.toString();
@@ -1439,13 +1488,29 @@ export default function (pi: ExtensionAPI) {
           `Running agent: ${agent.name} [${agent.source}${forked ? ', forked' : ', inline'}${selectedModel ? `, model=${selectedModel}` : ''}${selectedThinking ? `, thinking=${selectedThinking}` : ''}]`,
           'info',
         );
+        let lastToolDescription = '';
+        const updateWorkingStatus = (toolDesc?: string) => {
+          if (toolDesc) lastToolDescription = toolDesc;
+          const parts = [agent.name];
+          if (lastToolDescription) parts.push(lastToolDescription);
+          commandUi.setWorkingMessage(parts.join(' · '));
+        };
+        updateWorkingStatus('starting...');
 
         const result = await runAgent(commandCwd, agent.name, task, {
           agentScope,
           resolvedPaths,
           model,
           thinking,
+          onUpdate: () => {
+            // When a turn completes and the agent is thinking about next steps
+            updateWorkingStatus('thinking...');
+          },
+          onToolExecutionStart: (event) => {
+            updateWorkingStatus(describeToolExecution(event));
+          },
         });
+        commandUi.setWorkingMessage();
         const failed = result.exitCode !== 0 || result.stopReason === 'error';
         const output = getFinalText(result).trim();
 

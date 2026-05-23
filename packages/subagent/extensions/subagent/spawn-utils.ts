@@ -57,6 +57,12 @@ function cleanupTempFiles(
   if (tmpPromptDir) try { fs.rmdirSync(tmpPromptDir); } catch { /* ignore */ }
 }
 
+export interface ToolExecutionStartEvent {
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+}
+
 export interface SpawnPiAgentOptions {
   cwd: string;
   agentName: string;
@@ -68,6 +74,7 @@ export interface SpawnPiAgentOptions {
   signal?: AbortSignal;
   onMessage?: (msg: Message) => void;
   onToolResult?: (msg: Message) => void;
+  onToolExecutionStart?: (event: ToolExecutionStartEvent) => void;
 }
 
 export interface SpawnPiAgentResult {
@@ -157,6 +164,14 @@ export async function spawnPiAgent(options: SpawnPiAgentOptions): Promise<SpawnP
         if (event.type === 'tool_result_end' && event.message) {
           result.messages.push(event.message as Message);
           options.onToolResult?.(event.message as Message);
+        }
+
+        if (event.type === 'tool_execution_start' && event.toolName) {
+          options.onToolExecutionStart?.({
+            toolCallId: event.toolCallId ?? '',
+            toolName: event.toolName,
+            args: event.args ?? {},
+          });
         }
       };
 

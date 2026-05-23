@@ -517,7 +517,7 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
             content: startPrompt,
             display: true,
           },
-          { triggerTurn: true },
+          { triggerTurn: true, deliverAs: 'followUp' },
         );
       } else {
         // Fallback: ask executor to read the plan
@@ -527,7 +527,7 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
             content: `Execute the plan in ${planMdPath}. Read it first, then execute step by step. Mark each step with [DONE:n] before moving to the next.`,
             display: true,
           },
-          { triggerTurn: true },
+          { triggerTurn: true, deliverAs: 'followUp' },
         );
       }
     } else if (choice === 'Refine Plan') {
@@ -546,12 +546,12 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
 After your review, update PLAN.md and START-PROMPT.md with any improvements.`,
           display: true,
         },
-        { triggerTurn: true },
+        { triggerTurn: true, deliverAs: 'followUp' },
       );
     } else if (choice === 'Follow up') {
       const followUp = await ctx.ui.editor('Follow-up instructions for the planner:', '');
       if (followUp?.trim()) {
-        pi.sendUserMessage(followUp.trim());
+        pi.sendUserMessage(followUp.trim(), { deliverAs: 'followUp' });
       }
     } else if (choice === 'Exit plan mode') {
       await exitPlanMode(ctx);

@@ -1,7 +1,7 @@
 import type { ResolvedPaths } from '@earendil-works/pi-coding-agent';
 import { discoverAgents, type AgentScope } from './agents.js';
 import type { AgentResult } from './agent-runner-types.js';
-import { emptyUsage, spawnPiAgent } from './spawn-utils.js';
+import { emptyUsage, spawnPiAgent, type ToolExecutionStartEvent } from './spawn-utils.js';
 
 export type OnPhaseUpdate = (phaseName: string, agentName: string, result: AgentResult) => void;
 
@@ -11,6 +11,7 @@ export interface RunAgentOptions {
   model?: string;
   thinking?: string;
   onUpdate?: OnPhaseUpdate;
+  onToolExecutionStart?: (event: ToolExecutionStartEvent) => void;
   phaseName?: string;
   signal?: AbortSignal;
   resolvedPaths?: ResolvedPaths;
@@ -76,6 +77,7 @@ export async function runAgent(
         options.onUpdate(options.phaseName ?? 'unknown', agentName, { ...result });
       }
     },
+    onToolExecutionStart: options.onToolExecutionStart,
   });
 
   result.exitCode = spawnResult.exitCode;
