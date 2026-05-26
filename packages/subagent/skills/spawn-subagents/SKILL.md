@@ -114,6 +114,12 @@ Avoid:
 - calling `advisor` when `planner` or `reviewer` already has enough signal to proceed alone
 - sending speculative review findings back for fixes before they are validated when evidence is needed
 
+## 8. Agent discovery and creation
+Use `list_agents` before spawning when you're unsure which agents exist.
+Use `/create-agent <name> [description]` to scaffold a new project-local agent in `.pi/prompts/` when the user needs a custom agent that doesn't exist yet.
+- After creating, read and refine the prompt file to fit the use case.
+- Remember to use `agentScope: "both"` or `"project"` to include project-local agents.
+
 Execution rules:
 - Use `manager` when the task is too large for one prompt but still needs coherent decisions.
 - Use `advisor` for targeted second opinions on tricky or high-risk cases.

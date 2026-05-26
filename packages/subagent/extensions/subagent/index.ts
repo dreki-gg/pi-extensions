@@ -44,6 +44,8 @@ import type { AgentResult } from './agent-runner-types.js';
 import { getFinalText } from './agent-result-utils.js';
 import { buildHandoffFromResult, renderHandoffForPrompt } from './handoffs.js';
 import { emptyUsage, spawnPiAgent, type ToolExecutionStartEvent } from './spawn-utils.js';
+import { registerListAgentsTool } from './list-agents.js';
+import { registerCreateAgentCommand } from './create-agent.js';
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
@@ -554,6 +556,9 @@ export default function (pi: ExtensionAPI) {
     return [...items.values()];
   }
 
+  registerListAgentsTool(pi, resolvePackagePaths);
+  registerCreateAgentCommand(pi);
+
   pi.registerTool({
     name: 'subagent',
     label: 'Subagent',
@@ -564,6 +569,10 @@ export default function (pi: ExtensionAPI) {
       'Default agent scope is "user" (from ~/.pi/agent/prompts).',
       'To enable project-local agents in .pi/prompts, set agentScope: "both" (or "project").',
     ].join(' '),
+    promptGuidelines: [
+      'If you are unsure which agents are available, call list_agents first before using the subagent tool.',
+      'Use /create-agent to scaffold new project-local agent prompts when the user needs a custom agent.',
+    ],
     parameters: SubagentParams,
 
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
