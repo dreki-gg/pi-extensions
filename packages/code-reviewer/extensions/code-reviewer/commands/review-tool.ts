@@ -38,7 +38,7 @@ export function registerReviewTool(pi: ExtensionAPI) {
       ),
     }),
 
-    async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+    async execute(_toolCallId, params, signal, onUpdate, ctx) {
       const cwd = ctx.cwd;
       const config = loadConfig(cwd);
       const lensDir = getLensDir(cwd, config);
@@ -58,12 +58,14 @@ export function registerReviewTool(pi: ExtensionAPI) {
 
       const lensNames = resolveLensNames(params.lenses, config, available);
 
+      ctx.ui.setStatus('code-review', '🔍 Collecting diff...');
       const diff = await collectDiff(pi, cwd, {
         base: params.base,
         staged: params.staged,
       });
 
       if (!diff.diff.trim()) {
+        ctx.ui.setStatus('code-review', undefined);
         return {
           content: [{ type: 'text', text: 'No changes to review.' }],
           details: {},
@@ -71,14 +73,24 @@ export function registerReviewTool(pi: ExtensionAPI) {
       }
 
       const results: LensResult[] = [];
-      for (const name of lensNames) {
+      for (let i = 0; i < lensNames.length; i++) {
         if (signal?.aborted) break;
+
+        const name = lensNames[i];
+        const progressMsg = `Lens ${i + 1}/${lensNames.length}: ${name}`;
+        ctx.ui.setStatus('code-review', `🔍 ${progressMsg}`);
+        onUpdate?.({
+          content: [{ type: 'text', text: progressMsg }],
+          details: { currentLens: name, lensIndex: i + 1, totalLenses: lensNames.length },
+        });
 
         const lens = available.get(name)!;
         const content = getLensContent(lensDir, name) ?? '';
         const result = await reviewWithLens(pi, ctx, cwd, lens, content, diff, signal);
         results.push(result);
       }
+
+      ctx.ui.setStatus('code-review', undefined);
 
       const report: ReviewReport = {
         diff: diff.diff,

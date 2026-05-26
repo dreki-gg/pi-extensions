@@ -33,23 +33,13 @@ async function runLensTools(
   return outputs;
 }
 
-/** Build the review prompt for a single lens. */
-function buildReviewPrompt(
-  lens: LensConfig,
-  lensContent: string,
-  diff: DiffSource,
-  toolOutputs: Record<string, string>,
-): string {
+/** Build the shared diff section of the review prompt (included once). */
+export function buildDiffSection(diff: DiffSource): string {
   const parts: string[] = [];
-
-  parts.push(`You are reviewing code changes through the "${lens.name}" lens.`);
-  parts.push('');
-  parts.push('## Lens Definition');
-  parts.push(lensContent);
-  parts.push('');
-  parts.push(`## Diff (${diff.label})`);
   const maxDiffLen = 50_000;
   const diffTruncated = diff.diff.length > maxDiffLen;
+
+  parts.push(`## Diff (${diff.label})`);
   parts.push('```diff');
   parts.push(diff.diff.slice(0, maxDiffLen));
   parts.push('```');
@@ -64,11 +54,27 @@ function buildReviewPrompt(
   parts.push(diff.stat);
   parts.push('```');
 
+  return parts.join('\n');
+}
+
+/** Build the lens-specific section of the review prompt (no diff duplication). */
+function buildLensSection(
+  lens: LensConfig,
+  lensContent: string,
+  toolOutputs: Record<string, string>,
+): string {
+  const parts: string[] = [];
+
+  parts.push(`### Lens: ${lens.name}`);
+  parts.push('');
+  parts.push('#### Lens Definition');
+  parts.push(lensContent);
+
   if (Object.keys(toolOutputs).length > 0) {
     parts.push('');
-    parts.push('## Tool Outputs');
+    parts.push('#### Tool Outputs');
     for (const [cmd, output] of Object.entries(toolOutputs)) {
-      parts.push(`### \`${cmd}\``);
+      parts.push(`##### \`${cmd}\``);
       parts.push('```');
       parts.push(output.slice(0, 20_000));
       parts.push('```');
@@ -76,9 +82,32 @@ function buildReviewPrompt(
   }
 
   parts.push('');
+  parts.push('#### Severity levels');
+  if (lens.severityRules.blocker) parts.push(`- **blocker**: ${lens.severityRules.blocker}`);
+  if (lens.severityRules.warning) parts.push(`- **warning**: ${lens.severityRules.warning}`);
+  if (lens.severityRules.note) parts.push(`- **note**: ${lens.severityRules.note}`);
+
+  return parts.join('\n');
+}
+
+/** Build the full review prompt for a single lens (includes diff — used by the tool path). */
+function buildReviewPrompt(
+  lens: LensConfig,
+  lensContent: string,
+  diff: DiffSource,
+  toolOutputs: Record<string, string>,
+): string {
+  const parts: string[] = [];
+
+  parts.push(`You are reviewing code changes through the "${lens.name}" lens.`);
+  parts.push('');
+  parts.push(buildDiffSection(diff));
+  parts.push('');
+  parts.push(buildLensSection(lens, lensContent, toolOutputs));
+  parts.push('');
   parts.push('## Instructions');
   parts.push('');
-  parts.push('Review the diff through this lens. For each finding, output a JSON array:');
+  parts.push('Review the diff above through this lens. For each finding, output a JSON array:');
   parts.push('');
   parts.push('```json');
   parts.push('[');
@@ -87,11 +116,6 @@ function buildReviewPrompt(
   );
   parts.push(']');
   parts.push('```');
-  parts.push('');
-  parts.push('Severity levels:');
-  if (lens.severityRules.blocker) parts.push(`- **blocker**: ${lens.severityRules.blocker}`);
-  if (lens.severityRules.warning) parts.push(`- **warning**: ${lens.severityRules.warning}`);
-  if (lens.severityRules.note) parts.push(`- **note**: ${lens.severityRules.note}`);
   parts.push('');
   parts.push(
     'After the JSON array, write a 2-3 sentence summary of your review through this lens.',
@@ -116,15 +140,14 @@ export async function reviewWithLens(
 
   // Build the prompt
   const prompt = buildReviewPrompt(lens, lensContent, diff, toolOutputs);
+  const lensSection = buildLensSection(lens, lensContent, toolOutputs);
 
-  // Use sendMessage to delegate to the agent for review
-  // For now, we return the prompt and let the command handler
-  // pass it to a subagent via the subagent tool
   return {
     lens: lens.name,
     findings: [],
     summary: '',
     toolOutputs,
     _prompt: prompt,
+    _lensSection: lensSection,
   };
 }

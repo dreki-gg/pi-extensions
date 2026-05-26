@@ -22,6 +22,8 @@ export type LensResult = {
   toolOutputs?: Record<string, string>;
   /** Review prompt built for this lens, used internally to delegate to the agent. */
   _prompt?: string;
+  /** Lens-specific section (without diff), used by /review command to avoid diff duplication. */
+  _lensSection?: string;
 };
 
 export type ReviewConfig = {
