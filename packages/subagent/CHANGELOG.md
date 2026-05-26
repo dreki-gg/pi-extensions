@@ -1,5 +1,11 @@
 # @dreki-gg/pi-subagent
 
+## 0.9.0
+
+### Minor Changes
+
+- [`99bc4e7`](https://github.com/dreki-gg/pi-extensions/commit/99bc4e7abb9f468ebd6705a56ed1c2a801dd466e) Thanks [@jalbarrang](https://github.com/jalbarrang)! - Add `list_agents` tool and `/create-agent` command to help the LLM discover available agents before spawning and scaffold new project-local agent prompts.
+
 ## 0.8.4
 
 ### Patch Changes

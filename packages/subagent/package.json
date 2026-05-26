@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-subagent",
-  "version": "0.8.4",
+  "version": "0.9.0",
   "description": "Subagent tool and direct agent runs for pi — isolated agents, parallel scouts, manager workflows, and bundled prompts",
   "keywords": [
     "pi-package"
