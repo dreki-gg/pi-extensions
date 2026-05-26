@@ -15,6 +15,9 @@
     "version": "changeset version",
     "build": "bun run --filter '@dreki-gg/pi-command-sandbox' build",
     "publish": "bun run build && changeset publish",
+    "deploy:local": "./scripts/deploy-local.sh",
+    "deploy:local:force": "./scripts/deploy-local.sh --force",
+    "deploy:local:dry": "./scripts/deploy-local.sh --dry-run",
     "prepare": "husky"
   },
   "devDependencies": {
