@@ -11,9 +11,8 @@ export interface PlanStep {
 
 export interface PlanData {
   title: string;
-  context: string;
+  handoff: string;
   steps: PlanStep[];
-  risks: string;
 }
 
 export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';

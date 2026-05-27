@@ -9,6 +9,12 @@ describe('buildPlanModePrompt', () => {
     expect(prompt).toContain('technical-options');
   });
 
+  test('mentions handoff instead of context and risks', () => {
+    expect(prompt).toContain('handoff');
+    expect(prompt).not.toContain('- risks:');
+    expect(prompt).not.toContain('- context:');
+  });
+
   test('tells planner to do proposal generation itself, not delegate', () => {
     // The planner should generate proposals as the main agent, only using
     // subagents for voting/evaluation — not delegating the entire workflow

@@ -217,11 +217,34 @@ export default function planMode(pi: ExtensionAPI): void {
           await updatePlansManifest(state.planDir.replace(/^\.plans\//, ''), 'done', state.plan.title);
           await savePlanToDisk(state.planDir, state.plan);
         }
-        const list = state.plan.steps
-          .map((s) => s.status === 'done' ? `~~${s.description}~~` : `⊘ ~~${s.description}~~`)
+        const done = state.plan.steps.filter((s) => s.status === 'done').length;
+        const skipped = state.plan.steps.filter((s) => s.status === 'skipped').length;
+        const total = state.plan.steps.length;
+        const stats = skipped > 0
+          ? `${done}/${total} done, ${skipped} skipped`
+          : `${done}/${total} done`;
+
+        // Build a summary of what was actually done from step notes
+        const changeSummary = state.plan.steps
+          .map((s, i) => {
+            const icon = s.status === 'done' ? '✓' : '⊘';
+            const label = `${i + 1}. ${icon} ${s.description}`;
+            return s.notes ? `${label}\n   ${s.notes}` : label;
+          })
           .join('\n');
+
+        const summary = [
+          `**Plan Complete!** ✓ — ${state.plan.title}`,
+          '',
+          `> ${stats}`,
+          '',
+          '## Summary',
+          '',
+          changeSummary,
+        ].join('\n');
+
         pi.sendMessage(
-          { customType: 'plan-complete', content: `**Plan Complete!** ✓\n\n${list}`, display: true },
+          { customType: 'plan-complete', content: summary, display: true },
           { triggerTurn: false },
         );
 

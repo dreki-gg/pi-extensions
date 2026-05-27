@@ -27,6 +27,7 @@ export function registerUpdateStepTool(pi: ExtensionAPI, callbacks: UpdateStepCa
     promptSnippet: 'Mark a plan step as done, skipped, or blocked',
     promptGuidelines: [
       'Call update_step after completing each plan step to mark it done before moving to the next.',
+      'Always include notes when calling update_step — summarize what was done (files changed, key decisions made) for done steps, why it was unnecessary for skipped steps, or what went wrong for blocked steps.',
       'Use update_step with status "skipped" if a step is unnecessary after inspecting the code.',
       'Use update_step with status "blocked" and explain the reason in notes if a step cannot be completed — execution will pause for user input.',
     ],

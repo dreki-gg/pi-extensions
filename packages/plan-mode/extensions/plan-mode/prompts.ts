@@ -21,9 +21,12 @@ Your task:
 When you are ready to finalize the plan, call the submit_plan tool with:
 - name: a short kebab-case name (e.g. "add-auth-middleware")
 - title: a human-readable plan title
-- context: complete codebase context including relevant file paths, APIs, patterns, constraints, and gotchas — this must be thorough enough that an implementor with zero prior context can execute the plan
+- handoff: a markdown document that explains:
+  1. **What** change is being made and **why** it matters
+  2. The approach and key design decisions
+  3. Relevant codebase context: file paths, APIs, patterns, constraints, and gotchas
+  This document is saved as HANDOFF.md and must be clear to both human reviewers and executor agents.
 - steps: an array of steps, each with a short description (≤60 chars for display) and detailed implementation instructions
-- risks: any open questions, assumptions, or concerns
 
 Do NOT attempt to make product code changes — only analyze and plan.
 Do NOT write files manually — use submit_plan to finalize the plan.
@@ -50,7 +53,7 @@ You are executing a structured plan. Your ONLY job is to implement the plan step
 
 Rules:
 - Work on ONE step at a time, starting with step ${currentStep.num}
-- After completing each step, IMMEDIATELY call update_step to mark it done
+- After completing each step, IMMEDIATELY call update_step to mark it done with notes summarizing what you changed (files modified, key decisions)
 - Do NOT run diagnostics, linters, test suites, or skills unless a step explicitly asks for it
 - Do NOT explore the codebase beyond what the current step requires
 - Do NOT deviate from the plan — if something seems wrong, call update_step with status "blocked"
@@ -59,11 +62,11 @@ Rules:
 Step ${currentStep.num}: ${currentStep.description}
 Details: ${currentStep.details}
 
-## Codebase context
-${plan.context}
+## Handoff
+${plan.handoff}
 
 ## All remaining steps
 ${stepList}
 
-Start with step ${currentStep.num} NOW. When done, call update_step(step=${currentStep.num}, status="done").`;
+Start with step ${currentStep.num} NOW. When done, call update_step(step=${currentStep.num}, status="done", notes="<brief summary of what you did>").`;
 }

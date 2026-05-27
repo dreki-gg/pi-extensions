@@ -48,6 +48,19 @@ export async function readAndClearExecPending(): Promise<{ planDir: string; conf
   return undefined;
 }
 
+export async function saveHandoff(planDir: string, content: string): Promise<void> {
+  await mkdir(planDir, { recursive: true });
+  await writeFile(`${planDir}/HANDOFF.md`, content, 'utf-8');
+}
+
+export async function loadHandoff(planDir: string): Promise<string | undefined> {
+  try {
+    return await readFile(`${planDir}/HANDOFF.md`, 'utf-8');
+  } catch {
+    return undefined;
+  }
+}
+
 export async function updatePlansManifest(
   planName: string,
   status: 'in-progress' | 'done',

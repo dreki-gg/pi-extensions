@@ -10,6 +10,7 @@ import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { readPlansJson, serializePlansJson } from '../plans-json.js';
+import { saveHandoff } from '../plan-storage.js';
 import { toKebabCase } from '../utils.js';
 import type { PlanData, PlanStep } from '../types.js';
 
@@ -22,24 +23,24 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
     name: 'submit_plan',
     label: 'Submit Plan',
     description:
-      'Submit a structured plan with a title, context, numbered steps, and risks. ' +
+      'Submit a structured plan with a title, handoff document, and numbered steps. ' +
       'Each step has a short description (for progress display) and detailed implementation instructions. ' +
-      'This finalizes the plan and writes it to .plans/<name>/plan.json.',
+      'This finalizes the plan, writes .plans/<name>/plan.json and .plans/<name>/HANDOFF.md.',
     promptSnippet:
-      'Submit a structured plan with title, context, steps (description + details), and risks',
+      'Submit a structured plan with title, handoff (what/why/context), and steps',
     promptGuidelines: [
       'Call submit_plan once when you have finished analyzing the codebase and are ready to finalize your plan.',
       'Each submit_plan step description should be a short label (≤60 chars). Put full implementation instructions in the details field.',
-      'The submit_plan context field must include all codebase findings, relevant file paths, APIs, patterns, and constraints so an executor with zero prior context can implement the plan.',
+      'The submit_plan handoff field is a markdown document explaining what change is being made, why it matters, and all relevant codebase context (file paths, APIs, patterns, constraints). It must be thorough enough that both a human reviewer and an executor agent with zero prior context can understand the plan.',
     ],
     parameters: Type.Object({
       name: Type.String({
         description: 'Short kebab-case name for the plan (e.g. "add-auth-middleware")',
       }),
       title: Type.String({ description: 'Human-readable plan title' }),
-      context: Type.String({
+      handoff: Type.String({
         description:
-          'Complete codebase context: relevant file paths, APIs, patterns, constraints, and gotchas',
+          'Markdown content for HANDOFF.md — explains what change is being made, why, and includes relevant codebase context for the executor',
       }),
       steps: Type.Array(
         Type.Object({
@@ -52,7 +53,6 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
         }),
         { minItems: 1 },
       ),
-      risks: Type.String({ description: 'Open questions, assumptions, and risks' }),
     }),
 
     async execute(_toolCallId, params) {
@@ -67,14 +67,14 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
 
       const plan: PlanData = {
         title: params.title,
-        context: params.context,
+        handoff: params.handoff,
         steps,
-        risks: params.risks,
       };
 
-      // Write plan.json
+      // Write plan.json and HANDOFF.md
       await mkdir(planDir, { recursive: true });
       await writeFile(`${planDir}/plan.json`, JSON.stringify(plan, null, 2) + '\n', 'utf-8');
+      await saveHandoff(planDir, params.handoff);
 
       // Update plans.json manifest
       const manifest = await readPlansJson();
@@ -130,12 +130,6 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
         const step = plan.steps[i];
         const num = theme.fg('muted', `${i + 1}.`);
         lines.push(`  ${num} ${step.description}`);
-      }
-
-      // Risks
-      if (plan.risks) {
-        lines.push('');
-        lines.push(theme.fg('warning', '⚠ Risks: ') + theme.fg('dim', plan.risks));
       }
 
       return new Text(lines.join('\n'), 0, 0);
