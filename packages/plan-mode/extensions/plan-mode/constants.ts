@@ -10,12 +10,13 @@ export const PLAN_TOOLS = [
   'find',
   'ls',
   'submit_plan',
+  'write',
   'questionnaire',
   'search_skills',
   'subagent',
 ];
 
-export const EXEC_TOOLS = ['read', 'bash', 'edit', 'write', 'update_step'];
+export const EXEC_TOOLS = ['read', 'bash', 'edit', 'write', 'update_task'];
 
 // ── Model + thinking presets ─────────────────────────────────────────────────
 export const PLAN_MODEL = { provider: 'anthropic', id: 'claude-opus-4-6' } as const;

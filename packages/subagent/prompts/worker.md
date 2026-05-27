@@ -1,8 +1,8 @@
 ---
 name: worker
 description: General-purpose subagent with full capabilities, isolated context
-model: openai/gpt-5.4
-thinking: medium
+model: openai/gpt-5.5
+thinking: low
 sessionStrategy: fork-at
 ---
 

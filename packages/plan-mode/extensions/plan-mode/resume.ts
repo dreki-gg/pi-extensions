@@ -6,13 +6,12 @@ import type { ExtensionAPI, ExtensionContext, ExtensionCommandContext } from '@e
 import type { PlanModeState } from './state.js';
 import type { PlanData } from './types.js';
 import { EXEC_THINKING, EXEC_MODEL_OPTIONS } from './constants.js';
-import { readPlansJson } from './plans-json.js';
-import { loadPlanFromDisk, writeExecPending, savePlanToDisk } from './plan-storage.js';
+import { readPlansManifest } from './storage/plans-manifest.js';
+import { loadHandoff, writeExecPending } from './storage/plan-storage.js';
+import { readTasksJsonl, writeTasksJsonl } from './storage/task-storage.js';
 import { enterPlanMode } from './phase-transitions.js';
 
-export async function pickExecutionModel(
-  ctx: ExtensionContext,
-): Promise<{ provider: string; id: string } | undefined> {
+export async function pickExecutionModel(ctx: ExtensionContext): Promise<{ provider: string; id: string } | undefined> {
   const labels = EXEC_MODEL_OPTIONS.map((o) => o.label);
   const choice = await ctx.ui.select('Execute with:', labels);
   if (!choice) return undefined;
@@ -39,20 +38,16 @@ export async function executeInNewSession(
   });
 }
 
-export async function resumePlan(
-  state: PlanModeState,
-  pi: ExtensionAPI,
-  ctx: ExtensionCommandContext,
-): Promise<void> {
-  const manifest = await readPlansJson();
-  const inProgress = Object.entries(manifest).filter(([, e]) => e.status === 'in-progress');
+export async function resumePlan(state: PlanModeState, pi: ExtensionAPI, ctx: ExtensionCommandContext): Promise<void> {
+  const manifest = await readPlansManifest();
+  const inProgress = manifest.filter((entry) => entry.status === 'in-progress');
 
   if (inProgress.length === 0) {
-    ctx.ui.notify('No in-progress plans found in .plans/plans.json', 'info');
+    ctx.ui.notify('No in-progress plans found in .plans/plans.jsonl', 'info');
     return;
   }
 
-  const options = inProgress.map(([name, entry]) => `${name} — ${entry.title}`);
+  const options = inProgress.map((entry) => `${entry.name} — ${entry.title}`);
   options.push('Cancel');
 
   const choice = await ctx.ui.select('Resume which plan?', options);
@@ -60,32 +55,38 @@ export async function resumePlan(
 
   const planName = choice.split(' — ')[0];
   const dir = `.plans/${planName}`;
-  const loaded = await loadPlanFromDisk(dir);
+  const snapshot = await readTasksJsonl(dir);
 
-  if (!loaded) {
-    ctx.ui.notify(`Could not load ${dir}/plan.json`, 'error');
+  if (!snapshot) {
+    ctx.ui.notify(`Could not load ${dir}/tasks.jsonl`, 'error');
     return;
   }
 
   state.planDir = dir;
-  state.plan = loaded;
+  state.plan = {
+    title: snapshot.meta.title,
+    planName: snapshot.meta.plan_name,
+    handoff: (await loadHandoff(dir)) ?? '',
+    tasks: snapshot.tasks,
+  };
 
-  const doneCount = state.plan.steps.filter((s) => s.status === 'done' || s.status === 'skipped').length;
-  const pendingCount = state.plan.steps.filter((s) => s.status === 'pending').length;
-  const blockedCount = state.plan.steps.filter((s) => s.status === 'blocked').length;
+  const doneCount = state.plan.tasks.filter((task) => task.status === 'done' || task.status === 'skipped').length;
+  const pendingCount = state.plan.tasks.filter((task) => task.status === 'pending').length;
+  const blockedCount = state.plan.tasks.filter((task) => task.status === 'blocked').length;
 
   if (pendingCount === 0 && blockedCount === 0) {
-    ctx.ui.notify(`Plan "${state.plan.title}" is already complete (${doneCount}/${state.plan.steps.length} done).`, 'info');
+    ctx.ui.notify(`Plan "${state.plan.title}" is already complete (${doneCount}/${state.plan.tasks.length} done).`, 'info');
     state.plan = undefined;
     state.planDir = undefined;
     return;
   }
 
-  const summary = `${doneCount}/${state.plan.steps.length} done, ${pendingCount} pending${blockedCount ? `, ${blockedCount} blocked` : ''}`;
-  const action = await ctx.ui.select(
-    `Resume "${state.plan.title}" (${summary}) — what next?`,
-    ['Continue execution', 'Re-plan from scratch', 'Cancel'],
-  );
+  const summary = `${doneCount}/${state.plan.tasks.length} done, ${pendingCount} pending${blockedCount ? `, ${blockedCount} blocked` : ''}`;
+  const action = await ctx.ui.select(`Resume "${state.plan.title}" (${summary}) — what next?`, [
+    'Continue execution',
+    'Re-plan from scratch',
+    'Cancel',
+  ]);
 
   if (!action || action === 'Cancel') {
     state.plan = undefined;
@@ -98,24 +99,24 @@ export async function resumePlan(
     const planDirPath = state.planDir;
     await enterPlanMode(state, pi, ctx);
     pi.sendUserMessage(
-      `There is an existing plan "${planTitle}" at ${planDirPath}/plan.json. Review it and create a revised plan using submit_plan. Keep the same plan name ("${planName}").`,
+      `There is an existing plan "${planTitle}" at ${planDirPath}/tasks.jsonl. Review it and create a revised plan using submit_plan. Keep the same plan name ("${planName}").`,
     );
     return;
   }
 
-  // Unblock any blocked steps
   if (blockedCount > 0) {
-    for (const step of state.plan.steps) {
-      if (step.status === 'blocked') step.status = 'pending';
+    for (const task of state.plan.tasks) {
+      if (task.status === 'blocked') {
+        task.status = 'pending';
+        task.updated_at = new Date().toISOString();
+      }
     }
-    await savePlanToDisk(dir, state.plan);
+    await writeTasksJsonl(dir, snapshot.meta, state.plan.tasks);
   }
 
-  const remaining = state.plan.steps
-    .map((s, i) => ({ ...s, num: i + 1 }))
-    .filter((s) => s.status === 'pending');
-  const stepList = remaining.map((s) => `${s.num}. ${s.description}`).join('\n');
-  const kickoff = `Resuming plan: "${state.plan.title}"\n\nCompleted: ${doneCount}/${state.plan.steps.length} steps\n\nRemaining steps:\n${stepList}\n\nContinue from step ${remaining[0].num}. Call update_step after completing each step.`;
+  const remaining = state.plan.tasks.filter((task) => task.status === 'pending');
+  const taskList = remaining.map((task) => `${task.id}. ${task.description}`).join('\n');
+  const kickoff = `Resuming plan: "${state.plan.title}"\n\nCompleted: ${doneCount}/${state.plan.tasks.length} tasks\n\nRemaining tasks:\n${taskList}\n\nContinue from ${remaining[0]?.id}. Call update_task after completing each task.`;
 
   await executeInNewSession(ctx, dir, state.plan, kickoff);
 }

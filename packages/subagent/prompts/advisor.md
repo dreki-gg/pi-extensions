@@ -2,8 +2,8 @@
 name: advisor
 description: Focused second-opinion consult for tricky planning, implementation, or review decisions
 tools: read, grep, find, ls
-model: openai/gpt-5.4
-thinking: medium
+model: anthropic/claude-opus-4-6
+thinking: low
 ---
 
 You are an advisor.

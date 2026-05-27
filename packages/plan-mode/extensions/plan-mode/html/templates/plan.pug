@@ -1,0 +1,58 @@
+doctype html
+html(lang="en")
+  head
+    meta(charset="utf-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1")
+    title= plan.title
+    style.
+      :root { color-scheme: dark; --bg:#0b0d12; --panel:#11141b; --muted:#8b93a7; --text:#eef1f7; --line:#242936; --accent:#8b5cf6; --done:#33d69f; --blocked:#ff6b6b; }
+      * { box-sizing: border-box; }
+      body { margin:0; background:radial-gradient(circle at top left,#1c1730,transparent 34rem),var(--bg); color:var(--text); font:14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      main { width:min(1040px, calc(100% - 48px)); margin:48px auto; }
+      header { display:flex; justify-content:space-between; gap:24px; align-items:flex-start; margin-bottom:28px; }
+      h1 { font-size:34px; line-height:1.08; margin:0 0 10px; letter-spacing:-0.04em; }
+      h2 { font-size:15px; text-transform:uppercase; color:var(--muted); letter-spacing:0.14em; margin:0 0 14px; }
+      .meta { color:var(--muted); display:flex; gap:12px; flex-wrap:wrap; }
+      .pill { border:1px solid var(--line); border-radius:999px; padding:6px 10px; background:rgba(255,255,255,0.03); }
+      section { background:rgba(17,20,27,0.82); border:1px solid var(--line); border-radius:18px; padding:22px; margin:18px 0; box-shadow:0 24px 80px rgba(0,0,0,0.24); }
+      .handoff :first-child { margin-top:0; }
+      .handoff :last-child { margin-bottom:0; }
+      .tasks { display:grid; gap:12px; }
+      .task { border:1px solid var(--line); border-radius:14px; padding:16px; background:#0f1218; }
+      .task-top { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
+      .id { color:var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .status { margin-left:auto; color:var(--muted); }
+      .task.done .status { color:var(--done); }
+      .task.blocked .status { color:var(--blocked); }
+      .description { font-weight:650; }
+      .details { color:#c7ccda; margin:0; white-space:pre-wrap; }
+      .deps { color:var(--muted); margin-top:10px; font-size:12px; }
+  body
+    main
+      header
+        div
+          h1= plan.title
+          .meta
+            span.pill= plan.planName
+            span.pill= taskCountLabel
+        .meta
+          span.pill Generated #{generatedAt}
+      section.handoff
+        h2 Handoff
+        != handoffHtml
+      section
+        h2 Tasks
+        .tasks
+          each task in plan.tasks
+            article.task(class=task.status)
+              .task-top
+                span.id= task.id
+                span.description= task.description
+                span.status= task.status
+              p.details= task.details
+              if task.depends_on && task.depends_on.length
+                .deps Depends on #{task.depends_on.join(', ')}
+      if prototypeHtml
+        section.prototype
+          h2 Prototype
+          != prototypeHtml

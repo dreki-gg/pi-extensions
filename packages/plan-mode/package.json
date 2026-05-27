@@ -40,7 +40,8 @@
     ]
   },
   "dependencies": {
-    "@dreki-gg/pi-command-sandbox": "^0.2.0"
+    "@dreki-gg/pi-command-sandbox": "^0.2.0",
+    "pug": "^3.0.3"
   },
   "devDependencies": {
     "@types/node": "24",

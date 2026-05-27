@@ -1,4 +1,4 @@
-# @dreki-gg/pi-extensions - AGENTS.md
+# Agents Instructions
 
 ## Codebase Practices
 
@@ -11,4 +11,3 @@
 2. Create extensions using a domain-driven approach to avoid huge files — group code by domain concepts and responsibilities.
 3. Create extensions using a TDD approach to make sure that the code generated builds with the correct logic.
 4. Prefer less code to avoid too many moving parts, but never take shortcuts — simplicity without sacrificing correctness.
-

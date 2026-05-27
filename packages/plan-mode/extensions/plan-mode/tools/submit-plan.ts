@@ -1,18 +1,17 @@
 /**
  * submit_plan tool — available during the plan phase.
- *
- * The planner calls this to submit a structured plan with typed steps.
- * Writes `.plans/<name>/plan.json` and updates the plans.json manifest.
  */
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { readPlansJson, serializePlansJson } from '../plans-json.js';
-import { saveHandoff } from '../plan-storage.js';
+import { renderPlanHtml } from '../html/render.js';
+import { saveHandoff } from '../storage/plan-storage.js';
+import { writeTasksJsonl } from '../storage/task-storage.js';
+import { upsertPlanEntry } from '../storage/plans-manifest.js';
 import { toKebabCase } from '../utils.js';
-import type { PlanData, PlanStep } from '../types.js';
+import type { PlanData, TaskMeta, TaskRecord } from '../types.js';
 
 export interface SubmitPlanCallbacks {
   onPlanSubmitted: (planDir: string, plan: PlanData) => void;
@@ -22,80 +21,56 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
   pi.registerTool({
     name: 'submit_plan',
     label: 'Submit Plan',
-    description:
-      'Submit a structured plan with a title, handoff document, and numbered steps. ' +
-      'Each step has a short description (for progress display) and detailed implementation instructions. ' +
-      'This finalizes the plan, writes .plans/<name>/plan.json and .plans/<name>/HANDOFF.md.',
-    promptSnippet:
-      'Submit a structured plan with title, handoff (what/why/context), and steps',
+    description: 'Finalize a conversational plan with task IDs, JSONL storage, HANDOFF.md, and generated plan.html.',
+    promptSnippet: 'Finalize the plan with title, handoff, tasks, dependencies, and optional prototype Pug',
     promptGuidelines: [
-      'Call submit_plan once when you have finished analyzing the codebase and are ready to finalize your plan.',
-      'Each submit_plan step description should be a short label (≤60 chars). Put full implementation instructions in the details field.',
-      'The submit_plan handoff field is a markdown document explaining what change is being made, why it matters, and all relevant codebase context (file paths, APIs, patterns, constraints). It must be thorough enough that both a human reviewer and an executor agent with zero prior context can understand the plan.',
+      'Only call submit_plan after shared understanding has been reached with the user.',
+      'Each task needs an id like t-001, a short description, detailed implementation instructions, and optional depends_on task IDs.',
+      'The handoff must be thorough enough that both a human reviewer and executor agent with zero prior context can understand the plan.',
     ],
     parameters: Type.Object({
-      name: Type.String({
-        description: 'Short kebab-case name for the plan (e.g. "add-auth-middleware")',
-      }),
+      name: Type.String({ description: 'Short kebab-case name for the plan (e.g. "add-auth-middleware")' }),
       title: Type.String({ description: 'Human-readable plan title' }),
-      handoff: Type.String({
-        description:
-          'Markdown content for HANDOFF.md — explains what change is being made, why, and includes relevant codebase context for the executor',
-      }),
-      steps: Type.Array(
+      handoff: Type.String({ description: 'Markdown content for HANDOFF.md' }),
+      tasks: Type.Array(
         Type.Object({
-          description: Type.String({
-            description: 'Short step label for progress display (≤60 chars)',
-          }),
-          details: Type.String({
-            description: 'Full implementation instructions for this step',
-          }),
+          id: Type.String({ description: 'Stable task ID, e.g. t-001' }),
+          description: Type.String({ description: 'Short task label for progress display (≤60 chars)' }),
+          details: Type.String({ description: 'Full implementation instructions for this task' }),
+          depends_on: Type.Optional(Type.Array(Type.String({ description: 'Dependency task ID' }))),
         }),
         { minItems: 1 },
       ),
+      prototype: Type.Optional(Type.String({ description: 'Optional Pug markup for the prototype section in plan.html' })),
     }),
 
     async execute(_toolCallId, params) {
       const planName = toKebabCase(params.name);
       const planDir = `.plans/${planName}`;
-
-      const steps: PlanStep[] = params.steps.map((s) => ({
-        description: s.description.slice(0, 60),
-        details: s.details,
-        status: 'pending' as const,
-      }));
-
-      const plan: PlanData = {
-        title: params.title,
-        handoff: params.handoff,
-        steps,
-      };
-
-      // Write plan.json and HANDOFF.md
-      await mkdir(planDir, { recursive: true });
-      await writeFile(`${planDir}/plan.json`, JSON.stringify(plan, null, 2) + '\n', 'utf-8');
-      await saveHandoff(planDir, params.handoff);
-
-      // Update plans.json manifest
-      const manifest = await readPlansJson();
       const now = new Date().toISOString();
-      manifest[planName] = {
-        status: 'in-progress',
-        title: params.title,
-        created: manifest[planName]?.created ?? now,
-        completed: null,
-      };
-      await writeFile('.plans/plans.json', serializePlansJson(manifest), 'utf-8');
+      const meta: TaskMeta = { _type: 'meta', title: params.title, plan_name: planName, created_at: now };
+      const tasks: TaskRecord[] = params.tasks.map((task) => ({
+        _type: 'task',
+        id: task.id,
+        description: task.description.slice(0, 60),
+        details: task.details,
+        status: 'pending',
+        depends_on: task.depends_on,
+        created_at: now,
+        updated_at: now,
+      }));
+      const plan: PlanData = { title: params.title, planName, handoff: params.handoff, tasks };
+
+      await mkdir(planDir, { recursive: true });
+      await writeTasksJsonl(planDir, meta, tasks);
+      await saveHandoff(planDir, params.handoff);
+      await writeFile(`${planDir}/plan.html`, renderPlanHtml(plan, params.prototype), 'utf-8');
+      await upsertPlanEntry(planName, { status: 'in-progress', title: params.title });
 
       callbacks.onPlanSubmitted(planDir, plan);
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Plan "${params.title}" saved with ${steps.length} steps. Waiting for user to review and execute.`,
-          },
-        ],
+        content: [{ type: 'text' as const, text: `Plan "${params.title}" saved with ${tasks.length} tasks. Review ${planDir}/plan.html, then execute when ready.` }],
         details: { planDir, plan },
         terminate: true,
       };
@@ -106,32 +81,15 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
       const title = (args as { title?: string }).title ?? '';
       let content = theme.fg('toolTitle', theme.bold('submit_plan '));
       content += theme.fg('accent', name);
-      if (title) {
-        content += ' ' + theme.fg('dim', `"${title}"`);
-      }
+      if (title) content += ' ' + theme.fg('dim', `"${title}"`);
       return new Text(content, 0, 0);
     },
 
     renderResult(result, _options, theme) {
-      const details = result.details as { plan?: PlanData } | undefined;
-      const plan = details?.plan;
-      if (!plan) {
-        return new Text(theme.fg('success', '✓ Plan saved'), 0, 0);
-      }
-
-      const lines: string[] = [];
-
-      // Title
-      lines.push(theme.fg('success', '✓ ') + theme.fg('accent', theme.bold(plan.title)));
-      lines.push('');
-
-      // Steps
-      for (let i = 0; i < plan.steps.length; i++) {
-        const step = plan.steps[i];
-        const num = theme.fg('muted', `${i + 1}.`);
-        lines.push(`  ${num} ${step.description}`);
-      }
-
+      const plan = (result.details as { plan?: PlanData } | undefined)?.plan;
+      if (!plan) return new Text(theme.fg('success', '✓ Plan saved'), 0, 0);
+      const lines = [theme.fg('success', '✓ ') + theme.fg('accent', theme.bold(plan.title)), ''];
+      for (const task of plan.tasks) lines.push(`  ${theme.fg('muted', task.id)} ${task.description}`);
       return new Text(lines.join('\n'), 0, 0);
     },
   });

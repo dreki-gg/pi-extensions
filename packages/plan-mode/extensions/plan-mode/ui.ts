@@ -1,5 +1,5 @@
 /**
- * Plan mode UI — status bar and step widget rendering.
+ * Plan mode UI — status bar and task widget rendering.
  */
 
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent';
@@ -9,8 +9,8 @@ export function updateUI(state: PlanModeState, ctx: ExtensionContext): void {
   const { theme } = ctx.ui;
 
   if (state.executing && state.plan) {
-    const done = state.plan.steps.filter((s) => s.status === 'done').length;
-    const total = state.plan.steps.length;
+    const done = state.plan.tasks.filter((task) => task.status === 'done').length;
+    const total = state.plan.tasks.length;
     ctx.ui.setStatus('plan-mode', theme.fg('accent', `📋 exec ${done}/${total}`));
   } else if (state.planEnabled) {
     ctx.ui.setStatus('plan-mode', theme.fg('warning', '📝 plan'));
@@ -19,17 +19,17 @@ export function updateUI(state: PlanModeState, ctx: ExtensionContext): void {
   }
 
   if (state.executing && state.plan) {
-    const lines = state.plan.steps.map((step, i) => {
-      const num = `${i + 1}. `;
-      switch (step.status) {
+    const lines = state.plan.tasks.map((task) => {
+      const label = `${task.id} ${task.description}`;
+      switch (task.status) {
         case 'done':
-          return theme.fg('success', '✓ ') + theme.fg('muted', theme.strikethrough(num + step.description));
+          return theme.fg('success', '✓ ') + theme.fg('muted', theme.strikethrough(label));
         case 'skipped':
-          return theme.fg('warning', '⊘ ') + theme.fg('muted', theme.strikethrough(num + step.description));
+          return theme.fg('warning', '⊘ ') + theme.fg('muted', theme.strikethrough(label));
         case 'blocked':
-          return theme.fg('error', '✗ ') + theme.fg('error', num + step.description);
+          return theme.fg('error', '✗ ') + theme.fg('error', label);
         default:
-          return theme.fg('muted', '☐ ') + (num + step.description);
+          return theme.fg('muted', '☐ ') + label;
       }
     });
     ctx.ui.setWidget('plan-todos', lines);

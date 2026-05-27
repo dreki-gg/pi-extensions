@@ -2,8 +2,8 @@
 name: reviewer
 description: Code review specialist for quality and security analysis
 tools: read, grep, find, ls, bash, subagent
-model: openai/gpt-5.4
-thinking: medium
+model: anthropic/claude-opus-4-6
+thinking: low
 sessionStrategy: fork-at
 ---
 

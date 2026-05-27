@@ -388,8 +388,8 @@ describe('Pi extension compatibility harness', () => {
 
       subagentExtension(pi.api as any);
 
-      expect(pi.tools.map((tool) => tool.name)).toEqual(['subagent']);
-      expect([...pi.commands.keys()].sort()).toEqual(['run-agent']);
+      expect(pi.tools.map((tool) => tool.name)).toEqual(['list_agents', 'subagent']);
+      expect([...pi.commands.keys()].sort()).toEqual(['create-agent', 'run-agent']);
       expect(pi.messageRenderers.has('run-agent-summary')).toBe(true);
 
       const ctx = createMockContext({ cwd: process.cwd(), hasUI: false });
@@ -632,7 +632,7 @@ describe('Pi extension compatibility harness', () => {
     );
     planModeExtension(pi.api as any);
 
-    expect([...pi.commands.keys()].sort()).toEqual(['plan', 'todos']);
+    expect([...pi.commands.keys()].sort()).toEqual(['plan', 'plan-exec', 'todos']);
     expect(pi.countHandlers('session_start')).toBeGreaterThan(0);
     expect(pi.countHandlers('before_agent_start')).toBeGreaterThan(0);
     expect(pi.countHandlers('tool_call')).toBeGreaterThan(0);
@@ -640,17 +640,17 @@ describe('Pi extension compatibility harness', () => {
     const ctx = createMockContext({ hasUI: false });
     await pi.emit('session_start', { reason: 'startup' }, ctx);
 
-    // Plan mode now includes edit/write (restricted to .plans/ by prompt enforcement)
     expect(pi.api.getActiveTools()).toEqual([
       'read',
       'bash',
       'grep',
       'find',
       'ls',
-      'edit',
+      'submit_plan',
       'write',
       'questionnaire',
       'search_skills',
+      'subagent',
     ]);
     expect(ctx.statuses.get('plan-mode')).toBe('📝 plan');
 

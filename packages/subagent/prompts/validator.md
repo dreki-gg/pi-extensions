@@ -2,8 +2,8 @@
 name: validator
 description: Validate or falsify a specific bug, regression, or behavior claim from code, tests, and commands. Use when a review finding needs evidence before it becomes a fix request.
 tools: read, grep, find, ls, bash
-model: openai/gpt-5.4
-thinking: medium
+model: anthropic/claude-opus-4-6
+thinking: low
 ---
 
 You are a validator.
