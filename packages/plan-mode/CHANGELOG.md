@@ -1,5 +1,31 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.7.2
+
+### Patch Changes
+
+- Drop planning conversation from executor context to prevent context window overflow when switching to a model with a smaller context window.
+
+## 0.7.1
+
+### Patch Changes
+
+- Replace bundled workspace dependency on @dreki-gg/pi-command-sandbox with a normal registry dependency. Removes prepack/postpack scripts and bundledDependencies.
+
+- Updated dependencies []:
+  - @dreki-gg/pi-command-sandbox@0.2.0
+
+## 0.7.0
+
+### Minor Changes
+
+- Replace file-based plan handoff (PLAN.md + START-PROMPT.md) with structured tools:
+  - `submit_plan` tool: planner submits structured plan data (title, context, steps, risks) → writes `.plans/<name>/plan.json`
+  - `update_step` tool: executor marks steps as done/skipped/blocked with optional notes
+  - Blocked steps pause execution and prompt user for action (skip, provide instructions, re-plan, abort)
+  - Plan completion when all steps are done or skipped
+  - Removed regex-based `[DONE:n]` scanning and markdown parsing
+
 ## 0.6.4
 
 ### Patch Changes

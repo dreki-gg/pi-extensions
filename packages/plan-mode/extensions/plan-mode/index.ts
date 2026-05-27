@@ -2,12 +2,12 @@
  * Plan Mode Extension
  *
  * Two-phase workflow:
- *   1. PLAN phase  — read-only tools (+ edit/write for .plans/ only) + medium thinking
- *                    Planner analyzes codebase, asks questions, writes PLAN.md + START-PROMPT.md
- *   2. EXECUTE phase — full tools + low thinking, clean context from START-PROMPT.md
- *                      Executor works through the plan step by step with [DONE:n] tracking
+ *   1. PLAN phase  — read-only tools + submit_plan tool + medium thinking
+ *                    Planner analyzes codebase, calls submit_plan with structured data
+ *   2. EXECUTE phase — full tools + update_step tool + low thinking
+ *                      Executor works through plan steps, calling update_step for each
  *
- * Plans live in `.plans/<kebab-name>/PLAN.md` with a `START-PROMPT.md` sibling for clean handoff.
+ * Plans live in `.plans/<kebab-name>/plan.json` with structured steps and context.
  *
  * Commands:
  *   /plan [prompt]  — enter plan mode (optionally with a starting prompt)
@@ -18,33 +18,27 @@
  *   --plan          — start session in plan mode
  */
 
-import type { AgentMessage } from '@earendil-works/pi-agent-core';
-import type { AssistantMessage, TextContent } from '@earendil-works/pi-ai';
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
 import { Key } from '@earendil-works/pi-tui';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { extractTodoItems, isSafeCommand, markCompletedSteps, type TodoItem } from './utils.js';
-import {
-  extractPlanTitle,
-  readPlansJson,
-  serializePlansJson,
-  type PlansManifest,
-} from './plans-json.js';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { isSafeCommand } from './utils.js';
+import { readPlansJson, serializePlansJson } from './plans-json.js';
+import { registerSubmitPlanTool } from './tools/submit-plan.js';
+import { registerUpdateStepTool } from './tools/update-step.js';
+import type { PlanData, PersistedState } from './types.js';
 
 // ── Tool sets ────────────────────────────────────────────────────────────────
-// Plan phase: read-only + edit/write (for .plans/ files only, enforced by prompt)
 const PLAN_TOOLS = [
   'read',
   'bash',
   'grep',
   'find',
   'ls',
-  'edit',
-  'write',
+  'submit_plan',
   'questionnaire',
   'search_skills',
 ];
-const EXEC_TOOLS = ['read', 'bash', 'edit', 'write', 'search_skills'];
+const EXEC_TOOLS = ['read', 'bash', 'edit', 'write', 'update_step', 'search_skills'];
 
 // ── Model + thinking presets ─────────────────────────────────────────────────
 const PLAN_MODEL = { provider: 'anthropic', id: 'claude-opus-4-6' } as const;
@@ -55,32 +49,13 @@ const EXEC_THINKING = 'low' as const;
 
 type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
 
-// ── Persisted state ──────────────────────────────────────────────────────────
-interface PersistedState {
-  planEnabled: boolean;
-  executing: boolean;
-  planDir: string | undefined;
-  todos: TodoItem[];
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function isAssistantMessage(m: AgentMessage): m is AssistantMessage {
-  return m.role === 'assistant' && Array.isArray(m.content);
-}
-
-function getTextContent(message: AssistantMessage): string {
-  return message.content
-    .filter((b): b is TextContent => b.type === 'text')
-    .map((b) => b.text)
-    .join('\n');
-}
-
 // ── Extension ────────────────────────────────────────────────────────────────
 export default function planMode(pi: ExtensionAPI): void {
   let planEnabled = false;
   let executing = false;
   let planDir: string | undefined;
-  let todos: TodoItem[] = [];
+  let plan: PlanData | undefined;
+  let executionStartIdx: number | undefined;
   let previousThinking: ThinkingLevel | undefined;
   let previousModel: { provider: string; id: string } | undefined;
 
@@ -97,7 +72,8 @@ export default function planMode(pi: ExtensionAPI): void {
       planEnabled,
       executing,
       planDir,
-      todos,
+      plan,
+      executionStartIdx,
     });
   }
 
@@ -119,29 +95,43 @@ export default function planMode(pi: ExtensionAPI): void {
     };
 
     await mkdir('.plans', { recursive: true });
-    const content = serializePlansJson(manifest);
-    await writeFile('.plans/plans.json', content, 'utf-8');
+    await writeFile('.plans/plans.json', serializePlansJson(manifest), 'utf-8');
+  }
+
+  // ── Save plan.json to disk ────────────────────────────────────────────────
+  async function savePlanToDisk(): Promise<void> {
+    if (!planDir || !plan) return;
+    await mkdir(planDir, { recursive: true });
+    await writeFile(`${planDir}/plan.json`, JSON.stringify(plan, null, 2) + '\n', 'utf-8');
   }
 
   // ── UI updates ────────────────────────────────────────────────────────────
   function updateUI(ctx: ExtensionContext): void {
     const { theme } = ctx.ui;
 
-    if (executing && todos.length > 0) {
-      const done = todos.filter((t) => t.completed).length;
-      ctx.ui.setStatus('plan-mode', theme.fg('accent', `📋 exec ${done}/${todos.length}`));
+    if (executing && plan) {
+      const done = plan.steps.filter((s) => s.status === 'done').length;
+      const total = plan.steps.length;
+      ctx.ui.setStatus('plan-mode', theme.fg('accent', `📋 exec ${done}/${total}`));
     } else if (planEnabled) {
       ctx.ui.setStatus('plan-mode', theme.fg('warning', '📝 plan'));
     } else {
       ctx.ui.setStatus('plan-mode', undefined);
     }
 
-    if (executing && todos.length > 0) {
-      const lines = todos.map((item) => {
-        if (item.completed) {
-          return theme.fg('success', '☑ ') + theme.fg('muted', theme.strikethrough(item.text));
+    if (executing && plan) {
+      const lines = plan.steps.map((step, i) => {
+        const num = `${i + 1}. `;
+        switch (step.status) {
+          case 'done':
+            return theme.fg('success', '✓ ') + theme.fg('muted', theme.strikethrough(num + step.description));
+          case 'skipped':
+            return theme.fg('warning', '⊘ ') + theme.fg('muted', theme.strikethrough(num + step.description));
+          case 'blocked':
+            return theme.fg('error', '✗ ') + theme.fg('error', num + step.description);
+          default:
+            return theme.fg('muted', '☐ ') + (num + step.description);
         }
-        return `${theme.fg('muted', '☐ ')}${item.text}`;
       });
       ctx.ui.setWidget('plan-todos', lines);
     } else {
@@ -172,7 +162,7 @@ export default function planMode(pi: ExtensionAPI): void {
     planEnabled = true;
     executing = false;
     planDir = undefined;
-    todos = [];
+    plan = undefined;
     previousThinking = pi.getThinkingLevel() as ThinkingLevel;
     previousModel = ctx.model ? { provider: ctx.model.provider, id: ctx.model.id } : undefined;
     pi.setActiveTools(PLAN_TOOLS);
@@ -190,7 +180,8 @@ export default function planMode(pi: ExtensionAPI): void {
     planEnabled = false;
     executing = false;
     planDir = undefined;
-    todos = [];
+    plan = undefined;
+    executionStartIdx = undefined;
     pi.setActiveTools(EXEC_TOOLS);
     if (previousModel) {
       await switchModel(ctx, previousModel);
@@ -206,6 +197,8 @@ export default function planMode(pi: ExtensionAPI): void {
   async function startExecution(ctx: ExtensionContext): Promise<void> {
     planEnabled = false;
     executing = true;
+    // Record message count so the context filter can drop the planning conversation
+    executionStartIdx = ctx.sessionManager.getEntries().length;
     pi.setActiveTools(EXEC_TOOLS);
     await switchModel(ctx, EXEC_MODEL);
     pi.setThinkingLevel(EXEC_THINKING);
@@ -224,6 +217,26 @@ export default function planMode(pi: ExtensionAPI): void {
       await enterPlanMode(ctx);
     }
   }
+
+  // ── Register tools ────────────────────────────────────────────────────────
+  registerSubmitPlanTool(pi, {
+    onPlanSubmitted: (dir, submittedPlan) => {
+      planDir = dir;
+      plan = submittedPlan;
+      persist();
+    },
+  });
+
+  registerUpdateStepTool(pi, {
+    getPlan: () => plan,
+    onStepUpdated: (step, status, notes) => {
+      if (!plan) return;
+      const stepIdx = step - 1;
+      plan.steps[stepIdx].status = status;
+      if (notes) plan.steps[stepIdx].notes = notes;
+      persist();
+    },
+  });
 
   // ── Commands ──────────────────────────────────────────────────────────────
   pi.registerCommand('plan', {
@@ -244,11 +257,14 @@ export default function planMode(pi: ExtensionAPI): void {
   pi.registerCommand('todos', {
     description: 'Show current plan progress',
     handler: async (_args, ctx) => {
-      if (todos.length === 0) {
+      if (!plan || plan.steps.length === 0) {
         ctx.ui.notify('No plan yet. Use /plan to start planning.', 'info');
         return;
       }
-      const list = todos.map((t, i) => `${i + 1}. ${t.completed ? '✓' : '○'} ${t.text}`).join('\n');
+      const statusIcon = { pending: '○', done: '✓', skipped: '⊘', blocked: '✗' };
+      const list = plan.steps
+        .map((s, i) => `${i + 1}. ${statusIcon[s.status]} ${s.description}`)
+        .join('\n');
       ctx.ui.notify(`Plan Progress:\n${list}`, 'info');
     },
   });
@@ -262,7 +278,6 @@ export default function planMode(pi: ExtensionAPI): void {
   pi.on('tool_call', async (event) => {
     if (!planEnabled) return;
 
-    // Block bash commands that aren't on the safe allowlist
     if (event.toolName === 'bash') {
       const command = event.input.command as string;
       if (!isSafeCommand(command)) {
@@ -272,25 +287,25 @@ export default function planMode(pi: ExtensionAPI): void {
         };
       }
     }
-
-    // Block edit/write to paths outside .plans/
-    if (event.toolName === 'edit' || event.toolName === 'write') {
-      const path = (event.input as { path?: string }).path ?? '';
-      if (!path.startsWith('.plans/') && !path.startsWith('.plans\\')) {
-        return {
-          block: true,
-          reason: `Plan mode: file modifications are restricted to .plans/ directory.\nPath: ${path}`,
-        };
-      }
-    }
   });
 
-  // ── Filter stale plan context when not planning ───────────────────────────
+  // ── Filter planning conversation when executing ──────────────────────────
   pi.on('context', async (event) => {
     if (planEnabled) return;
+
+    if (executing && executionStartIdx !== undefined) {
+      // During execution, drop everything from the planning phase.
+      // The executor gets its context from the before_agent_start injection.
+      const startIdx = executionStartIdx;
+      return {
+        messages: event.messages.filter((_m, i) => i >= startIdx),
+      };
+    }
+
+    // Not executing — just strip stale plan-mode injected messages
     return {
       messages: event.messages.filter((m) => {
-        const msg = m as AgentMessage & { customType?: string };
+        const msg = m as { customType?: string; role?: string; content?: unknown };
         if (msg.customType === 'plan-mode-context') return false;
         if (msg.role !== 'user') return true;
         const content = msg.content;
@@ -299,7 +314,8 @@ export default function planMode(pi: ExtensionAPI): void {
         }
         if (Array.isArray(content)) {
           return !content.some(
-            (c) => c.type === 'text' && (c as TextContent).text?.includes('[PLAN MODE ACTIVE]'),
+            (c: { type?: string; text?: string }) =>
+              c.type === 'text' && c.text?.includes('[PLAN MODE ACTIVE]'),
           );
         }
         return true;
@@ -319,131 +335,134 @@ You are in plan mode — a planning phase with strict bash restrictions.
 Restrictions:
 - Available tools: ${PLAN_TOOLS.join(', ')}
 - Bash is restricted to read-only commands (ls, grep, git status, etc.)
-- edit and write are ONLY allowed for files inside the \`.plans/\` directory
 
 Your task:
 1. Analyze the codebase thoroughly using the available read-only tools
 2. Ask clarifying questions if needed (use the questionnaire tool)
 3. Produce a detailed, concrete plan
 
-When you are ready to finalize the plan:
-1. Choose a short descriptive kebab-case name for the plan (e.g. "add-auth-middleware")
-2. Create \`.plans/<plan-name>/PLAN.md\` with the full numbered plan under a \`Plan:\` header:
+When you are ready to finalize the plan, call the submit_plan tool with:
+- name: a short kebab-case name (e.g. "add-auth-middleware")
+- title: a human-readable plan title
+- context: complete codebase context including relevant file paths, APIs, patterns, constraints, and gotchas — this must be thorough enough that an implementor with zero prior context can execute the plan
+- steps: an array of steps, each with a short description (≤60 chars for display) and detailed implementation instructions
+- risks: any open questions, assumptions, or concerns
 
-\`\`\`markdown
-# <Plan Title>
-
-<Brief description of what this plan accomplishes>
-
-## Context
-<Key findings from codebase analysis>
-
-## Plan:
-1. First step — what to change and where
-2. Second step — what to change and where
-...
-
-## Risks / Open Questions
-<Any concerns or assumptions>
-\`\`\`
-
-3. Create \`.plans/<plan-name>/START-PROMPT.md\` — a self-contained handoff prompt that a different model can use to execute the plan WITHOUT access to this conversation. It must include:
-   - Complete context about the codebase (relevant file paths, APIs, patterns)
-   - The full plan steps to execute
-   - Any critical constraints or gotchas
-   - Clear instructions to mark each step done with \`[DONE:n]\` tags
-
-The START-PROMPT.md is critical — it must be thorough enough that an implementor with zero prior context can execute the plan correctly.
-
-If you need supporting reference files for extra context (code snippets, diagrams, specs), place them alongside in the same \`.plans/<plan-name>/\` directory.
-
-Do NOT attempt to make product code changes — only create planning artifacts in \`.plans/\`.`,
+Do NOT attempt to make product code changes — only analyze and plan.
+Do NOT write files manually — use submit_plan to finalize the plan.`,
           display: false,
         },
       };
     }
 
-    if (executing && todos.length > 0) {
-      const remaining = todos.filter((t) => !t.completed);
-      const todoList = remaining.map((t) => `${t.step}. ${t.text}`).join('\n');
+    if (executing && plan) {
+      const remaining = plan.steps
+        .map((s, i) => ({ ...s, num: i + 1 }))
+        .filter((s) => s.status === 'pending');
+
+      if (remaining.length === 0) return;
+
+      const stepList = remaining
+        .map((s) => `${s.num}. ${s.description}\n   Details: ${s.details}`)
+        .join('\n\n');
+
       return {
         message: {
           customType: 'plan-execution-context',
           content: `[EXECUTING PLAN — Full tool access enabled]
 
-Remaining steps:
-${todoList}
+Context:
+${plan.context}
 
-Execute each step in order. You MUST include [DONE:n] in your response after completing each step before moving to the next one.`,
+Remaining steps:
+${stepList}
+
+Execute each step in order. After completing each step, call the update_step tool to mark it done before moving to the next.
+If a step is unnecessary, call update_step with status "skipped".
+If a step cannot be completed, call update_step with status "blocked" and explain why in the notes.`,
           display: false,
         },
       };
     }
   });
 
-  // ── Track [DONE:n] markers during execution ───────────────────────────────
-  pi.on('turn_end', async (event, ctx) => {
-    if (!executing || todos.length === 0) return;
-    if (!isAssistantMessage(event.message)) return;
+  // ── Handle blocked steps and plan completion ──────────────────────────────
+  pi.on('agent_end', async (_event, ctx) => {
+    // Check for blocked steps during execution
+    if (executing && plan) {
+      const blocked = plan.steps
+        .map((s, i) => ({ ...s, num: i + 1 }))
+        .filter((s) => s.status === 'blocked');
 
-    const text = getTextContent(event.message);
-    if (markCompletedSteps(text, todos) > 0) {
-      updateUI(ctx);
-    }
-    persist();
-  });
+      if (blocked.length > 0) {
+        const blockedStep = blocked[0];
+        const blockedInfo = blockedStep.notes
+          ? `Step ${blockedStep.num}: ${blockedStep.description}\nReason: ${blockedStep.notes}`
+          : `Step ${blockedStep.num}: ${blockedStep.description}`;
 
-  // ── Detect plan directory from written files ──────────────────────────────
-  pi.on('tool_result', async (event) => {
-    if (!planEnabled) return;
-    if (event.toolName !== 'write' && event.toolName !== 'edit') return;
-    if (event.isError) return;
+        const choice = await ctx.ui.select(`Step blocked — ${blockedInfo}\n\nWhat next?`, [
+          'Skip this step',
+          'Provide instructions',
+          'Re-plan',
+          'Abort execution',
+        ]);
 
-    const path = (event.input as { path?: string }).path;
-    if (!path) return;
+        if (choice === 'Skip this step') {
+          plan.steps[blockedStep.num - 1].status = 'skipped';
+          await savePlanToDisk();
+          updateUI(ctx);
+          persist();
 
-    // Detect .plans/<name>/ directory from written files
-    const match = path.match(/\.plans\/([^/]+)\//);
-    if (match && !planDir) {
-      planDir = `.plans/${match[1]}`;
-      const planName = match[1];
-
-      // Read PLAN.md to extract the title for plans.json
-      let title = 'Untitled plan';
-      if (path.endsWith('PLAN.md')) {
-        try {
-          const content = await readFile(path, 'utf-8');
-          title = extractPlanTitle(content);
-        } catch {
-          // Fall through
+          // Check if there are more pending steps
+          const hasPending = plan.steps.some((s) => s.status === 'pending');
+          if (hasPending) {
+            pi.sendUserMessage('The blocked step has been skipped. Continue with the next step.', { deliverAs: 'followUp' });
+          }
+          // If no pending, fall through to completion check below
+        } else if (choice === 'Provide instructions') {
+          const instructions = await ctx.ui.editor('Instructions for the blocked step:', '');
+          if (instructions?.trim()) {
+            plan.steps[blockedStep.num - 1].status = 'pending';
+            plan.steps[blockedStep.num - 1].notes = undefined;
+            await savePlanToDisk();
+            updateUI(ctx);
+            persist();
+            pi.sendUserMessage(
+              `Retry step ${blockedStep.num} with these additional instructions: ${instructions.trim()}`,
+              { deliverAs: 'followUp' },
+            );
+          }
+          return;
+        } else if (choice === 'Re-plan') {
+          await enterPlanMode(ctx);
+          pi.sendUserMessage(
+            `Step ${blockedStep.num} was blocked: ${blockedStep.notes ?? 'no details'}. Re-analyze and create a revised plan.`,
+            { deliverAs: 'followUp' },
+          );
+          return;
+        } else if (choice === 'Abort execution') {
+          await exitPlanMode(ctx);
+          return;
         }
       }
-      await updatePlansManifest(planName, 'in-progress', title);
-      persist();
-    } else if (match && planDir && path.endsWith('PLAN.md')) {
-      // planDir already set but PLAN.md just written — update title
-      try {
-        const content = await readFile(path, 'utf-8');
-        const title = extractPlanTitle(content);
-        await updatePlansManifest(match[1], 'in-progress', title);
-      } catch {
-        // Fall through
-      }
-    }
-  });
 
-  // ── After agent finishes: prompt for next action ──────────────────────────
-  pi.on('agent_end', async (event, ctx) => {
-    // Check execution completion
-    if (executing && todos.length > 0) {
-      if (todos.every((t) => t.completed)) {
-        // Mark plan as done in plans.json
+      // Check if all steps are resolved (done or skipped)
+      const allResolved = plan.steps.every((s) => s.status === 'done' || s.status === 'skipped');
+      if (allResolved) {
         if (planDir) {
           const planName = planDir.replace(/^\.plans\//, '');
-          await updatePlansManifest(planName, 'done');
+          await updatePlansManifest(planName, 'done', plan.title);
+          await savePlanToDisk();
         }
 
-        const list = todos.map((t) => `~~${t.text}~~`).join('\n');
+        const list = plan.steps
+          .map((s) => {
+            if (s.status === 'done') return `~~${s.description}~~`;
+            if (s.status === 'skipped') return `⊘ ~~${s.description}~~`;
+            return s.description;
+          })
+          .join('\n');
+
         pi.sendMessage(
           {
             customType: 'plan-complete',
@@ -452,9 +471,11 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
           },
           { triggerTurn: false },
         );
+
         executing = false;
-        todos = [];
+        plan = undefined;
         planDir = undefined;
+        executionStartIdx = undefined;
         pi.setActiveTools(EXEC_TOOLS);
         if (previousModel) {
           await switchModel(ctx, previousModel);
@@ -464,16 +485,15 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
         }
         updateUI(ctx);
         persist();
+        return;
       }
       return;
     }
 
     if (!planEnabled || !ctx.hasUI) return;
+    if (!planDir || !plan) return;
 
-    // Check if plan files were created by looking for planDir
-    if (!planDir) return;
-
-    // Show menu
+    // Show menu after plan submission
     const choice = await ctx.ui.select('Plan ready — what next?', [
       'Execute Plan',
       'Refine Plan',
@@ -482,60 +502,21 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
     ]);
 
     if (choice === 'Execute Plan') {
-      // Read START-PROMPT.md for clean context handoff
-      const startPromptPath = `${planDir}/START-PROMPT.md`;
-      const planMdPath = `${planDir}/PLAN.md`;
-
-      // Read the plan to extract todos
-      let planContent = '';
-      try {
-        planContent = await readFile(planMdPath, 'utf-8');
-      } catch {
-        // Fall through — will use empty plan content
-      }
-
-      const extracted = extractTodoItems(planContent);
-      if (extracted.length > 0) {
-        todos = extracted;
-      }
-
-      // Read the start prompt for clean handoff
-      let startPrompt = '';
-      try {
-        startPrompt = (await readFile(startPromptPath, 'utf-8')).trim();
-      } catch {
-        // Fall through
-      }
-
       await startExecution(ctx);
       updateUI(ctx);
 
-      if (startPrompt) {
-        pi.sendMessage(
-          {
-            customType: 'plan-mode-execute',
-            content: startPrompt,
-            display: true,
-          },
-          { triggerTurn: true, deliverAs: 'followUp' },
-        );
-      } else {
-        // Fallback: ask executor to read the plan
-        pi.sendMessage(
-          {
-            customType: 'plan-mode-execute',
-            content: `Execute the plan in ${planMdPath}. Read it first, then execute step by step. Mark each step with [DONE:n] before moving to the next.`,
-            display: true,
-          },
-          { triggerTurn: true, deliverAs: 'followUp' },
-        );
-      }
+      // Build execution prompt from structured plan data
+      const stepList = plan.steps
+        .map((s, i) => `${i + 1}. ${s.description}`)
+        .join('\n');
+
+      pi.sendUserMessage(
+        `Execute the following plan: "${plan.title}"\n\nSteps:\n${stepList}\n\nStart with step 1. Call update_step after completing each step.`,
+        { deliverAs: 'followUp' },
+      );
     } else if (choice === 'Refine Plan') {
-      // Adversarial review — planner critiques its own plan
-      pi.sendMessage(
-        {
-          customType: 'plan-mode-refine',
-          content: `Review the plan you just created in ${planDir}/PLAN.md with an adversarial lens. Challenge assumptions, find gaps, identify risks, and look for:
+      pi.sendUserMessage(
+        `Review the plan you just created with an adversarial lens. Challenge assumptions, find gaps, identify risks, and look for:
 
 - Missing edge cases or error handling
 - Incorrect assumptions about the codebase
@@ -543,22 +524,13 @@ Execute each step in order. You MUST include [DONE:n] in your response after com
 - Missing dependencies between steps
 - Simpler alternatives that were overlooked
 
-After your review, update PLAN.md and START-PROMPT.md with any improvements.`,
-          display: true,
-        },
-        { triggerTurn: true, deliverAs: 'followUp' },
+After your review, call submit_plan again with the improved plan.`,
+        { deliverAs: 'followUp' },
       );
     } else if (choice === 'Follow up') {
       const followUp = await ctx.ui.editor('Follow-up instructions for the planner:', '');
       if (followUp?.trim()) {
-        pi.sendMessage(
-          {
-            customType: 'plan-mode-followup',
-            content: followUp.trim(),
-            display: true,
-          },
-          { triggerTurn: true, deliverAs: 'followUp' },
-        );
+        pi.sendUserMessage(followUp.trim(), { deliverAs: 'followUp' });
       }
     } else if (choice === 'Exit plan mode') {
       await exitPlanMode(ctx);
@@ -567,7 +539,6 @@ After your review, update PLAN.md and START-PROMPT.md with any improvements.`,
 
   // ── Restore state on session start/resume ─────────────────────────────────
   pi.on('session_start', async (_event, ctx) => {
-    // Check CLI flag
     if (pi.getFlag('plan') === true) {
       planEnabled = true;
     }
@@ -585,33 +556,8 @@ After your review, update PLAN.md and START-PROMPT.md with any improvements.`,
       planEnabled = saved.data.planEnabled ?? planEnabled;
       executing = saved.data.executing ?? executing;
       planDir = saved.data.planDir ?? planDir;
-      todos = saved.data.todos ?? todos;
-    }
-
-    // Re-scan [DONE:n] markers on resume
-    if (executing && todos.length > 0) {
-      let execIdx = -1;
-      for (let i = entries.length - 1; i >= 0; i--) {
-        const entry = entries[i] as { type: string; customType?: string };
-        if (entry.customType === 'plan-mode-execute') {
-          execIdx = i;
-          break;
-        }
-      }
-
-      const messages: AssistantMessage[] = [];
-      for (let i = execIdx + 1; i < entries.length; i++) {
-        const entry = entries[i];
-        if (
-          entry.type === 'message' &&
-          'message' in entry &&
-          isAssistantMessage(entry.message as AgentMessage)
-        ) {
-          messages.push(entry.message as AssistantMessage);
-        }
-      }
-      const allText = messages.map(getTextContent).join('\n');
-      markCompletedSteps(allText, todos);
+      plan = saved.data.plan ?? plan;
+      executionStartIdx = saved.data.executionStartIdx ?? executionStartIdx;
     }
 
     // Apply tool restrictions, model, and thinking level

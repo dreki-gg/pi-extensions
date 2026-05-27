@@ -45,8 +45,4 @@ export function serializePlansJson(manifest: PlansManifest): string {
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
 
-/** Extract the plan title from the first `# ...` heading in PLAN.md content. */
-export function extractPlanTitle(planContent: string): string {
-  const match = planContent.match(/^#\s+(.+)$/m);
-  return match ? match[1].trim() : 'Untitled plan';
-}
+

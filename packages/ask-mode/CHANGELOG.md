@@ -1,5 +1,14 @@
 # @dreki-gg/pi-ask-mode
 
+## 0.3.2
+
+### Patch Changes
+
+- Replace bundled workspace dependency on @dreki-gg/pi-command-sandbox with a normal registry dependency. Removes prepack/postpack scripts and bundledDependencies.
+
+- Updated dependencies []:
+  - @dreki-gg/pi-command-sandbox@0.2.0
+
 ## 0.3.1
 
 ### Patch Changes

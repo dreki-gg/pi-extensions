@@ -1,7 +1,6 @@
 {
   "name": "@dreki-gg/pi-command-sandbox",
-  "private": true,
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "Shared command sandboxing utilities for pi extensions — validates shell commands against safe/destructive pattern lists using proper shell parsing",
   "author": "Juan Albarran <jalbarrandev@gmail.com>",
   "license": "MIT",
@@ -18,7 +17,9 @@
       "types": "./dist/index.d.mts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsdown",
     "test": "bun test",

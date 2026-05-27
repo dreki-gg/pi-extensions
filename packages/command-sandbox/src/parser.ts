@@ -85,7 +85,20 @@ export function parseCommandSegments(input: string): ParsedSegment[] {
     }
 
     if (DANGEROUS_OPS.has(op)) {
-      hasRedirect = true;
+      // Check if this is a stderr redirect to /dev/null (e.g. 2>/dev/null)
+      // shell-quote splits "2>/dev/null" into tokens: "2", {op:">"}, "/dev/null"
+      // This is safe — it just silences stderr output
+      const prevToken = currentTokens[currentTokens.length - 1];
+      const nextToken = tokens[tokens.indexOf(token) + 1];
+      const isStderrToDevNull =
+        prevToken === '2' &&
+        op === '>' &&
+        typeof nextToken === 'string' &&
+        nextToken === '/dev/null';
+
+      if (!isStderrToDevNull) {
+        hasRedirect = true;
+      }
       // Keep the redirect in the current segment for pattern matching
       currentTokens.push(op);
       continue;

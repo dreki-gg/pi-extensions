@@ -20,6 +20,12 @@ bun run deploy:local
 bun run deploy:local:force
 ```
 
+## Rules
+
+- **NEVER unpublish a package** unless the user explicitly asks you to. If you published with a mistake, create a new patch/minor version with the fix instead.
+- **NEVER republish the same version** with different contents. Every change gets a new version bump via changesets.
+- Always create a changeset before publishing. No changeset = no version bump = publish skipped.
+
 ## Typical workflow
 
 1. Make changes to one or more packages
@@ -27,13 +33,23 @@ bun run deploy:local:force
    ```bash
    bun run changeset
    ```
-3. Deploy to the local registry:
+   If TTY is unavailable, create the changeset file manually:
    ```bash
-   bun run deploy:local
+   cat > .changeset/my-change-name.md << 'EOF'
+   ---
+   "@dreki-gg/my-package": patch
+   ---
+
+   Description of the change.
+   EOF
    ```
-4. Commit the resulting version bumps:
+3. Apply versions:
    ```bash
-   git add -A && git commit -m "chore: version packages (local)"
+   npx changeset version
+   ```
+4. Publish to the local registry:
+   ```bash
+   cd packages/<package> && npm publish --registry http://localhost:4873
    ```
 5. Install the updated package anywhere on the machine:
    ```bash

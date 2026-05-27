@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-ask-mode",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Read-only ask mode for pi — restricts tools to read-only operations, blocking file creation, editing, and deletion",
   "keywords": [
     "pi-package"
@@ -20,8 +20,6 @@
     "package.json"
   ],
   "scripts": {
-    "prepack": "node --experimental-strip-types scripts/prepack.js",
-    "postpack": "rm -rf node_modules/@dreki-gg",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint extensions",
     "format": "oxfmt --write extensions",
@@ -32,11 +30,8 @@
       "./extensions/ask-mode"
     ]
   },
-  "bundledDependencies": [
-    "@dreki-gg/pi-command-sandbox"
-  ],
   "dependencies": {
-    "@dreki-gg/pi-command-sandbox": "workspace:*"
+    "@dreki-gg/pi-command-sandbox": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "24",
