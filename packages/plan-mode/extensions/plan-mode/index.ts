@@ -246,7 +246,7 @@ export default function planMode(pi: ExtensionAPI): void {
     ]);
 
     if (choice === 'Execute Plan') {
-      pi.sendUserMessage('/plan-exec');
+      pi.sendUserMessage('/plan-exec', { deliverAs: 'followUp' });
     } else if (choice === 'Refine Plan') {
       pi.sendUserMessage(
         `Review the plan you just created with an adversarial lens. Challenge assumptions, find gaps, identify risks, and look for:

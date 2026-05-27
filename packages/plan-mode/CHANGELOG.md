@@ -1,5 +1,11 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.10.1
+
+### Patch Changes
+
+- Fix "Execute Plan" menu option crashing with "Agent is already processing" error. The `sendUserMessage('/plan-exec')` call inside the `agent_end` handler was missing `deliverAs: 'followUp'`. Added regression test that scans all `sendUserMessage` calls inside `agent_end` handlers to ensure they always include `deliverAs`.
+
 ## 0.10.0
 
 ### Minor Changes
