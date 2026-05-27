@@ -12,6 +12,7 @@ export const PLAN_TOOLS = [
   'submit_plan',
   'questionnaire',
   'search_skills',
+  'subagent',
 ];
 
 export const EXEC_TOOLS = ['read', 'bash', 'edit', 'write', 'update_step'];

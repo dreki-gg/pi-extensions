@@ -26,7 +26,9 @@ When you are ready to finalize the plan, call the submit_plan tool with:
 - risks: any open questions, assumptions, or concerns
 
 Do NOT attempt to make product code changes — only analyze and plan.
-Do NOT write files manually — use submit_plan to finalize the plan.`;
+Do NOT write files manually — use submit_plan to finalize the plan.
+
+When facing a significant technical decision with multiple viable approaches (architecture, API design, implementation strategy), use the technical-options skill: you generate the competing proposals yourself, then use the subagent tool to fan out voting agents for evaluation. Do not delegate the entire workflow to a subagent — you are the planner, you drive the process.`;
 }
 
 export function buildExecutionPrompt(plan: PlanData): string | undefined {

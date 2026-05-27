@@ -1,5 +1,23 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.12.1
+
+### Patch Changes
+
+- Include `skills/` directory in package files so the bundled technical-options skill is published.
+
+## 0.12.0
+
+### Minor Changes
+
+- Bundle `technical-options` skill inside the package (installable via `pi.skills`). The planner prompt now explicitly tells the agent to generate proposals itself and only delegate voting to subagents, keeping the planner visible as the main agent.
+
+## 0.11.0
+
+### Minor Changes
+
+- Integrate technical-options skill into plan mode: add `subagent` to plan-phase tools and nudge the planner to use structured proposal evaluation when facing significant design decisions with multiple viable approaches.
+
 ## 0.10.1
 
 ### Patch Changes

@@ -20,7 +20,7 @@
     },
     "packages/ask-mode": {
       "name": "@dreki-gg/pi-ask-mode",
-      "version": "0.3.0",
+      "version": "0.3.2",
       "dependencies": {
         "@dreki-gg/pi-command-sandbox": "workspace:*",
       },
@@ -67,7 +67,7 @@
     },
     "packages/code-reviewer": {
       "name": "@dreki-gg/pi-code-reviewer",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "devDependencies": {
         "@types/node": "24",
         "oxfmt": "^0.43.0",
@@ -89,7 +89,7 @@
     },
     "packages/command-sandbox": {
       "name": "@dreki-gg/pi-command-sandbox",
-      "version": "0.1.0",
+      "version": "0.2.1",
       "dependencies": {
         "shell-quote": "^1.8.3",
       },
@@ -102,6 +102,24 @@
         "tsdown": "^0.22.0",
         "typescript": "^6.0.0",
       },
+    },
+    "packages/context-folders": {
+      "name": "@dreki-gg/pi-context-folders",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/node": "24",
+        "oxfmt": "^0.43.0",
+        "oxlint": "^1.58.0",
+        "typescript": "^6.0.0",
+      },
+      "peerDependencies": {
+        "@earendil-works/pi-coding-agent": "*",
+        "typebox": "*",
+      },
+      "optionalPeers": [
+        "@earendil-works/pi-coding-agent",
+        "typebox",
+      ],
     },
     "packages/context7": {
       "name": "@dreki-gg/pi-context7",
@@ -162,7 +180,7 @@
     },
     "packages/plan-mode": {
       "name": "@dreki-gg/pi-plan-mode",
-      "version": "0.6.1",
+      "version": "0.12.1",
       "bin": {
         "pi-plan-mode": "./bin/clean-plans.js",
       },
@@ -209,7 +227,7 @@
     },
     "packages/subagent": {
       "name": "@dreki-gg/pi-subagent",
-      "version": "0.8.3",
+      "version": "0.9.0",
       "devDependencies": {
         "@types/node": "24",
         "oxfmt": "^0.43.0",
@@ -402,6 +420,8 @@
     "@dreki-gg/pi-code-reviewer": ["@dreki-gg/pi-code-reviewer@workspace:packages/code-reviewer"],
 
     "@dreki-gg/pi-command-sandbox": ["@dreki-gg/pi-command-sandbox@workspace:packages/command-sandbox"],
+
+    "@dreki-gg/pi-context-folders": ["@dreki-gg/pi-context-folders@workspace:packages/context-folders"],
 
     "@dreki-gg/pi-context7": ["@dreki-gg/pi-context7@workspace:packages/context7"],
 
