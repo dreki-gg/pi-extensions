@@ -1,5 +1,74 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.10.0
+
+### Minor Changes
+
+- Refactor: extract plan-mode god module into domain-driven modules. index.ts goes from ~780 to ~308 lines.
+
+  New files:
+
+  - `constants.ts` — tool sets, model presets, thinking levels, model picker options
+  - `state.ts` — PlanModeState class encapsulating all mutable state with persist/restore
+  - `plan-storage.ts` — disk I/O: save/load plans, exec-pending markers, manifest updates
+  - `ui.ts` — status bar and step widget rendering
+  - `prompts.ts` — plan phase and execution phase prompt builders
+  - `context-filter.ts` — message filtering for context event
+  - `phase-transitions.ts` — enter/exit plan mode, start execution, model switching
+  - `resume.ts` — resume flow, model picker, new session handoff
+
+  No functional changes — pure structural refactor.
+
+## 0.9.2
+
+### Patch Changes
+
+- Fix plan completion not triggering immediately: update_step now returns `terminate: true` when all steps are resolved, so the agent stops and agent_end fires right away with the completion message.
+
+## 0.9.1
+
+### Patch Changes
+
+- Simplify execution model picker to just two preset options: gpt-5.5 and claude-opus-4-6. No more nested registry browsing.
+
+## 0.9.0
+
+### Minor Changes
+
+- Plan execution now launches in a clean session via `ctx.newSession()` for true context isolation. The executor gets a fresh context window with zero planning history, no skill references, and no system prompt pollution — fixing the root cause of rogue executor behavior.
+
+  New features:
+
+  - Model picker before execution: choose Default, Previous, or any model from registry
+  - `/plan-exec` command for direct execution handoff
+  - Removed `search_skills` from execution tools (executor follows the plan, not skills)
+
+  Breaking: Execution always creates a new session. The planning session is preserved and linked via parentSession.
+
+## 0.8.1
+
+### Patch Changes
+
+- Strengthen execution context injection to prevent the agent from going rogue. The prompt now explicitly forbids running diagnostics/skills/linters unless a step asks for it, highlights the current step front and center, and demands immediate update_step calls.
+
+## 0.8.0
+
+### Minor Changes
+
+- Add `/plan resume` command to pick up in-progress plans from disk. Shows a list of in-progress plans from `.plans/plans.json`, lets the user select one, and resumes execution from where it left off. Also supports re-planning from scratch.
+
+## 0.7.4
+
+### Patch Changes
+
+- Simplify "Follow up" menu option: just dismiss the menu and let the user type naturally instead of opening an editor. The planner remains active with submit_plan available.
+
+## 0.7.3
+
+### Patch Changes
+
+- Fix "Follow up" menu option to wrap user message with planner context, instructing the agent to revise and resubmit the plan via submit_plan.
+
 ## 0.7.2
 
 ### Patch Changes

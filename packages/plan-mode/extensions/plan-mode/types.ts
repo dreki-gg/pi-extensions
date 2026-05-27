@@ -16,6 +16,13 @@ export interface PlanData {
   risks: string;
 }
 
+export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+
+export interface ExecPendingConfig {
+  model: { provider: string; id: string };
+  thinking: string;
+}
+
 export interface PersistedState {
   planEnabled: boolean;
   executing: boolean;

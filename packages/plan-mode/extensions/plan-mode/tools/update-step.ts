@@ -103,6 +103,8 @@ export function registerUpdateStepTool(pi: ExtensionAPI, callbacks: UpdateStepCa
       return {
         content: [{ type: 'text' as const, text }],
         details,
+        // Stop the agent when all steps are done so agent_end fires immediately
+        terminate: !next,
       };
     },
 

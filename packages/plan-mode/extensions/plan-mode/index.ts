@@ -1,63 +1,38 @@
 /**
- * Plan Mode Extension
+ * Plan Mode Extension — Thin orchestrator
  *
  * Two-phase workflow:
  *   1. PLAN phase  — read-only tools + submit_plan tool + medium thinking
- *                    Planner analyzes codebase, calls submit_plan with structured data
  *   2. EXECUTE phase — full tools + update_step tool + low thinking
- *                      Executor works through plan steps, calling update_step for each
- *
- * Plans live in `.plans/<kebab-name>/plan.json` with structured steps and context.
  *
  * Commands:
- *   /plan [prompt]  — enter plan mode (optionally with a starting prompt)
+ *   /plan [prompt]  — enter plan mode
+ *   /plan resume    — resume an in-progress plan from disk
+ *   /plan-exec      — execute the current plan in a clean session
  *   /todos          — show current plan progress
- *   Ctrl+Alt+P      — toggle plan mode (shortcut)
+ *   Ctrl+Alt+P      — toggle plan mode
  *
  * Flag:
  *   --plan          — start session in plan mode
  */
 
-import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Key } from '@earendil-works/pi-tui';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { isSafeCommand } from './utils.js';
-import { readPlansJson, serializePlansJson } from './plans-json.js';
+import { PLAN_TOOLS, EXEC_TOOLS, PLAN_MODEL, PLAN_THINKING, EXEC_MODEL, EXEC_THINKING } from './constants.js';
+import type { ThinkingLevel } from './types.js';
+import { PlanModeState } from './state.js';
+import { savePlanToDisk, loadPlanFromDisk, readAndClearExecPending, updatePlansManifest } from './plan-storage.js';
+import { updateUI } from './ui.js';
+import { buildPlanModePrompt, buildExecutionPrompt } from './prompts.js';
+import { filterExecutionMessages, filterStalePlanMessages } from './context-filter.js';
+import { enterPlanMode, exitPlanMode, switchModel } from './phase-transitions.js';
+import { resumePlan, executeInNewSession } from './resume.js';
 import { registerSubmitPlanTool } from './tools/submit-plan.js';
 import { registerUpdateStepTool } from './tools/update-step.js';
-import type { PlanData, PersistedState } from './types.js';
+import { isSafeCommand } from './utils.js';
 
-// ── Tool sets ────────────────────────────────────────────────────────────────
-const PLAN_TOOLS = [
-  'read',
-  'bash',
-  'grep',
-  'find',
-  'ls',
-  'submit_plan',
-  'questionnaire',
-  'search_skills',
-];
-const EXEC_TOOLS = ['read', 'bash', 'edit', 'write', 'update_step', 'search_skills'];
-
-// ── Model + thinking presets ─────────────────────────────────────────────────
-const PLAN_MODEL = { provider: 'anthropic', id: 'claude-opus-4-6' } as const;
-const PLAN_THINKING = 'medium' as const;
-
-const EXEC_MODEL = { provider: 'openai', id: 'gpt-5.5' } as const;
-const EXEC_THINKING = 'low' as const;
-
-type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
-
-// ── Extension ────────────────────────────────────────────────────────────────
 export default function planMode(pi: ExtensionAPI): void {
-  let planEnabled = false;
-  let executing = false;
-  let planDir: string | undefined;
-  let plan: PlanData | undefined;
-  let executionStartIdx: number | undefined;
-  let previousThinking: ThinkingLevel | undefined;
-  let previousModel: { provider: string; id: string } | undefined;
+  const state = new PlanModeState();
 
   // ── Flag ──────────────────────────────────────────────────────────────────
   pi.registerFlag('plan', {
@@ -66,203 +41,65 @@ export default function planMode(pi: ExtensionAPI): void {
     default: false,
   });
 
-  // ── State persistence ─────────────────────────────────────────────────────
-  function persist(): void {
-    pi.appendEntry<PersistedState>('plan-mode', {
-      planEnabled,
-      executing,
-      planDir,
-      plan,
-      executionStartIdx,
-    });
-  }
-
-  // ── plans.json tracking ───────────────────────────────────────────────────
-  async function updatePlansManifest(
-    planName: string,
-    status: 'in-progress' | 'done',
-    title?: string,
-  ): Promise<void> {
-    const manifest = await readPlansJson();
-    const existing = manifest[planName];
-    const now = new Date().toISOString();
-
-    manifest[planName] = {
-      status,
-      title: title ?? existing?.title ?? 'Untitled plan',
-      created: existing?.created ?? now,
-      completed: status === 'done' ? now : null,
-    };
-
-    await mkdir('.plans', { recursive: true });
-    await writeFile('.plans/plans.json', serializePlansJson(manifest), 'utf-8');
-  }
-
-  // ── Save plan.json to disk ────────────────────────────────────────────────
-  async function savePlanToDisk(): Promise<void> {
-    if (!planDir || !plan) return;
-    await mkdir(planDir, { recursive: true });
-    await writeFile(`${planDir}/plan.json`, JSON.stringify(plan, null, 2) + '\n', 'utf-8');
-  }
-
-  // ── UI updates ────────────────────────────────────────────────────────────
-  function updateUI(ctx: ExtensionContext): void {
-    const { theme } = ctx.ui;
-
-    if (executing && plan) {
-      const done = plan.steps.filter((s) => s.status === 'done').length;
-      const total = plan.steps.length;
-      ctx.ui.setStatus('plan-mode', theme.fg('accent', `📋 exec ${done}/${total}`));
-    } else if (planEnabled) {
-      ctx.ui.setStatus('plan-mode', theme.fg('warning', '📝 plan'));
-    } else {
-      ctx.ui.setStatus('plan-mode', undefined);
-    }
-
-    if (executing && plan) {
-      const lines = plan.steps.map((step, i) => {
-        const num = `${i + 1}. `;
-        switch (step.status) {
-          case 'done':
-            return theme.fg('success', '✓ ') + theme.fg('muted', theme.strikethrough(num + step.description));
-          case 'skipped':
-            return theme.fg('warning', '⊘ ') + theme.fg('muted', theme.strikethrough(num + step.description));
-          case 'blocked':
-            return theme.fg('error', '✗ ') + theme.fg('error', num + step.description);
-          default:
-            return theme.fg('muted', '☐ ') + (num + step.description);
-        }
-      });
-      ctx.ui.setWidget('plan-todos', lines);
-    } else {
-      ctx.ui.setWidget('plan-todos', undefined);
-    }
-  }
-
-  // ── Model switching ───────────────────────────────────────────────────────
-  async function switchModel(
-    ctx: ExtensionContext,
-    preset: { provider: string; id: string },
-  ): Promise<boolean> {
-    const model = ctx.modelRegistry.find(preset.provider, preset.id);
-    if (!model) {
-      ctx.ui.notify(`Model ${preset.provider}/${preset.id} not found`, 'error');
-      return false;
-    }
-    const ok = await pi.setModel(model);
-    if (!ok) {
-      ctx.ui.notify(`No API key for ${preset.provider}/${preset.id}`, 'error');
-      return false;
-    }
-    return true;
-  }
-
-  // ── Phase transitions ─────────────────────────────────────────────────────
-  async function enterPlanMode(ctx: ExtensionContext): Promise<void> {
-    planEnabled = true;
-    executing = false;
-    planDir = undefined;
-    plan = undefined;
-    previousThinking = pi.getThinkingLevel() as ThinkingLevel;
-    previousModel = ctx.model ? { provider: ctx.model.provider, id: ctx.model.id } : undefined;
-    pi.setActiveTools(PLAN_TOOLS);
-    await switchModel(ctx, PLAN_MODEL);
-    pi.setThinkingLevel(PLAN_THINKING);
-    ctx.ui.notify(
-      `Plan mode ON — ${PLAN_MODEL.provider}/${PLAN_MODEL.id}:${PLAN_THINKING}`,
-      'info',
-    );
-    updateUI(ctx);
-    persist();
-  }
-
-  async function exitPlanMode(ctx: ExtensionContext): Promise<void> {
-    planEnabled = false;
-    executing = false;
-    planDir = undefined;
-    plan = undefined;
-    executionStartIdx = undefined;
-    pi.setActiveTools(EXEC_TOOLS);
-    if (previousModel) {
-      await switchModel(ctx, previousModel);
-    }
-    if (previousThinking) {
-      pi.setThinkingLevel(previousThinking);
-    }
-    ctx.ui.notify('Plan mode OFF — original model restored', 'info');
-    updateUI(ctx);
-    persist();
-  }
-
-  async function startExecution(ctx: ExtensionContext): Promise<void> {
-    planEnabled = false;
-    executing = true;
-    // Record message count so the context filter can drop the planning conversation
-    executionStartIdx = ctx.sessionManager.getEntries().length;
-    pi.setActiveTools(EXEC_TOOLS);
-    await switchModel(ctx, EXEC_MODEL);
-    pi.setThinkingLevel(EXEC_THINKING);
-    ctx.ui.notify(
-      `Executing plan — ${EXEC_MODEL.provider}/${EXEC_MODEL.id}:${EXEC_THINKING}`,
-      'info',
-    );
-    updateUI(ctx);
-    persist();
-  }
-
-  async function togglePlanMode(ctx: ExtensionContext): Promise<void> {
-    if (planEnabled || executing) {
-      await exitPlanMode(ctx);
-    } else {
-      await enterPlanMode(ctx);
-    }
-  }
-
-  // ── Register tools ────────────────────────────────────────────────────────
+  // ── Tools ─────────────────────────────────────────────────────────────────
   registerSubmitPlanTool(pi, {
     onPlanSubmitted: (dir, submittedPlan) => {
-      planDir = dir;
-      plan = submittedPlan;
-      persist();
+      state.planDir = dir;
+      state.plan = submittedPlan;
+      state.persist(pi);
     },
   });
 
   registerUpdateStepTool(pi, {
-    getPlan: () => plan,
+    getPlan: () => state.plan,
     onStepUpdated: (step, status, notes) => {
-      if (!plan) return;
-      const stepIdx = step - 1;
-      plan.steps[stepIdx].status = status;
-      if (notes) plan.steps[stepIdx].notes = notes;
-      persist();
+      if (!state.plan) return;
+      state.plan.steps[step - 1].status = status;
+      if (notes) state.plan.steps[step - 1].notes = notes;
+      state.persist(pi);
     },
   });
 
   // ── Commands ──────────────────────────────────────────────────────────────
   pi.registerCommand('plan', {
-    description: 'Enter plan mode, optionally with a starting prompt',
+    description: 'Enter plan mode, optionally with a starting prompt. Use "/plan resume" to pick up an existing plan.',
     handler: async (args, ctx) => {
-      if (planEnabled || executing) {
-        await togglePlanMode(ctx);
+      const trimmed = args?.trim();
+      if (trimmed === 'resume') {
+        await resumePlan(state, pi, ctx);
         return;
       }
-      await enterPlanMode(ctx);
-      const prompt = args?.trim();
-      if (prompt) {
-        pi.sendUserMessage(prompt);
+      if (state.planEnabled || state.executing) {
+        await exitPlanMode(state, pi, ctx);
+        return;
       }
+      await enterPlanMode(state, pi, ctx);
+      if (trimmed) pi.sendUserMessage(trimmed);
+    },
+  });
+
+  pi.registerCommand('plan-exec', {
+    description: 'Execute the current plan in a clean session',
+    handler: async (_args, ctx) => {
+      if (!state.planDir || !state.plan) {
+        ctx.ui.notify('No plan to execute.', 'error');
+        return;
+      }
+      const stepList = state.plan.steps.map((s, i) => `${i + 1}. ${s.description}`).join('\n');
+      const kickoff = `Execute the following plan: "${state.plan.title}"\n\nSteps:\n${stepList}\n\nStart with step 1. Call update_step after completing each step.`;
+      await executeInNewSession(ctx, state.planDir, state.plan, kickoff);
     },
   });
 
   pi.registerCommand('todos', {
     description: 'Show current plan progress',
     handler: async (_args, ctx) => {
-      if (!plan || plan.steps.length === 0) {
+      if (!state.plan || state.plan.steps.length === 0) {
         ctx.ui.notify('No plan yet. Use /plan to start planning.', 'info');
         return;
       }
-      const statusIcon = { pending: '○', done: '✓', skipped: '⊘', blocked: '✗' };
-      const list = plan.steps
+      const statusIcon = { pending: '○', done: '✓', skipped: '⊘', blocked: '✗' } as const;
+      const list = state.plan.steps
         .map((s, i) => `${i + 1}. ${statusIcon[s.status]} ${s.description}`)
         .join('\n');
       ctx.ui.notify(`Plan Progress:\n${list}`, 'info');
@@ -271,13 +108,18 @@ export default function planMode(pi: ExtensionAPI): void {
 
   pi.registerShortcut(Key.ctrlAlt('p'), {
     description: 'Toggle plan mode',
-    handler: async (ctx) => togglePlanMode(ctx),
+    handler: async (ctx) => {
+      if (state.planEnabled || state.executing) {
+        await exitPlanMode(state, pi, ctx);
+      } else {
+        await enterPlanMode(state, pi, ctx);
+      }
+    },
   });
 
-  // ── Block destructive bash in plan mode ───────────────────────────────────
+  // ── Event: block destructive bash in plan mode ────────────────────────────
   pi.on('tool_call', async (event) => {
-    if (!planEnabled) return;
-
+    if (!state.planEnabled) return;
     if (event.toolName === 'bash') {
       const command = event.input.command as string;
       if (!isSafeCommand(command)) {
@@ -289,231 +131,122 @@ export default function planMode(pi: ExtensionAPI): void {
     }
   });
 
-  // ── Filter planning conversation when executing ──────────────────────────
+  // ── Event: filter context ─────────────────────────────────────────────────
   pi.on('context', async (event) => {
-    if (planEnabled) return;
-
-    if (executing && executionStartIdx !== undefined) {
-      // During execution, drop everything from the planning phase.
-      // The executor gets its context from the before_agent_start injection.
-      const startIdx = executionStartIdx;
-      return {
-        messages: event.messages.filter((_m, i) => i >= startIdx),
-      };
+    if (state.planEnabled) return;
+    if (state.executing && state.executionStartIdx !== undefined) {
+      return { messages: filterExecutionMessages(event.messages, state.executionStartIdx) };
     }
-
-    // Not executing — just strip stale plan-mode injected messages
-    return {
-      messages: event.messages.filter((m) => {
-        const msg = m as { customType?: string; role?: string; content?: unknown };
-        if (msg.customType === 'plan-mode-context') return false;
-        if (msg.role !== 'user') return true;
-        const content = msg.content;
-        if (typeof content === 'string') {
-          return !content.includes('[PLAN MODE ACTIVE]');
-        }
-        if (Array.isArray(content)) {
-          return !content.some(
-            (c: { type?: string; text?: string }) =>
-              c.type === 'text' && c.text?.includes('[PLAN MODE ACTIVE]'),
-          );
-        }
-        return true;
-      }),
-    };
+    return { messages: filterStalePlanMessages(event.messages) };
   });
 
-  // ── Inject context for each phase ─────────────────────────────────────────
+  // ── Event: inject phase prompts ───────────────────────────────────────────
   pi.on('before_agent_start', async () => {
-    if (planEnabled) {
+    if (state.planEnabled) {
       return {
-        message: {
-          customType: 'plan-mode-context',
-          content: `[PLAN MODE ACTIVE]
-You are in plan mode — a planning phase with strict bash restrictions.
-
-Restrictions:
-- Available tools: ${PLAN_TOOLS.join(', ')}
-- Bash is restricted to read-only commands (ls, grep, git status, etc.)
-
-Your task:
-1. Analyze the codebase thoroughly using the available read-only tools
-2. Ask clarifying questions if needed (use the questionnaire tool)
-3. Produce a detailed, concrete plan
-
-When you are ready to finalize the plan, call the submit_plan tool with:
-- name: a short kebab-case name (e.g. "add-auth-middleware")
-- title: a human-readable plan title
-- context: complete codebase context including relevant file paths, APIs, patterns, constraints, and gotchas — this must be thorough enough that an implementor with zero prior context can execute the plan
-- steps: an array of steps, each with a short description (≤60 chars for display) and detailed implementation instructions
-- risks: any open questions, assumptions, or concerns
-
-Do NOT attempt to make product code changes — only analyze and plan.
-Do NOT write files manually — use submit_plan to finalize the plan.`,
-          display: false,
-        },
+        message: { customType: 'plan-mode-context', content: buildPlanModePrompt(), display: false },
       };
     }
-
-    if (executing && plan) {
-      const remaining = plan.steps
-        .map((s, i) => ({ ...s, num: i + 1 }))
-        .filter((s) => s.status === 'pending');
-
-      if (remaining.length === 0) return;
-
-      const stepList = remaining
-        .map((s) => `${s.num}. ${s.description}\n   Details: ${s.details}`)
-        .join('\n\n');
-
-      return {
-        message: {
-          customType: 'plan-execution-context',
-          content: `[EXECUTING PLAN — Full tool access enabled]
-
-Context:
-${plan.context}
-
-Remaining steps:
-${stepList}
-
-Execute each step in order. After completing each step, call the update_step tool to mark it done before moving to the next.
-If a step is unnecessary, call update_step with status "skipped".
-If a step cannot be completed, call update_step with status "blocked" and explain why in the notes.`,
-          display: false,
-        },
-      };
+    if (state.executing && state.plan) {
+      const content = buildExecutionPrompt(state.plan);
+      if (content) {
+        return {
+          message: { customType: 'plan-execution-context', content, display: false },
+        };
+      }
     }
   });
 
-  // ── Handle blocked steps and plan completion ──────────────────────────────
+  // ── Event: agent_end — blocked steps, completion, post-plan menu ──────────
   pi.on('agent_end', async (_event, ctx) => {
-    // Check for blocked steps during execution
-    if (executing && plan) {
-      const blocked = plan.steps
+    // ── During execution: handle blocked steps and completion ──
+    if (state.executing && state.plan) {
+      const blocked = state.plan.steps
         .map((s, i) => ({ ...s, num: i + 1 }))
         .filter((s) => s.status === 'blocked');
 
       if (blocked.length > 0) {
-        const blockedStep = blocked[0];
-        const blockedInfo = blockedStep.notes
-          ? `Step ${blockedStep.num}: ${blockedStep.description}\nReason: ${blockedStep.notes}`
-          : `Step ${blockedStep.num}: ${blockedStep.description}`;
+        const bs = blocked[0];
+        const info = bs.notes
+          ? `Step ${bs.num}: ${bs.description}\nReason: ${bs.notes}`
+          : `Step ${bs.num}: ${bs.description}`;
 
-        const choice = await ctx.ui.select(`Step blocked — ${blockedInfo}\n\nWhat next?`, [
-          'Skip this step',
-          'Provide instructions',
-          'Re-plan',
-          'Abort execution',
+        const choice = await ctx.ui.select(`Step blocked — ${info}\n\nWhat next?`, [
+          'Skip this step', 'Provide instructions', 'Re-plan', 'Abort execution',
         ]);
 
         if (choice === 'Skip this step') {
-          plan.steps[blockedStep.num - 1].status = 'skipped';
-          await savePlanToDisk();
-          updateUI(ctx);
-          persist();
-
-          // Check if there are more pending steps
-          const hasPending = plan.steps.some((s) => s.status === 'pending');
-          if (hasPending) {
+          state.plan.steps[bs.num - 1].status = 'skipped';
+          await savePlanToDisk(state.planDir!, state.plan);
+          updateUI(state, ctx);
+          state.persist(pi);
+          if (state.plan.steps.some((s) => s.status === 'pending')) {
             pi.sendUserMessage('The blocked step has been skipped. Continue with the next step.', { deliverAs: 'followUp' });
           }
-          // If no pending, fall through to completion check below
         } else if (choice === 'Provide instructions') {
           const instructions = await ctx.ui.editor('Instructions for the blocked step:', '');
           if (instructions?.trim()) {
-            plan.steps[blockedStep.num - 1].status = 'pending';
-            plan.steps[blockedStep.num - 1].notes = undefined;
-            await savePlanToDisk();
-            updateUI(ctx);
-            persist();
+            state.plan.steps[bs.num - 1].status = 'pending';
+            state.plan.steps[bs.num - 1].notes = undefined;
+            await savePlanToDisk(state.planDir!, state.plan);
+            updateUI(state, ctx);
+            state.persist(pi);
             pi.sendUserMessage(
-              `Retry step ${blockedStep.num} with these additional instructions: ${instructions.trim()}`,
+              `Retry step ${bs.num} with these additional instructions: ${instructions.trim()}`,
               { deliverAs: 'followUp' },
             );
           }
           return;
         } else if (choice === 'Re-plan') {
-          await enterPlanMode(ctx);
+          await enterPlanMode(state, pi, ctx);
           pi.sendUserMessage(
-            `Step ${blockedStep.num} was blocked: ${blockedStep.notes ?? 'no details'}. Re-analyze and create a revised plan.`,
+            `Step ${bs.num} was blocked: ${bs.notes ?? 'no details'}. Re-analyze and create a revised plan.`,
             { deliverAs: 'followUp' },
           );
           return;
         } else if (choice === 'Abort execution') {
-          await exitPlanMode(ctx);
+          await exitPlanMode(state, pi, ctx);
           return;
         }
       }
 
-      // Check if all steps are resolved (done or skipped)
-      const allResolved = plan.steps.every((s) => s.status === 'done' || s.status === 'skipped');
+      // Check completion
+      const allResolved = state.plan.steps.every((s) => s.status === 'done' || s.status === 'skipped');
       if (allResolved) {
-        if (planDir) {
-          const planName = planDir.replace(/^\.plans\//, '');
-          await updatePlansManifest(planName, 'done', plan.title);
-          await savePlanToDisk();
+        if (state.planDir) {
+          await updatePlansManifest(state.planDir.replace(/^\.plans\//, ''), 'done', state.plan.title);
+          await savePlanToDisk(state.planDir, state.plan);
         }
-
-        const list = plan.steps
-          .map((s) => {
-            if (s.status === 'done') return `~~${s.description}~~`;
-            if (s.status === 'skipped') return `⊘ ~~${s.description}~~`;
-            return s.description;
-          })
+        const list = state.plan.steps
+          .map((s) => s.status === 'done' ? `~~${s.description}~~` : `⊘ ~~${s.description}~~`)
           .join('\n');
-
         pi.sendMessage(
-          {
-            customType: 'plan-complete',
-            content: `**Plan Complete!** ✓\n\n${list}`,
-            display: true,
-          },
+          { customType: 'plan-complete', content: `**Plan Complete!** ✓\n\n${list}`, display: true },
           { triggerTurn: false },
         );
 
-        executing = false;
-        plan = undefined;
-        planDir = undefined;
-        executionStartIdx = undefined;
+        const { previousModel: pm, previousThinking: pt } = state;
+        state.reset();
         pi.setActiveTools(EXEC_TOOLS);
-        if (previousModel) {
-          await switchModel(ctx, previousModel);
-        }
-        if (previousThinking) {
-          pi.setThinkingLevel(previousThinking);
-        }
-        updateUI(ctx);
-        persist();
+        if (pm) await switchModel(pi, ctx, pm);
+        if (pt) pi.setThinkingLevel(pt);
+        updateUI(state, ctx);
+        state.persist(pi);
         return;
       }
       return;
     }
 
-    if (!planEnabled || !ctx.hasUI) return;
-    if (!planDir || !plan) return;
+    // ── After plan submission: show post-plan menu ──
+    if (!state.planEnabled || !ctx.hasUI) return;
+    if (!state.planDir || !state.plan) return;
 
-    // Show menu after plan submission
     const choice = await ctx.ui.select('Plan ready — what next?', [
-      'Execute Plan',
-      'Refine Plan',
-      'Follow up',
-      'Exit plan mode',
+      'Execute Plan', 'Refine Plan', 'Follow up', 'Exit plan mode',
     ]);
 
     if (choice === 'Execute Plan') {
-      await startExecution(ctx);
-      updateUI(ctx);
-
-      // Build execution prompt from structured plan data
-      const stepList = plan.steps
-        .map((s, i) => `${i + 1}. ${s.description}`)
-        .join('\n');
-
-      pi.sendUserMessage(
-        `Execute the following plan: "${plan.title}"\n\nSteps:\n${stepList}\n\nStart with step 1. Call update_step after completing each step.`,
-        { deliverAs: 'followUp' },
-      );
+      pi.sendUserMessage('/plan-exec');
     } else if (choice === 'Refine Plan') {
       pi.sendUserMessage(
         `Review the plan you just created with an adversarial lens. Challenge assumptions, find gaps, identify risks, and look for:
@@ -528,49 +261,48 @@ After your review, call submit_plan again with the improved plan.`,
         { deliverAs: 'followUp' },
       );
     } else if (choice === 'Follow up') {
-      const followUp = await ctx.ui.editor('Follow-up instructions for the planner:', '');
-      if (followUp?.trim()) {
-        pi.sendUserMessage(followUp.trim(), { deliverAs: 'followUp' });
-      }
+      // No-op: dismiss menu, let user type naturally
     } else if (choice === 'Exit plan mode') {
-      await exitPlanMode(ctx);
+      await exitPlanMode(state, pi, ctx);
     }
   });
 
-  // ── Restore state on session start/resume ─────────────────────────────────
+  // ── Event: session restore ────────────────────────────────────────────────
   pi.on('session_start', async (_event, ctx) => {
-    if (pi.getFlag('plan') === true) {
-      planEnabled = true;
-    }
+    if (pi.getFlag('plan') === true) state.planEnabled = true;
 
-    // Restore persisted state
-    const entries = ctx.sessionManager.getEntries();
-    const saved = entries
-      .filter(
-        (e: { type: string; customType?: string }) =>
-          e.type === 'custom' && e.customType === 'plan-mode',
-      )
-      .pop() as { data?: PersistedState } | undefined;
+    state.restore(
+      ctx.sessionManager.getEntries() as Array<{ type: string; customType?: string; data?: any }>,
+    );
 
-    if (saved?.data) {
-      planEnabled = saved.data.planEnabled ?? planEnabled;
-      executing = saved.data.executing ?? executing;
-      planDir = saved.data.planDir ?? planDir;
-      plan = saved.data.plan ?? plan;
-      executionStartIdx = saved.data.executionStartIdx ?? executionStartIdx;
+    // Check for exec-pending handoff from planning session
+    const pending = await readAndClearExecPending();
+    if (pending) {
+      state.planDir = pending.planDir;
+      state.plan = await loadPlanFromDisk(pending.planDir);
+      if (state.plan) {
+        state.executing = true;
+        state.planEnabled = false;
+        pi.setActiveTools(EXEC_TOOLS);
+        await switchModel(pi, ctx, pending.config.model);
+        pi.setThinkingLevel(pending.config.thinking as ThinkingLevel);
+        updateUI(state, ctx);
+        state.persist(pi);
+        return;
+      }
     }
 
     // Apply tool restrictions, model, and thinking level
-    if (planEnabled) {
+    if (state.planEnabled) {
       pi.setActiveTools(PLAN_TOOLS);
-      await switchModel(ctx, PLAN_MODEL);
+      await switchModel(pi, ctx, PLAN_MODEL);
       pi.setThinkingLevel(PLAN_THINKING);
-    } else if (executing) {
+    } else if (state.executing) {
       pi.setActiveTools(EXEC_TOOLS);
-      await switchModel(ctx, EXEC_MODEL);
+      await switchModel(pi, ctx, EXEC_MODEL);
       pi.setThinkingLevel(EXEC_THINKING);
     }
 
-    updateUI(ctx);
+    updateUI(state, ctx);
   });
 }
