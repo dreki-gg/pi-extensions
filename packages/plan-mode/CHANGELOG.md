@@ -1,5 +1,11 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.14.0
+
+### Minor Changes
+
+- Refactor plan-mode to conversational planning with JSONL task storage and HTML output. Replace steps with task records, add atomic writes, Pug-based plan.html generation, and migrate manifest to JSONL. Update subagent prompts.
+
 ## 0.13.0
 
 ### Minor Changes

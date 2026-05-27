@@ -1,5 +1,11 @@
 # @dreki-gg/pi-subagent
 
+## 0.9.1
+
+### Patch Changes
+
+- Refactor plan-mode to conversational planning with JSONL task storage and HTML output. Replace steps with task records, add atomic writes, Pug-based plan.html generation, and migrate manifest to JSONL. Update subagent prompts.
+
 ## 0.9.0
 
 ### Minor Changes
