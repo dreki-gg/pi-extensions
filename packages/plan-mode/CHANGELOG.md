@@ -1,5 +1,11 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.13.0
+
+### Minor Changes
+
+- Replace context+risks with HANDOFF.md and step summaries. submit_plan now writes a HANDOFF.md alongside plan.json. Completion message shows an actual summary of changes from step notes instead of just a checklist. Executor is prompted to always include notes summarizing what was done.
+
 ## 0.12.1
 
 ### Patch Changes
