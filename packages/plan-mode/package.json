@@ -27,7 +27,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint extensions bin",
     "format": "oxfmt --write extensions bin",
-    "format:check": "oxfmt --check extensions bin"
+    "format:check": "oxfmt --check extensions bin",
+    "test": "bun test extensions/plan-mode/__tests__"
   },
   "pi": {
     "extensions": [

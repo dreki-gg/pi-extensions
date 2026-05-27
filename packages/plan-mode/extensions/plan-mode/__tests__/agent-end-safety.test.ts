@@ -9,7 +9,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const INDEX_PATH = join(import.meta.dir, 'index.ts');
+const INDEX_PATH = join(import.meta.dir, '..', 'index.ts');
 const indexSource = readFileSync(INDEX_PATH, 'utf-8');
 
 /**

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { isSafeCommand } from './utils.js';
+import { isSafeCommand } from '../utils.js';
 
 describe('isSafeCommand', () => {
   // ── Commands that SHOULD be allowed ──────────────────────────────────────

@@ -14,5 +14,5 @@
     "types": ["bun-types"],
     "rootDir": "."
   },
-  "include": ["extensions/**/*.ts", "bin/**/*.js"]
+  "include": ["extensions/**/*.ts", "extensions/**/__tests__/**/*.ts", "bin/**/*.js"]
 }
