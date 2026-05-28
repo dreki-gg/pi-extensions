@@ -54,7 +54,7 @@ export async function exitPlanMode(
   ctx: ExtensionContext,
 ): Promise<void> {
   const { previousModel, previousThinking } = state;
-  state.reset();
+  state.exitPreservingPlan();
   pi.setActiveTools(EXEC_TOOLS);
   if (previousModel) {
     await switchModel(pi, ctx, previousModel);

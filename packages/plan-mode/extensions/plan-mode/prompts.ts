@@ -24,8 +24,12 @@ When you are ready to finalize the plan, call submit_plan with:
 - name: a short kebab-case name (e.g. "add-auth-middleware")
 - title: a human-readable plan title
 - handoff: a markdown document that explains what is changing, why it matters, approach, decisions, file paths, APIs, patterns, constraints, and gotchas
-- tasks: an array of tasks with id (e.g. "t-001"), description (≤60 chars), details, and optional depends_on task IDs
+- tasks: an array of tasks with id (e.g. "t-001"), description (≤60 chars), optional details, and optional depends_on task IDs
 - prototype: optional Pug markup for a creative prototype section in the generated plan.html
+
+Plan weight:
+- **Delegation plans** (different agent/human executes): include full details in each task so an executor with zero context can follow them.
+- **Self-execution plans** (you plan and execute in the same session): use lightweight checklist-style tasks — just id + description, skip details. The handoff doc carries the real context.
 
 submit_plan is finalization, not the starting point. The generated plan.html is written but not opened automatically.
 
@@ -38,10 +42,16 @@ export function buildExecutionPrompt(plan: PlanData): string | undefined {
   if (remaining.length === 0) return undefined;
 
   const taskList = remaining
-    .map((task) => `${task.id}. ${task.description}\n   Details: ${task.details}`)
+    .map((task) => {
+      const line = `${task.id}. ${task.description}`;
+      return task.details ? `${line}\n   Details: ${task.details}` : line;
+    })
     .join('\n\n');
 
   const currentTask = remaining[0];
+  const currentDetails = currentTask.details
+    ? `\nDetails: ${currentTask.details}`
+    : '';
 
   return `[EXECUTING PLAN — FOLLOW THE PLAN EXACTLY]
 
@@ -55,8 +65,7 @@ Rules:
 - Do NOT deviate from the plan — if something seems wrong, call update_task with status "blocked"
 
 ## Current task
-${currentTask.id}: ${currentTask.description}
-Details: ${currentTask.details}
+${currentTask.id}: ${currentTask.description}${currentDetails}
 
 ## Handoff
 ${plan.handoff}

@@ -20,6 +20,19 @@ describe('task record type guards', () => {
     ).toBe(true);
   });
 
+  test('accepts task records without details (lightweight checklist)', () => {
+    expect(
+      isTaskRecord({
+        _type: 'task',
+        id: 't-001',
+        description: 'Do work',
+        status: 'pending',
+        created_at: now,
+        updated_at: now,
+      }),
+    ).toBe(true);
+  });
+
   test('rejects malformed task records', () => {
     expect(isTaskRecord({ _type: 'task', id: 't-001', status: 'pending' })).toBe(false);
     expect(

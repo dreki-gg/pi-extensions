@@ -25,7 +25,9 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
     promptSnippet: 'Finalize the plan with title, handoff, tasks, dependencies, and optional prototype Pug',
     promptGuidelines: [
       'Only call submit_plan after shared understanding has been reached with the user.',
-      'Each task needs an id like t-001, a short description, detailed implementation instructions, and optional depends_on task IDs.',
+      'Each task needs an id like t-001, a short description, and optional depends_on task IDs.',
+      'When a different agent or human will execute the plan, include detailed implementation instructions in each task\'s details field.',
+      'When you are planning and executing yourself (same session), use lightweight checklist-style tasks: just id + description, omit details. Put the real context in the handoff document instead.',
       'The handoff must be thorough enough that both a human reviewer and executor agent with zero prior context can understand the plan.',
     ],
     parameters: Type.Object({
@@ -36,7 +38,7 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
         Type.Object({
           id: Type.String({ description: 'Stable task ID, e.g. t-001' }),
           description: Type.String({ description: 'Short task label for progress display (≤60 chars)' }),
-          details: Type.String({ description: 'Full implementation instructions for this task' }),
+          details: Type.Optional(Type.String({ description: 'Full implementation instructions for this task. Omit for lightweight checklist-style plans when you are executing yourself.' })),
           depends_on: Type.Optional(Type.Array(Type.String({ description: 'Dependency task ID' }))),
         }),
         { minItems: 1 },
@@ -53,7 +55,7 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
         _type: 'task',
         id: task.id,
         description: task.description.slice(0, 60),
-        details: task.details,
+        details: task.details ?? '',
         status: 'pending',
         depends_on: task.depends_on,
         created_at: now,

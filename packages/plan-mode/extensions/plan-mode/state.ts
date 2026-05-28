@@ -44,4 +44,11 @@ export class PlanModeState {
     this.plan = undefined;
     this.executionStartIdx = undefined;
   }
+
+  /** Exit plan/execution mode but keep plan data for update_task tracking. */
+  exitPreservingPlan(): void {
+    this.planEnabled = false;
+    this.executing = false;
+    this.executionStartIdx = undefined;
+  }
 }

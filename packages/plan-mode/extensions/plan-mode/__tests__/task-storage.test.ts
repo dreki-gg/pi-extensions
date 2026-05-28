@@ -19,6 +19,14 @@ describe('tasks.jsonl storage', () => {
     await expect(readTasksJsonl(dir)).resolves.toEqual({ meta, tasks: [task] });
   });
 
+  test('round trips tasks without details (lightweight checklist)', async () => {
+    const lightweight: TaskRecord = { _type: 'task', id: 't-002', description: 'Quick fix', status: 'pending', created_at: now, updated_at: now };
+    await writeTasksJsonl(dir, meta, [lightweight]);
+    const result = await readTasksJsonl(dir);
+    expect(result?.tasks[0]?.id).toBe('t-002');
+    expect(result?.tasks[0]?.details).toBeUndefined();
+  });
+
   test('missing file returns undefined', async () => {
     await expect(readTasksJsonl(dir)).resolves.toBeUndefined();
   });

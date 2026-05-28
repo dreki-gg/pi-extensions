@@ -1,0 +1,194 @@
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { Type } from 'typebox';
+import { StringEnum } from '@earendil-works/pi-ai';
+import {
+  type DatadogProjectConfig,
+  getCredentials,
+  getCredentialStatus,
+  loadProjectConfig,
+} from './config.js';
+import { searchLogs } from './client.js';
+import { formatSearchResult, formatSearchSummary } from './format.js';
+
+const SORT_ENUM = ['newest', 'oldest'] as const;
+
+const TOOL_GUIDELINES = [
+  'Use `datadog_logs_search` to search production logs in Datadog. It uses Datadog query syntax (e.g. `status:error`, `@http.status_code:500`, `service:my-api`).',
+  '`datadog_logs_search` auto-applies project defaults for service and environment from `.pi/datadog.json` — only override when the user explicitly asks for a different service or env.',
+  'When `datadog_logs_search` returns many results, summarize the patterns (error types, frequency, affected services) instead of listing every log entry.',
+  'Use appropriate time ranges with `datadog_logs_search`: "15m" for recent issues, "1h" for general debugging, "24h" or "7d" for trend analysis.',
+];
+
+export default function datadogExtension(pi: ExtensionAPI) {
+  let projectConfig: DatadogProjectConfig | null = null;
+
+  pi.on('session_start', async (_event, ctx) => {
+    try {
+      projectConfig = await loadProjectConfig(ctx.cwd);
+    } catch (err) {
+      ctx.ui.notify(
+        `Datadog config error: ${(err as Error).message}`,
+        'warning',
+      );
+      projectConfig = null;
+    }
+  });
+
+  pi.registerTool({
+    name: 'datadog_logs_search',
+    label: 'Datadog Log Search',
+    description:
+      'Search Datadog logs with query syntax. Uses project defaults from .pi/datadog.json for service, environment, and time range.',
+    promptSnippet: 'Search Datadog logs with query syntax and project-aware defaults',
+    promptGuidelines: TOOL_GUIDELINES,
+    parameters: Type.Object({
+      query: Type.String({
+        description:
+          'Datadog log query syntax (e.g. "status:error", "@http.status_code:500", "error connecting to database")',
+      }),
+      from: Type.Optional(
+        Type.String({
+          description: 'Start time — relative (15m, 1h, 7d) or ISO 8601. Defaults to project config or 1h.',
+        }),
+      ),
+      to: Type.Optional(
+        Type.String({
+          description: 'End time — relative, ISO 8601, or "now". Defaults to "now".',
+        }),
+      ),
+      limit: Type.Optional(
+        Type.Number({
+          description: 'Max logs to return (1-100). Default 25.',
+          minimum: 1,
+          maximum: 100,
+        }),
+      ),
+      sort: Type.Optional(
+        StringEnum(SORT_ENUM, {
+          description: 'Sort order by timestamp. Default "newest".',
+        }),
+      ),
+      service: Type.Optional(
+        Type.String({
+          description: 'Service name — overrides project default from .pi/datadog.json.',
+        }),
+      ),
+      env: Type.Optional(
+        Type.String({
+          description: 'Environment — overrides project default from .pi/datadog.json.',
+        }),
+      ),
+    }),
+
+    async execute(
+      _toolCallId: string,
+      params: {
+        query: string;
+        from?: string;
+        to?: string;
+        limit?: number;
+        sort?: (typeof SORT_ENUM)[number];
+        service?: string;
+        env?: string;
+      },
+      _signal?: AbortSignal,
+      _onUpdate?: unknown,
+      ctx?: { cwd: string },
+    ) {
+      const credentials = getCredentials();
+      if (!credentials) {
+        const status = getCredentialStatus();
+        const missing = [
+          !status.hasApiKey && 'DD_API_KEY',
+          !status.hasAppKey && 'DD_APP_KEY',
+        ].filter(Boolean);
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `❌ Missing Datadog credentials: ${missing.join(', ')}.\n\nSet these environment variables to enable Datadog log search.`,
+            },
+          ],
+          details: { error: 'missing_credentials', missing } as Record<string, unknown>,
+          isError: true,
+        };
+      }
+
+      // Reload config if not loaded yet (e.g. tool called before session_start)
+      if (!projectConfig && ctx?.cwd) {
+        try {
+          projectConfig = await loadProjectConfig(ctx.cwd);
+        } catch {
+          // Use defaults
+          projectConfig = { site: 'datadoghq.com', defaultTimeRange: '1h' };
+        }
+      }
+
+      const config = projectConfig ?? { site: 'datadoghq.com', defaultTimeRange: '1h' };
+
+      try {
+        const result = await searchLogs(params, config, credentials);
+        const formatted = formatSearchResult(result);
+        const summary = formatSearchSummary(result);
+
+        return {
+          content: [{ type: 'text' as const, text: formatted }],
+          details: summary as Record<string, unknown>,
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `❌ Datadog API error: ${message}`,
+            },
+          ],
+          details: { error: 'api_error', message } as Record<string, unknown>,
+          isError: true,
+        };
+      }
+    },
+  });
+
+  pi.registerCommand('datadog', {
+    description: 'Show Datadog configuration and connection status',
+    handler: async (
+      _args: string,
+      ctx: {
+        cwd: string;
+        hasUI: boolean;
+        ui: { notify(message: string, level: 'info' | 'warning' | 'error'): void };
+      },
+    ) => {
+      const credStatus = getCredentialStatus();
+      const config = projectConfig ?? (await loadProjectConfig(ctx.cwd).catch(() => null));
+
+      const lines: string[] = ['Datadog Extension Status', ''];
+
+      // Credentials
+      lines.push(`API Key: ${credStatus.hasApiKey ? '✅ Set' : '❌ Missing (DD_API_KEY)'}`);
+      lines.push(`App Key: ${credStatus.hasAppKey ? '✅ Set' : '❌ Missing (DD_APP_KEY)'}`);
+      lines.push('');
+
+      // Config
+      if (config) {
+        lines.push('Project Config (.pi/datadog.json):');
+        lines.push(`  Site: ${config.site}`);
+        lines.push(`  Service: ${config.service ?? '(not set)'}`);
+        lines.push(`  Env: ${config.env ?? '(not set)'}`);
+        lines.push(`  Default time range: ${config.defaultTimeRange}`);
+        if (config.defaultTags?.length) {
+          lines.push(`  Default tags: ${config.defaultTags.join(', ')}`);
+        }
+      } else {
+        lines.push('No .pi/datadog.json found — using defaults.');
+      }
+
+      if (ctx.hasUI) {
+        ctx.ui.notify(lines.join('\n'), 'info');
+      }
+    },
+  });
+}

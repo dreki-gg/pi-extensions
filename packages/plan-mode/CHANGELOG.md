@@ -1,5 +1,22 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.14.2
+
+### Patch Changes
+
+- Remove post-plan submission menu and auto-hide task widget when all tasks are resolved.
+
+## 0.14.1
+
+### Patch Changes
+
+- Fix update_task failing after exiting plan mode; make task details optional for lightweight checklist-style plans.
+
+  - exitPlanMode now preserves plan data so update_task works outside execution mode
+  - submit_plan accepts tasks without details for self-execution workflows
+  - Plan widget shows in tracking mode after exiting plan mode
+  - Prompt guidance distinguishes delegation vs self-execution plan weights
+
 ## 0.14.0
 
 ### Minor Changes

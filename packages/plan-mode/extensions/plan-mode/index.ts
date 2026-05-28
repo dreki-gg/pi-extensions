@@ -271,34 +271,8 @@ export default function planMode(pi: ExtensionAPI): void {
       return;
     }
 
-    // ── After plan submission: show post-plan menu ──
-    if (!state.planEnabled || !ctx.hasUI) return;
-    if (!state.planDir || !state.plan) return;
-
-    const choice = await ctx.ui.select('Plan ready — what next?', [
-      'Execute Plan', 'Refine Plan', 'Follow up', 'Exit plan mode',
-    ]);
-
-    if (choice === 'Execute Plan') {
-      pi.sendUserMessage('/plan-exec', { deliverAs: 'followUp' });
-    } else if (choice === 'Refine Plan') {
-      pi.sendUserMessage(
-        `Review the plan you just created with an adversarial lens. Challenge assumptions, find gaps, identify risks, and look for:
-
-- Missing edge cases or error handling
-- Incorrect assumptions about the codebase
-- Tasks that are too vague or could be misinterpreted
-- Missing dependencies between tasks
-- Simpler alternatives that were overlooked
-
-After your review, call submit_plan again with the improved plan.`,
-        { deliverAs: 'followUp' },
-      );
-    } else if (choice === 'Follow up') {
-      // No-op: dismiss menu, let user type naturally
-    } else if (choice === 'Exit plan mode') {
-      await exitPlanMode(state, pi, ctx);
-    }
+    // Plan submitted — user can review plan.html then /plan-exec or type naturally.
+    // No menu needed: plan.jsonl + plan.html are the source of truth.
   });
 
   // ── Event: session restore ────────────────────────────────────────────────

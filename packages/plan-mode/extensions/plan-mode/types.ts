@@ -8,7 +8,7 @@ export interface TaskRecord {
   _type: 'task';
   id: string;
   description: string;
-  details: string;
+  details?: string;
   status: TaskStatus;
   depends_on?: string[];
   notes?: string;
@@ -62,7 +62,7 @@ export function isTaskRecord(value: unknown): value is TaskRecord {
     value._type === 'task' &&
     typeof value.id === 'string' &&
     typeof value.description === 'string' &&
-    typeof value.details === 'string' &&
+    (value.details === undefined || typeof value.details === 'string') &&
     typeof value.status === 'string' &&
     TASK_STATUSES.has(value.status as TaskStatus) &&
     (value.depends_on === undefined || isStringArray(value.depends_on)) &&

@@ -1,5 +1,5 @@
 /**
- * update_task tool — available during the execution phase.
+ * update_task tool — available during execution and after exiting plan mode with a submitted plan.
  */
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
