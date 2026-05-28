@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-firestore",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "Firestore debugging tools for pi — query collections, inspect documents, and map data relationships",
   "keywords": [
     "pi-package",
@@ -48,6 +48,10 @@
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
     "typebox": "*"
+  },
+  "overrides": {
+    "uuid": "^11.1.0",
+    "node-domexception": "npm:@user-agent/domexception@^0.2.7"
   },
   "peerDependenciesMeta": {
     "@earendil-works/pi-coding-agent": {
