@@ -22,25 +22,6 @@ export function updateUI(state: PlanModeState, ctx: ExtensionContext): void {
     ctx.ui.setStatus('plan-mode', undefined);
   }
 
-  const allResolved =
-    state.plan?.tasks.every((t) => t.status === 'done' || t.status === 'skipped' || t.status === 'blocked') ?? false;
-
-  if ((state.executing || state.plan) && state.plan && !allResolved) {
-    const lines = state.plan.tasks.map((task) => {
-      const label = `${task.id} ${task.description}`;
-      switch (task.status) {
-        case 'done':
-          return theme.fg('success', '✓ ') + theme.fg('muted', theme.strikethrough(label));
-        case 'skipped':
-          return theme.fg('warning', '⊘ ') + theme.fg('muted', theme.strikethrough(label));
-        case 'blocked':
-          return theme.fg('error', '✗ ') + theme.fg('error', label);
-        default:
-          return theme.fg('muted', '☐ ') + label;
-      }
-    });
-    ctx.ui.setWidget('plan-todos', lines);
-  } else {
-    ctx.ui.setWidget('plan-todos', undefined);
-  }
+  // Task list lives in plan.jsonl — no widget needed.
+  ctx.ui.setWidget('plan-todos', undefined);
 }

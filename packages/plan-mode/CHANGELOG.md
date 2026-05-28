@@ -1,5 +1,23 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.14.5
+
+### Patch Changes
+
+- Proper markdown rendering in plan.html — fenced code blocks, inline code, bold, italic, links, and all heading levels.
+
+## 0.14.4
+
+### Patch Changes
+
+- Remove task list widget entirely — plan.jsonl is the source of truth.
+
+## 0.14.3
+
+### Patch Changes
+
+- Only show task widget during active plan execution, not after exiting plan mode.
+
 ## 0.14.2
 
 ### Patch Changes
