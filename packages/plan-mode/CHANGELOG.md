@@ -1,5 +1,16 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.15.0
+
+### Minor Changes
+
+- Restrict write/edit tools to .plans/ directory only during plan phase. Add isPlanPath utility. Update prompt to document --help/man support and write restrictions.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dreki-gg/pi-command-sandbox@0.3.0
+
 ## 0.14.5
 
 ### Patch Changes

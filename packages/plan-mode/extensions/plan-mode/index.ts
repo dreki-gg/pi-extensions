@@ -31,7 +31,7 @@ import { enterPlanMode, exitPlanMode, switchModel } from './phase-transitions.js
 import { resumePlan, executeInNewSession } from './resume.js';
 import { registerSubmitPlanTool } from './tools/submit-plan.js';
 import { registerUpdateTaskTool } from './tools/update-task.js';
-import { isSafeCommand } from './utils.js';
+import { isSafeCommand, isPlanPath } from './utils.js';
 
 export default function planMode(pi: ExtensionAPI): void {
   const state = new PlanModeState();
@@ -128,15 +128,28 @@ export default function planMode(pi: ExtensionAPI): void {
     },
   });
 
-  // ── Event: block destructive bash in plan mode ────────────────────────────
+  // ── Event: block destructive bash + restrict writes in plan mode ──────────
   pi.on('tool_call', async (event) => {
     if (!state.planEnabled) return;
+
+    // Block destructive bash commands
     if (event.toolName === 'bash') {
       const command = event.input.command as string;
       if (!isSafeCommand(command)) {
         return {
           block: true,
           reason: `Plan mode: command blocked. Use /plan to exit plan mode first.\nCommand: ${command}`,
+        };
+      }
+    }
+
+    // Restrict write to .plans/ directory only
+    if (event.toolName === 'write' || event.toolName === 'edit') {
+      const path = event.input.path as string;
+      if (!isPlanPath(path)) {
+        return {
+          block: true,
+          reason: `Plan mode: writes are restricted to .plans/ directory only.\nPath: ${path}`,
         };
       }
     }

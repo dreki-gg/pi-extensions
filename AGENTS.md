@@ -5,6 +5,11 @@
 1. Use package.json scripts when possible.
 2. Use `bun` package manager instead of `npm` / `pnpm` / `yarn`
 
+## Publishing and Installing Packages
+
+1. **NEVER install packages manually** on the local machine (no `npm install -g`, `bun add -g`, etc.). After publishing to the local Verdaccio registry, packages are installed via `pi update` — the standard pi upgrade flow handles everything.
+2. After `npm publish --registry http://localhost:4873`, just confirm the publish succeeded. Do not run any global install command.
+
 ## Creating and maintaining Pi Extensions
 
 1. Avoid creating big index.ts files, advocate to separate logic in different files and folders to organize them.

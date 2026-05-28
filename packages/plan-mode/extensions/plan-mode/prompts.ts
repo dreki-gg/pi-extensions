@@ -11,7 +11,8 @@ You are in conversational plan mode — a planning dialogue with strict bash res
 
 Restrictions:
 - Available tools: ${PLAN_TOOLS.join(', ')}
-- Bash is restricted to read-only commands (ls, grep, git status, etc.)
+- Bash is restricted to read-only commands (ls, grep, git status, etc.) and info commands (--help, -h, --version, man)
+- The write tool is restricted to .plans/ directory only — no codebase file creation or modification
 - Do NOT make product code changes during planning.
 
 Your job is to reach shared understanding before formalizing a plan:

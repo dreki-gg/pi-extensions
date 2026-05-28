@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { isSafeCommand } from '../utils.js';
+import { isSafeCommand, isPlanPath } from '../utils.js';
 
 describe('isSafeCommand', () => {
   // ── Commands that SHOULD be allowed ──────────────────────────────────────
@@ -112,5 +112,62 @@ describe('isSafeCommand', () => {
     test('touch file', () => {
       expect(isSafeCommand('touch newfile.ts')).toBe(false);
     });
+  });
+
+  // ── Help/version commands via command-sandbox ────────────────────────────
+  describe('help and version commands', () => {
+    test('bun --help is allowed', () => {
+      expect(isSafeCommand('bun --help')).toBe(true);
+    });
+
+    test('man git is allowed', () => {
+      expect(isSafeCommand('man git')).toBe(true);
+    });
+
+    test('npm --version is allowed', () => {
+      expect(isSafeCommand('npm --version')).toBe(true);
+    });
+
+    test('rm --help is still blocked', () => {
+      expect(isSafeCommand('rm --help')).toBe(false);
+    });
+  });
+});
+
+describe('isPlanPath', () => {
+  test('relative .plans/ path', () => {
+    expect(isPlanPath('.plans/my-plan/context.md')).toBe(true);
+  });
+
+  test('absolute path containing .plans/', () => {
+    expect(isPlanPath('/Users/me/project/.plans/my-plan/context.md')).toBe(true);
+  });
+
+  test('just .plans/', () => {
+    expect(isPlanPath('.plans/foo')).toBe(true);
+  });
+
+  test('windows-style backslashes', () => {
+    expect(isPlanPath('.plans\\my-plan\\context.md')).toBe(true);
+  });
+
+  test('src/ path is blocked', () => {
+    expect(isPlanPath('src/index.ts')).toBe(false);
+  });
+
+  test('root file is blocked', () => {
+    expect(isPlanPath('README.md')).toBe(false);
+  });
+
+  test('package.json is blocked', () => {
+    expect(isPlanPath('package.json')).toBe(false);
+  });
+
+  test('path with plans but not .plans is blocked', () => {
+    expect(isPlanPath('src/plans/something.ts')).toBe(false);
+  });
+
+  test('path ending in .plans without slash is blocked', () => {
+    expect(isPlanPath('.plans')).toBe(false);
   });
 });

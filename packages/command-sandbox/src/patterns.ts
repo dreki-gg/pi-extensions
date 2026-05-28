@@ -110,6 +110,14 @@ export const SAFE_PATTERNS: RegExp[] = [
   /^\s*dirname\b/,
   /^\s*realpath\b/,
   /^\s*readlink\b/,
+  // Help, version, and man — read-only info commands
+  /\s--help(\s|$)/,
+  /\s-h\s*$/,
+  /\s--version(\s|$)/,
+  /\s-[vV]\s*$/,
+  /^\s*man\b/,
+  /^\s*help\b/,
+  /^\s*info\b/,
   // Windows equivalents
   /^\s*dir\b/,
   /^\s*where\b/,

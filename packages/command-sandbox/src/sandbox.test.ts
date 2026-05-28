@@ -225,6 +225,69 @@ describe('isSafeCommand', () => {
     });
   });
 
+  // ── Help, version, and man commands ──────────────────────────────────────
+  describe('help, version, and man commands', () => {
+    test('bun --help', () => {
+      expect(isSafeCommand('bun --help')).toBe(true);
+    });
+
+    test('docker compose --help', () => {
+      expect(isSafeCommand('docker compose --help')).toBe(true);
+    });
+
+    test('git --help', () => {
+      expect(isSafeCommand('git --help')).toBe(true);
+    });
+
+    test('bun -h', () => {
+      expect(isSafeCommand('bun -h')).toBe(true);
+    });
+
+    test('cargo --version', () => {
+      expect(isSafeCommand('cargo --version')).toBe(true);
+    });
+
+    test('rustc -V', () => {
+      expect(isSafeCommand('rustc -V')).toBe(true);
+    });
+
+    test('man git', () => {
+      expect(isSafeCommand('man git')).toBe(true);
+    });
+
+    test('man 3 printf', () => {
+      expect(isSafeCommand('man 3 printf')).toBe(true);
+    });
+
+    test('help cd', () => {
+      expect(isSafeCommand('help cd')).toBe(true);
+    });
+
+    test('info coreutils', () => {
+      expect(isSafeCommand('info coreutils')).toBe(true);
+    });
+
+    test('npm --help', () => {
+      expect(isSafeCommand('npm --help')).toBe(true);
+    });
+
+    test('bun run --help', () => {
+      expect(isSafeCommand('bun run --help')).toBe(true);
+    });
+
+    test('rm --help is still blocked (destructive wins)', () => {
+      expect(isSafeCommand('rm --help')).toBe(false);
+    });
+
+    test('sudo --help is still blocked', () => {
+      expect(isSafeCommand('sudo --help')).toBe(false);
+    });
+
+    test('mv -h is still blocked', () => {
+      expect(isSafeCommand('mv -h')).toBe(false);
+    });
+  });
+
   // ── Edge cases ────────────────────────────────────────────────────────────
   describe('edge cases', () => {
     test('empty command is blocked', () => {

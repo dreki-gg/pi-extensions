@@ -1,5 +1,12 @@
 # @dreki-gg/pi-ask-mode
 
+## 0.3.3
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dreki-gg/pi-command-sandbox@0.3.0
+
 ## 0.3.2
 
 ### Patch Changes

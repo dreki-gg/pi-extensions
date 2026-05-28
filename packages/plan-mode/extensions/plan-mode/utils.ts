@@ -23,6 +23,16 @@ function isMkdirPlans(command: string): boolean {
   return /^\s*mkdir\s+(-p\s+)?\.plans(\/|\\|\s|$)/.test(command);
 }
 
+/**
+ * Check if a file path is inside the .plans/ directory.
+ *
+ * Accepts both relative (.plans/foo) and absolute paths containing .plans/.
+ */
+export function isPlanPath(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, '/');
+  return /(?:^|\/)?\.plans\//.test(normalized);
+}
+
 // ── Plan name utilities ─────────────────────────────────────────────────────
 
 export function toKebabCase(name: string): string {

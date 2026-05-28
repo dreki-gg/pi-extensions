@@ -1,5 +1,11 @@
 # @dreki-gg/pi-command-sandbox
 
+## 0.3.0
+
+### Minor Changes
+
+- Add safe patterns for help, version, and man commands (--help, -h, --version, -v/-V, man, help, info) so sandboxed modes can explore CLI options without being blocked.
+
 ## 0.2.1
 
 ### Patch Changes
