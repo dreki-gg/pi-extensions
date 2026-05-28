@@ -77,10 +77,43 @@ describe('loadProjectConfig', () => {
     expect(config.projectId).toBe('firebase-project-id');
   });
 
+  it('loads from .pi/firebase.json as fallback', async () => {
+    writeFileSync(
+      join(TMP_DIR, '.pi', 'firebase.json'),
+      JSON.stringify({
+        projectId: 'my-project',
+        serviceAccountKeyPath: './sa.json',
+      }),
+    );
+
+    const config = await loadProjectConfig(TMP_DIR);
+    expect(config.projectId).toBe('my-project');
+  });
+
+  it('prefers .pi/firestore.json over .pi/firebase.json', async () => {
+    writeFileSync(
+      join(TMP_DIR, '.pi', 'firestore.json'),
+      JSON.stringify({
+        projectId: 'from-firestore',
+        serviceAccountKeyPath: './sa.json',
+      }),
+    );
+    writeFileSync(
+      join(TMP_DIR, '.pi', 'firebase.json'),
+      JSON.stringify({
+        projectId: 'from-firebase',
+        serviceAccountKeyPath: './sa.json',
+      }),
+    );
+
+    const config = await loadProjectConfig(TMP_DIR);
+    expect(config.projectId).toBe('from-firestore');
+  });
+
   it('throws when no config file and no .firebaserc', async () => {
     rmSync(join(TMP_DIR, '.pi'), { recursive: true, force: true });
     await expect(loadProjectConfig(TMP_DIR)).rejects.toThrow(
-      'No .pi/firestore.json found',
+      'No .pi/firestore.json',
     );
   });
 

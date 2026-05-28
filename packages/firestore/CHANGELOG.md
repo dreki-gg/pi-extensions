@@ -1,5 +1,17 @@
 # @dreki-gg/pi-firestore
 
+## 0.2.4
+
+### Patch Changes
+
+- Fix Firebase Admin SDK crash on reload: use named app instance and delete previous before re-init.
+
+## 0.2.3
+
+### Patch Changes
+
+- Support `.pi/firebase.json` as an alternative config filename (falls back after `.pi/firestore.json`).
+
 ## 0.2.2
 
 ### Patch Changes

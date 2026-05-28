@@ -25,10 +25,12 @@ import {
 } from './format.js';
 import { buildRelationMap } from './relations.js';
 
-import { initializeApp, cert, type App } from 'firebase-admin/app';
+import { initializeApp, cert, getApp, deleteApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+
+const APP_NAME = 'pi-firestore';
 
 const DIRECTION_ENUM = ['asc', 'desc'] as const;
 
@@ -52,10 +54,21 @@ async function initFirestore(
   const saContent = await readFile(saPath, 'utf-8');
   const serviceAccount = JSON.parse(saContent);
 
-  const app: App = initializeApp({
-    credential: cert(serviceAccount),
-    projectId: config.projectId,
-  });
+  // Delete previous app instance if it exists (e.g. on /reload)
+  try {
+    const existing = getApp(APP_NAME);
+    await deleteApp(existing);
+  } catch {
+    // App doesn't exist yet — that's fine
+  }
+
+  const app: App = initializeApp(
+    {
+      credential: cert(serviceAccount),
+      projectId: config.projectId,
+    },
+    APP_NAME,
+  );
 
   return getFirestore(app);
 }

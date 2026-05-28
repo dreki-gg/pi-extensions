@@ -44,26 +44,37 @@ async function readFirebaseRc(cwd: string): Promise<string | null> {
  * Falls back to `.firebaserc` for projectId when not specified in config.
  * Throws on missing config, invalid JSON, or invalid field types.
  */
+const CONFIG_FILENAMES = ['firestore.json', 'firebase.json'] as const;
+
 export async function loadProjectConfig(
   cwd: string,
 ): Promise<FirestoreProjectConfig> {
-  const configPath = join(cwd, '.pi', 'firestore.json');
+  let raw: string | undefined;
+  let configPath: string | undefined;
 
-  let raw: string;
-  try {
-    raw = await readFile(configPath, 'utf-8');
-  } catch (err: unknown) {
-    if (
-      err instanceof Error &&
-      'code' in err &&
-      (err as NodeJS.ErrnoException).code === 'ENOENT'
-    ) {
+  for (const filename of CONFIG_FILENAMES) {
+    const candidate = join(cwd, '.pi', filename);
+    try {
+      raw = await readFile(candidate, 'utf-8');
+      configPath = candidate;
+      break;
+    } catch (err: unknown) {
+      if (
+        err instanceof Error &&
+        'code' in err &&
+        (err as NodeJS.ErrnoException).code === 'ENOENT'
+      ) {
+        continue;
+      }
       throw new Error(
-        'No .pi/firestore.json found. Create one with at least projectId and serviceAccountKeyPath.',
+        `Failed to read ${candidate}: ${(err as Error).message}`,
       );
     }
+  }
+
+  if (!raw || !configPath) {
     throw new Error(
-      `Failed to read ${configPath}: ${(err as Error).message}`,
+      'No .pi/firestore.json (or .pi/firebase.json) found. Create one with at least projectId and serviceAccountKeyPath.',
     );
   }
 
