@@ -1,7 +1,6 @@
 import type { Firestore } from 'firebase-admin/firestore';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Glob } from 'bun';
 import type { FirestoreProjectConfig } from './config.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -88,27 +87,32 @@ export async function scanCodebase(
   for (const scanPath of config.scanPaths) {
     const basePath = join(cwd, scanPath);
 
-    for (const ext of extensions) {
-      const glob = new Glob(`**/*.${ext}`);
-      for await (const file of glob.scan({
-        cwd: basePath,
-        absolute: false,
-      })) {
-        // Check excludes
-        const shouldExclude = config.scanExclude.some(
-          (pattern) => file.includes(pattern) || file.startsWith(pattern),
-        );
-        if (shouldExclude) continue;
+    let files: string[];
+    try {
+      files = await readdir(basePath, { recursive: true });
+    } catch {
+      continue; // Skip non-existent scan paths
+    }
 
-        try {
-          const fullPath = join(basePath, file);
-          const content = await readFile(fullPath, 'utf-8');
-          const relativePath = join(scanPath, file);
-          const refs = extractCollectionRefs(content, relativePath);
-          allRefs.push(...refs);
-        } catch {
-          // Skip unreadable files
-        }
+    for (const file of files) {
+      // Check extension
+      const ext = file.split('.').pop();
+      if (!ext || !extensions.includes(ext)) continue;
+
+      // Check excludes
+      const shouldExclude = config.scanExclude.some(
+        (pattern) => file.includes(pattern) || file.startsWith(pattern),
+      );
+      if (shouldExclude) continue;
+
+      try {
+        const fullPath = join(basePath, file);
+        const content = await readFile(fullPath, 'utf-8');
+        const relativePath = join(scanPath, file);
+        const refs = extractCollectionRefs(content, relativePath);
+        allRefs.push(...refs);
+      } catch {
+        // Skip unreadable files (directories, binary, etc.)
       }
     }
   }

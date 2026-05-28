@@ -1,5 +1,11 @@
 # @dreki-gg/pi-firestore
 
+## 0.2.2
+
+### Patch Changes
+
+- Fix runtime error: replace `bun` Glob import with Node.js `readdir` for compatibility with pi's jiti loader.
+
 ## 0.2.1
 
 ### Patch Changes
