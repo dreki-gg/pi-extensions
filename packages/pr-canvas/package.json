@@ -1,0 +1,61 @@
+{
+  "name": "@dreki-gg/pi-pr-canvas",
+  "version": "0.2.1",
+  "description": "Visual GitHub Pull Request canvas for pi — generate a self-contained HTML overview of any PR with file tree, diffs, CI checks, comments, and AI-powered mind map",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "github",
+    "pull-request",
+    "canvas",
+    "review"
+  ],
+  "author": "Juan Albarran <jalbarrandev@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dreki-gg/pi-extensions",
+    "directory": "packages/pr-canvas"
+  },
+  "type": "module",
+  "files": [
+    "extensions",
+    "README.md",
+    "CHANGELOG.md",
+    "package.json"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "lint": "oxlint extensions test",
+    "format": "oxfmt --write extensions test",
+    "format:check": "oxfmt --check extensions test"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/pr-canvas"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "oxfmt": "^0.43.0",
+    "oxlint": "^1.58.0",
+    "typescript": "^6.0.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-ai": {
+      "optional": true
+    },
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "typebox": {
+      "optional": true
+    }
+  }
+}

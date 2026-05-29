@@ -1,0 +1,121 @@
+diff --git a/src/middleware/auth.ts b/src/middleware/auth.ts
+new file mode 100644
+index 0000000..a1b2c3d
+--- /dev/null
++++ b/src/middleware/auth.ts
+@@ -0,0 +1,128 @@
++import { verify } from 'jsonwebtoken';
++import type { Request, Response, NextFunction } from 'express';
++
++const JWT_SECRET = process.env.JWT_SECRET ?? 'default-secret';
++
++export interface AuthRequest extends Request {
++  userId?: string;
++}
++
++export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
++  const token = req.headers.authorization?.split(' ')[1];
++
++  if (!token) {
++    return res.status(401).json({ error: 'No token provided' });
++  }
++
++  try {
++    const decoded = verify(token, JWT_SECRET) as { userId: string };
++    req.userId = decoded.userId;
++    next();
++  } catch {
++    return res.status(403).json({ error: 'Invalid token' });
++  }
++}
+diff --git a/src/middleware/token-validator.ts b/src/middleware/token-validator.ts
+new file mode 100644
+index 0000000..d4e5f6g
+--- /dev/null
++++ b/src/middleware/token-validator.ts
+@@ -0,0 +1,89 @@
++import { decode } from 'jsonwebtoken';
++
++export interface TokenPayload {
++  userId: string;
++  exp: number;
++  iat: number;
++}
++
++export function isTokenExpired(token: string): boolean {
++  const payload = decode(token) as TokenPayload | null;
++  if (!payload) return true;
++  return Date.now() >= payload.exp * 1000;
++}
++
++export function extractUserId(token: string): string | null {
++  const payload = decode(token) as TokenPayload | null;
++  return payload?.userId ?? null;
++}
+diff --git a/src/routes/api.ts b/src/routes/api.ts
+index 1234567..89abcde 100644
+--- a/src/routes/api.ts
++++ b/src/routes/api.ts
+@@ -1,8 +1,12 @@
+ import { Router } from 'express';
++import { authMiddleware } from '../middleware/auth';
+ 
+ const router = Router();
+ 
+-router.get('/data', (req, res) => {
++router.get('/public', (req, res) => {
++  res.json({ message: 'Public endpoint' });
++});
++
++router.get('/data', authMiddleware, (req, res) => {
+   res.json({ data: 'protected' });
+ });
+ 
+-router.get('/health', (req, res) => {
++router.get('/health', authMiddleware, (req, res) => {
+   res.json({ status: 'ok' });
+ });
+diff --git a/src/config/deprecated.ts b/src/config/deprecated.ts
+deleted file mode 100644
+index abcdef1..0000000
+--- a/src/config/deprecated.ts
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// This file is no longer needed
+-export const OLD_CONFIG = {
+-  authEnabled: false,
+-  tokenSecret: 'hardcoded-secret',
+-};
+-
+-export function getDeprecatedConfig() {
+-  return OLD_CONFIG;
+-}
+diff --git a/test/auth.test.ts b/test/auth.test.ts
+new file mode 100644
+index 0000000..h7i8j9k
+--- /dev/null
++++ b/test/auth.test.ts
+@@ -0,0 +1,113 @@
++import { describe, it, expect } from 'vitest';
++import { authMiddleware } from '../src/middleware/auth';
++import { isTokenExpired, extractUserId } from '../src/middleware/token-validator';
++
++describe('authMiddleware', () => {
++  it('should reject requests without token', () => {
++    // test implementation
++  });
++
++  it('should accept valid tokens', () => {
++    // test implementation
++  });
++});
++
++describe('token-validator', () => {
++  it('should detect expired tokens', () => {
++    // test implementation
++  });
++});
+diff --git a/assets/logo.png b/assets/logo.png
+new file mode 100644
+index 0000000..1111111
+Binary files /dev/null and b/assets/logo.png differ

@@ -1,0 +1,58 @@
+{
+  "number": 142,
+  "title": "Add authentication middleware",
+  "body": "## Summary\n\nAdds JWT-based authentication middleware for API routes.\n\n### Changes\n- New `auth.ts` middleware\n- Token validation utility\n- Updated API routes to use auth\n- Integration tests\n\n### Testing\n- Unit tests for token validation\n- Integration tests for protected routes",
+  "author": { "login": "jalbarran" },
+  "state": "OPEN",
+  "labels": [
+    { "name": "auth", "color": "0075ca" },
+    { "name": "security", "color": "e4e669" }
+  ],
+  "reviewers": [
+    { "login": "reviewer1" },
+    { "login": "reviewer2" }
+  ],
+  "baseRefName": "main",
+  "headRefName": "feat/auth-middleware",
+  "url": "https://github.com/org/repo/pull/142",
+  "additions": 342,
+  "deletions": 28,
+  "createdAt": "2025-05-20T10:30:00Z",
+  "updatedAt": "2025-05-27T14:15:00Z",
+  "comments": [
+    {
+      "author": { "login": "reviewer1" },
+      "body": "Looks good overall, but can we add rate limiting?",
+      "createdAt": "2025-05-21T09:00:00Z"
+    },
+    {
+      "author": { "login": "jalbarran" },
+      "body": "Good point, I'll add it in a follow-up PR.",
+      "createdAt": "2025-05-21T10:00:00Z"
+    }
+  ],
+  "reviews": [
+    {
+      "author": { "login": "reviewer1" },
+      "state": "COMMENTED",
+      "body": "A few suggestions inline.",
+      "createdAt": "2025-05-22T08:00:00Z",
+      "comments": [
+        {
+          "author": { "login": "reviewer1" },
+          "body": "Consider using a constant for the token expiry.",
+          "createdAt": "2025-05-22T08:05:00Z",
+          "path": "src/middleware/auth.ts",
+          "line": 42
+        }
+      ]
+    },
+    {
+      "author": { "login": "reviewer2" },
+      "state": "APPROVED",
+      "body": "LGTM!",
+      "createdAt": "2025-05-23T11:00:00Z",
+      "comments": []
+    }
+  ]
+}

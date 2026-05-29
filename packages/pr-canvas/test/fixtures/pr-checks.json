@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Build & Test",
+    "state": "SUCCESS",
+    "description": "All tests passed",
+    "detailsUrl": "https://github.com/org/repo/actions/runs/123"
+  },
+  {
+    "name": "Lint",
+    "state": "SUCCESS",
+    "description": "No lint errors",
+    "detailsUrl": "https://github.com/org/repo/actions/runs/124"
+  },
+  {
+    "name": "Security Scan",
+    "state": "FAILURE",
+    "description": "1 vulnerability found",
+    "detailsUrl": "https://github.com/org/repo/actions/runs/125"
+  },
+  {
+    "name": "Deploy Preview",
+    "state": "PENDING",
+    "description": "Waiting for deployment",
+    "detailsUrl": "https://github.com/org/repo/actions/runs/126"
+  }
+]

@@ -20,7 +20,7 @@
     },
     "packages/ask-mode": {
       "name": "@dreki-gg/pi-ask-mode",
-      "version": "0.3.2",
+      "version": "0.3.3",
       "dependencies": {
         "@dreki-gg/pi-command-sandbox": "workspace:*",
       },
@@ -89,7 +89,7 @@
     },
     "packages/command-sandbox": {
       "name": "@dreki-gg/pi-command-sandbox",
-      "version": "0.2.1",
+      "version": "0.3.0",
       "dependencies": {
         "shell-quote": "^1.8.3",
       },
@@ -163,7 +163,7 @@
     },
     "packages/firestore": {
       "name": "@dreki-gg/pi-firestore",
-      "version": "0.1.0",
+      "version": "0.2.4",
       "dependencies": {
         "firebase-admin": "^13.4.0",
       },
@@ -224,7 +224,7 @@
     },
     "packages/plan-mode": {
       "name": "@dreki-gg/pi-plan-mode",
-      "version": "0.14.4",
+      "version": "0.15.0",
       "bin": {
         "pi-plan-mode": "./bin/clean-plans.js",
       },
@@ -246,6 +246,26 @@
       "optionalPeers": [
         "@earendil-works/pi-coding-agent",
         "@earendil-works/pi-tui",
+      ],
+    },
+    "packages/pr-canvas": {
+      "name": "@dreki-gg/pi-pr-canvas",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/node": "24",
+        "oxfmt": "^0.43.0",
+        "oxlint": "^1.58.0",
+        "typescript": "^6.0.0",
+      },
+      "peerDependencies": {
+        "@earendil-works/pi-ai": "*",
+        "@earendil-works/pi-coding-agent": "*",
+        "typebox": "*",
+      },
+      "optionalPeers": [
+        "@earendil-works/pi-ai",
+        "@earendil-works/pi-coding-agent",
+        "typebox",
       ],
     },
     "packages/questionnaire": {
@@ -481,6 +501,8 @@
     "@dreki-gg/pi-modes": ["@dreki-gg/pi-modes@workspace:packages/modes"],
 
     "@dreki-gg/pi-plan-mode": ["@dreki-gg/pi-plan-mode@workspace:packages/plan-mode"],
+
+    "@dreki-gg/pi-pr-canvas": ["@dreki-gg/pi-pr-canvas@workspace:packages/pr-canvas"],
 
     "@dreki-gg/pi-questionnaire": ["@dreki-gg/pi-questionnaire@workspace:packages/questionnaire"],
 
