@@ -20,6 +20,7 @@
   "type": "module",
   "files": [
     "extensions",
+    "app/.output",
     "README.md",
     "CHANGELOG.md",
     "package.json"
@@ -27,6 +28,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test",
+    "build": "cd app && npx vinxi build",
+    "dev": "cd app && npx vinxi dev",
     "lint": "oxlint extensions test",
     "format": "oxfmt --write extensions test",
     "format:check": "oxfmt --check extensions test"
@@ -36,7 +39,12 @@
       "./extensions/pr-canvas"
     ]
   },
+  "dependencies": {
+    "effect": "^3.12.0",
+    "ws": "^8.18.0"
+  },
   "devDependencies": {
+    "@types/ws": "^8.5.0",
     "@types/node": "24",
     "oxfmt": "^0.43.0",
     "oxlint": "^1.58.0",
