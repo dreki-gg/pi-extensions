@@ -18,8 +18,11 @@ export default function DiffPreview(props: DiffPreviewProps) {
     if (!containerRef || !rawDiff) return;
 
     const mod = await loadModule();
-    const patchFiles = mod.parsePatchFiles(rawDiff);
-    if (!patchFiles || patchFiles.length === 0) return;
+    // parsePatchFiles returns ParsedPatch[], each with a files: FileDiffMetadata[].
+    // Flatten to the individual file diffs CodeView expects as `fileDiff`.
+    const parsed = mod.parsePatchFiles(rawDiff);
+    const fileDiffs = parsed.flatMap((patch) => patch.files);
+    if (fileDiffs.length === 0) return;
 
     // Cleanup previous viewer
     if (currentViewer) {
@@ -40,7 +43,7 @@ export default function DiffPreview(props: DiffPreviewProps) {
 
     currentViewer.setup(containerRef);
 
-    const items = patchFiles.map((fileDiff: unknown, i: number) => ({
+    const items = fileDiffs.map((fileDiff, i) => ({
       id: `diff-${i}`,
       type: 'diff' as const,
       fileDiff,

@@ -1,5 +1,11 @@
 # @dreki-gg/pi-pr-canvas
 
+## 1.2.1
+
+### Patch Changes
+
+- Fix diff viewer crash (`Cannot read properties of undefined (reading 'entries')`). `parsePatchFiles` returns `ParsedPatch[]` where each patch holds a `files: FileDiffMetadata[]` array; the CodeView diff items were built from the `ParsedPatch` objects directly instead of the inner file diffs. Now flatten to the individual `FileDiffMetadata` items so CodeView can render hunks correctly.
+
 ## 1.2.0
 
 ### Minor Changes
