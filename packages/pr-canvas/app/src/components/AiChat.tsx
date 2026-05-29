@@ -32,7 +32,7 @@ export default function AiChat(props: AiChatProps) {
       </button>
 
       <Show when={open()}>
-        <aside class="ai-chat-panel" aria-label="AI chat">
+        <aside class="ai-chat-window" aria-label="AI chat">
           <div class="ai-chat-header">
             <h2 class="ai-chat-title">
               <Icon name="robot" size={16} />

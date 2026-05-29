@@ -1,10 +1,9 @@
 import { useParams } from '@solidjs/router';
 import { Show } from 'solid-js';
 import { usePrStore } from '~/lib/context';
-import Overview from '~/components/canvas/Overview';
-import Comments from '~/components/canvas/Comments';
+import Checks from '~/components/canvas/Checks';
 
-export default function OverviewTab() {
+export default function ChecksTab() {
   const params = useParams();
   const { store } = usePrStore();
   const pr = () =>
@@ -16,8 +15,7 @@ export default function OverviewTab() {
     <Show when={pr()}>
       {(data) => (
         <div class="tab-content">
-          <Overview pr={data().data.overview} />
-          <Comments comments={data().data.comments} reviews={data().data.reviews} />
+          <Checks checks={data().data.checks} />
         </div>
       )}
     </Show>

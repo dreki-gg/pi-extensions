@@ -1,5 +1,17 @@
 # @dreki-gg/pi-pr-canvas
 
+## 1.5.0
+
+### Minor Changes
+
+- Restructure the PR view into a shared layout: sticky header (number, title, status, branches, lines changed, GitHub link, back link on the right), a tab bar, and child routes for Overview, Files changed, Mind Map, and PR Checks. AI Summary moves to a floating right sidebar and Ask AI becomes a compact floating chat window. Removes the old left navigation sidebar and context bar.
+
+## 1.4.0
+
+### Minor Changes
+
+- Files changed view: collapsible folder tree (@pierre/trees) in the left rail replacing the flat file list, plus keyboard navigation (j/k or [ ] to move between files). UI polish for the rail header and tree theming.
+
 ## 1.3.0
 
 ### Minor Changes
