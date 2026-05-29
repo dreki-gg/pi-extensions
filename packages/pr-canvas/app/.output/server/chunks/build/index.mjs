@@ -1,13 +1,20 @@
-import { ssr, ssrHydrationKey, escape, createComponent } from 'solid-js/web';
-import { onMount, Show, For } from 'solid-js';
+import { C as ssr, o as escape, f as createComponent, G as ssrHydrationKey, S as Show, F as For } from '../nitro/nitro.mjs';
 import { m as mt, h as ht } from './context-VkJfzLEW.mjs';
 import { A } from './components-u6vAPa9_.mjs';
-import 'solid-js/store';
+import 'node:http';
+import 'node:https';
+import 'node:events';
+import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
+import 'node:async_hooks';
+import 'node:url';
 
 var h = ["<div", ' class="error-banner">', "</div>"], m = ["<div", ' class="pr-list">', "</div>"], g = ["<div", ' class="dashboard"><!--$-->', '<!--/--><header class="dashboard-header"><h1>PR Canvas</h1><p class="dashboard-subtitle">Select a Pull Request to review</p></header><!--$-->', "<!--/--><!--$-->", "<!--/--></div>"], v = ["<div", ' class="pr-card-header"><span class="pr-number">#<!--$-->', '<!--/--></span><span class="', '">', "</span></div>"], $ = ["<h3", ' class="pr-title">', "</h3>"], f = ["<span", ' class="pr-date">', "</span>"], b = ["<div", ' class="pr-card-meta"><span class="pr-author">\u{1F464} <!--$-->', '<!--/--></span><span class="pr-stats"><span class="stat-add">+<!--$-->', '<!--/--></span> <span class="stat-del">\u2212<!--$-->', "<!--/--></span></span><!--$-->", "<!--/--></div>"], w = ["<div", ' class="loading-state"><div class="spinner"></div><p>Loading pull requests...</p></div>'], _ = ["<div", ` class="empty-state"><p>No open pull requests found.</p><p class="empty-hint">Make sure you're in a Git repository with open PRs.</p></div>`];
 function q() {
   const { store: n, loadPrList: d } = mt();
-  return onMount(() => d()), ssr(g, ssrHydrationKey(), escape(createComponent(ht, { children: "PR Canvas" })), escape(createComponent(Show, { get when() {
+  return ssr(g, ssrHydrationKey(), escape(createComponent(ht, { children: "PR Canvas" })), escape(createComponent(Show, { get when() {
     return n.error;
   }, get children() {
     return ssr(h, ssrHydrationKey(), escape(n.error));

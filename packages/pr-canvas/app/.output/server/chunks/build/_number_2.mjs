@@ -1,6 +1,4 @@
-import { ssr, ssrHydrationKey, escape, createComponent, ssrAttribute } from 'solid-js/web';
-import { onMount, Show, createSignal, onCleanup, For } from 'solid-js';
-import { c as ct, m as mt, h as ht } from '../nitro/nitro.mjs';
+import { n as ct, v as mt, C as ssr, o as escape, f as createComponent, S as Show, G as ssrHydrationKey, r as ht, k as createSignal, F as For, D as ssrAttribute } from '../nitro/nitro.mjs';
 import { A } from './components-u6vAPa9_2.mjs';
 import 'node:http';
 import 'node:https';
@@ -10,29 +8,13 @@ import 'node:fs';
 import 'node:path';
 import 'node:crypto';
 import 'node:async_hooks';
-import 'vinxi/lib/invariant';
-import 'vinxi/lib/path';
 import 'node:url';
-import 'solid-js/web/storage';
-import 'seroval';
-import 'seroval-plugins/web';
-import 'solid-js/store';
 
 var I = ["<aside", ' class="canvas-sidebar"><!--$-->', '<!--/--><nav class="sidebar-nav" aria-label="Pull request sections">', "</nav></aside>"], R = ["<button", ' type="button" class="', '"><span class="sidebar-nav-icon" aria-hidden="true">', '</span><span class="sidebar-nav-label">', "</span></button>"];
 function D(t) {
   var _a, _b;
   const [s, c] = createSignal((_b = (_a = t.sections[0]) == null ? void 0 : _a.id) != null ? _b : "");
-  return onMount(() => {
-    const o = new IntersectionObserver((r) => {
-      const l = r.filter((h) => h.isIntersecting).sort((h, u) => u.intersectionRatio - h.intersectionRatio)[0];
-      (l == null ? void 0 : l.target.id) && c(l.target.id);
-    }, { rootMargin: "-20% 0px -65% 0px", threshold: [0.1, 0.25, 0.5] });
-    for (const r of t.sections) {
-      const l = document.getElementById(r.id);
-      l && o.observe(l);
-    }
-    onCleanup(() => o.disconnect());
-  }), ssr(I, ssrHydrationKey(), escape(createComponent(A, { href: "/", class: "sidebar-dashboard-link", children: "\u2190 Dashboard" })), escape(createComponent(For, { get each() {
+  return ssr(I, ssrHydrationKey(), escape(createComponent(A, { href: "/", class: "sidebar-dashboard-link", children: "\u2190 Dashboard" })), escape(createComponent(For, { get each() {
     return t.sections;
   }, children: (o) => ssr(R, ssrHydrationKey(), `sidebar-nav-link ${s() === o.id ? "sidebar-nav-link-active" : ""}`, escape(o.icon), escape(o.label)) })));
 }
@@ -69,8 +51,7 @@ function x(t) {
 }
 var H = ["<section", ' id="section-file-tree" class="canvas-section file-tree-section"><div class="section-header"><h2 class="section-title">File Tree</h2></div><div class="pr-card file-tree-container"></div></section>'];
 function B(t) {
-  return onMount(async () => {
-  }), ssr(H, ssrHydrationKey());
+  return ssr(H, ssrHydrationKey());
 }
 var j = ["<section", ' id="section-mind-map" class="canvas-section mind-map-section"><div class="section-header"><h2 class="section-title">Mind Map</h2></div><div class="mind-map-grid">', "</div></section>"], G = ["<article", ' class="pr-card mind-map-card"><div class="mind-map-card-header"><span class="', '">', '</span><h3 class="mind-map-title">', '</h3></div><p class="mind-map-description">', '</p><ul class="mind-map-files">', "</ul></article>"], K = ["<li", ' class="mind-map-file">', "</li>"];
 function V(t) {
@@ -83,8 +64,7 @@ function V(t) {
 var z = ["<section", ' id="section-diff-preview" class="canvas-section diff-preview-section"><div class="section-header"><h2 class="section-title">Diffs</h2><button type="button" class="diff-layout-toggle">', '</button></div><div class="pr-card diff-preview-container"></div></section>'];
 function J(t) {
   const [s, c] = createSignal("stacked");
-  return onMount(async () => {
-  }), ssr(z, ssrHydrationKey(), s() === "stacked" ? "Split view" : "Unified view");
+  return ssr(z, ssrHydrationKey(), s() === "stacked" ? "Split view" : "Unified view");
 }
 var Q = ["<section", ' id="section-checks" class="canvas-section checks-section"><div class="section-header"><h2 class="section-title">CI Checks</h2></div><div class="pr-card checks-summary"><span class="check-success"><!--$-->', '<!--/--> passed</span><span class="check-failure"><!--$-->', '<!--/--> failed</span><span class="check-pending"><!--$-->', '<!--/--> pending</span></div><div class="checks-list">', "</div></section>"], W = ["<article", ' class="pr-card check-item"><span class="', '">', '</span><div class="check-content"><h3 class="check-name">', '</h3><p class="check-description">', '</p><a class="check-details-link"', ' target="_blank" rel="noreferrer">Details</a></div></article>'];
 const g = (t) => t.toUpperCase() === "SUCCESS", b = (t) => ["FAILURE", "FAILED", "ERROR"].includes(t.toUpperCase()), X = (t) => g(t) ? "\u2713" : b(t) ? "\u2717" : "\u25CB", Y = (t) => g(t) ? "check-success" : b(t) ? "check-failure" : "check-pending";
@@ -129,9 +109,7 @@ var me = ["<div", ' class="error-banner">', "</div>"], pe = ["<div", ' class="pr
 const $e = [{ id: "section-overview", label: "Overview", icon: "\u{1F4CB}" }, { id: "section-file-tree", label: "File Tree", icon: "\u{1F4C1}" }, { id: "section-mind-map", label: "Mind Map", icon: "\u{1F9E0}" }, { id: "section-diff-preview", label: "Diffs", icon: "\u{1F4DD}" }, { id: "section-checks", label: "CI Checks", icon: "\u2705" }, { id: "section-comments", label: "Comments", icon: "\u{1F4AC}" }, { id: "section-ai-summary", label: "AI Summary", icon: "\u{1F916}" }];
 function _e() {
   const t = ct(), { store: s, loadPr: c, subscribePr: o } = mt(), r = () => Number(t.number);
-  return onMount(() => {
-    c(r()), o(r());
-  }), ssr(pe, ssrHydrationKey(), escape(createComponent(ht, { get children() {
+  return ssr(pe, ssrHydrationKey(), escape(createComponent(ht, { get children() {
     return ["PR #", t.number, " \xB7 PR Canvas"];
   } })), escape(createComponent(D, { sections: $e })), escape(createComponent(Show, { get when() {
     return s.error;

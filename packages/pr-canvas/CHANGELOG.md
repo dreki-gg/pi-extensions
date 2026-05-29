@@ -1,5 +1,11 @@
 # @dreki-gg/pi-pr-canvas
 
+## 1.0.3
+
+### Patch Changes
+
+- Fix server start: set `noExternals: true` in Nitro config so vinxi runtime helpers are bundled into the output. The server build is now fully self-contained with no external dependencies required at runtime.
+
 ## 1.0.2
 
 ### Patch Changes

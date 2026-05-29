@@ -1,6 +1,4 @@
-import { useContext, createContext, createUniqueId, createMemo, createRenderEffect, onCleanup, sharedConfig, createSignal, on, runWithOwner, getOwner, startTransition, resetErrorBoundaries, batch, untrack, createComponent as createComponent$1 } from 'solid-js';
-import { isServer, createComponent, useAssets, ssr, spread, escape, getRequestEvent } from 'solid-js/web';
-import { createStore } from 'solid-js/store';
+import { L as useContext, g as createContext, f as createComponent, K as useAssets, y as onCleanup, k as createSignal, l as createStore, h as createMemo, i as createRenderEffect, x as on, z as runWithOwner, q as getRequestEvent, J as untrack, p as getOwner, C as ssr, o as escape, I as startTransition, s as isServer, d as batch, m as createUniqueId } from '../nitro/nitro.mjs';
 
 function je() {
   let r = /* @__PURE__ */ new Set();
@@ -17,27 +15,6 @@ function je() {
     return !a.defaultPrevented;
   }
   return { subscribe: n, confirm: t };
-}
-let k;
-function oe() {
-  (!window.history.state || window.history.state._depth == null) && window.history.replaceState({ ...window.history.state, _depth: window.history.length - 1 }, ""), k = window.history.state._depth;
-}
-isServer || oe();
-function rt(r) {
-  return { ...r, _depth: window.history.state && window.history.state._depth };
-}
-function ot(r, n) {
-  let e = false;
-  return () => {
-    const t = k;
-    oe();
-    const o = t == null ? null : k - t;
-    if (e) {
-      e = false;
-      return;
-    }
-    o && n(o) ? (e = true, window.history.go(-o)) : r();
-  };
 }
 const Le = /^(?:[a-z0-9]+:)?\/\//i, Me = /^\/+|(\/)\/+$/g, Ne = "http://sr";
 function A(r, n = false) {
@@ -182,7 +159,7 @@ function He(r, n, e) {
     } catch {
       return console.error(`Invalid path ${m}`), c;
     }
-  }, t, { equals: (c, m) => c.href === m.href }), s = createMemo(() => o().pathname), a = createMemo(() => o().search, true), i = createMemo(() => o().hash), d = () => "", l = on(a, () => se(o()));
+  }, t), s = createMemo(() => o().pathname), a = createMemo(() => o().search, true), i = createMemo(() => o().hash), d = () => "", l = on(a, () => se(o()));
   return { get pathname() {
     return s();
   }, get search() {
@@ -207,13 +184,13 @@ function ut(r, n, e, t = {}) {
   let h;
   const y = (u, f) => {
     f.value === P() && f.state === $() || (h === void 0 && p(true), w = u, h = f, startTransition(() => {
-      h === f && (R(h.value), he(h.state), resetErrorBoundaries(), isServer || D[1]((g) => g.filter((C) => C.pending)));
+      h === f && (R(h.value), he(h.state), isServer);
     }).finally(() => {
       h === f && batch(() => {
-        w = void 0, u === "navigate" && ye(h), p(false), h = void 0;
+        w = void 0, p(false), h = void 0;
       });
     }));
-  }, [P, R] = createSignal(o().value), [$, he] = createSignal(o().state), j = He(P, $, a.queryWrapper), L = [], D = createSignal(isServer ? Pe() : []), H = createMemo(() => typeof t.transformUrl == "function" ? F(n(), t.transformUrl(j.pathname)) : F(n(), j.pathname)), J = () => {
+  }, [P, R] = createSignal(o().value), [$, he] = createSignal(o().state), j = He(P, $, a.queryWrapper), L = [], D = createSignal(Pe() ), H = createMemo(() => typeof t.transformUrl == "function" ? F(n(), t.transformUrl(j.pathname)) : F(n(), j.pathname)), J = () => {
     const u = H(), f = {};
     for (let g = 0; g < u.length; g++) Object.assign(f, u[g].params);
     return f;
@@ -231,18 +208,14 @@ function ut(r, n, e, t = {}) {
       if (x === void 0) throw new Error(`Path '${f}' is not a routable path`);
       if (L.length >= Ie) throw new Error("Too many redirects");
       const G = P();
-      if (x !== G || S !== $()) if (isServer) {
+      if (x !== G || S !== $()) {
         const V = getRequestEvent();
         V && (V.response = { status: 302, headers: new Headers({ Location: x }) }), s({ value: x, replace: M, scroll: N, state: S });
-      } else l.confirm(x, g) && (L.push({ value: G, replace: M, scroll: N, state: $() }), y("navigate", { value: x, state: S }));
+      }
     });
   }
   function ge(u) {
     return u = u || useContext(ce) || z, (f, g) => me(u, f, g);
-  }
-  function ye(u) {
-    const f = L[0];
-    f && (s({ ...u, replace: f.replace, scroll: f.scroll }), L.length = 0);
   }
   function ve(u, f) {
     const g = F(n(), u.pathname), C = w;
@@ -264,7 +237,7 @@ function dt(r, n, e, t) {
   const { base: o, location: s, params: a } = r, { pattern: i, component: d, preload: l } = t().route, c = createMemo(() => t().path);
   d && d.preload && d.preload();
   const m = l ? l({ params: a, location: s, intent: w || "initial" }) : void 0;
-  return { parent: n, pattern: i, path: c, outlet: () => d ? createComponent$1(d, { params: a, location: s, data: m, get children() {
+  return { parent: n, pattern: i, path: c, outlet: () => d ? createComponent(d, { params: a, location: s, data: m, get children() {
     return e();
   } }) : e(), resolvePath(h) {
     return _(o.path(), h, c());
@@ -274,48 +247,6 @@ const ue = createContext(), de = ["title", "meta"], U = [], K = ["name", "http-e
   const e = Object.fromEntries(Object.entries(r.props).filter(([t]) => n.includes(t)).sort());
   return (Object.hasOwn(e, "name") || Object.hasOwn(e, "property")) && (e.name = e.name || e.property, delete e.property), r.tag + JSON.stringify(e);
 };
-function Je() {
-  if (!sharedConfig.context) {
-    const e = document.head.querySelectorAll("[data-sm]");
-    Array.prototype.forEach.call(e, (t) => t.parentNode.removeChild(t));
-  }
-  const r = /* @__PURE__ */ new Map();
-  function n(e) {
-    if (e.ref) return e.ref;
-    let t = document.querySelector(`[data-sm="${e.id}"]`);
-    return t ? (t.tagName.toLowerCase() !== e.tag && (t.parentNode && t.parentNode.removeChild(t), t = document.createElement(e.tag)), t.removeAttribute("data-sm")) : t = document.createElement(e.tag), t;
-  }
-  return { addTag(e) {
-    if (de.indexOf(e.tag) !== -1) {
-      const s = e.tag === "title" ? U : K, a = q(e, s);
-      r.has(a) || r.set(a, []);
-      let i = r.get(a), d = i.length;
-      i = [...i, e], r.set(a, i);
-      let l = n(e);
-      e.ref = l, spread(l, e.props);
-      let c = null;
-      for (var t = d - 1; t >= 0; t--) if (i[t] != null) {
-        c = i[t];
-        break;
-      }
-      return l.parentNode != document.head && document.head.appendChild(l), c && c.ref && c.ref.parentNode && document.head.removeChild(c.ref), d;
-    }
-    let o = n(e);
-    return e.ref = o, spread(o, e.props), o.parentNode != document.head && document.head.appendChild(o), -1;
-  }, removeTag(e, t) {
-    const o = e.tag === "title" ? U : K, s = q(e, o);
-    if (e.ref) {
-      const a = r.get(s);
-      if (a) {
-        if (e.ref.parentNode) {
-          e.ref.parentNode.removeChild(e.ref);
-          for (let i = t - 1; i >= 0; i--) a[i] != null && document.head.appendChild(a[i].ref);
-        }
-        a[t] = null, r.set(s, a);
-      } else e.ref.parentNode && e.ref.parentNode.removeChild(e.ref);
-    }
-  } };
-}
 function ze() {
   const r = [];
   return useAssets(() => ssr(Xe(r))), { addTag(n) {
@@ -328,7 +259,7 @@ function ze() {
   } };
 }
 const ft = (r) => {
-  const n = isServer ? ze() : Je();
+  const n = ze() ;
   return createComponent(ue.Provider, { value: n, get children() {
     return r.children;
   } });
@@ -425,5 +356,5 @@ function mt() {
   return r;
 }
 
-export { A, De as D, F, Ne as N, Fe as a, at as b, ce as c, ct as d, dt as e, ft as f, ot as g, ht as h, it as i, je as j, lt as l, mt as m, oe as o, pt as p, rt as r, st as s, ut as u };
+export { A, De as D, F, Fe as a, at as b, ce as c, ct as d, dt as e, ft as f, ht as h, it as i, lt as l, mt as m, pt as p, st as s, ut as u };
 //# sourceMappingURL=context-VkJfzLEW.mjs.map

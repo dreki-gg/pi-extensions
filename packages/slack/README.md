@@ -18,26 +18,60 @@ Uses [Effect](https://effect.website) for the Slack client layer (typed errors, 
 
 ### 1. Create a Slack App
 
-Create a Slack app at [api.slack.com/apps](https://api.slack.com/apps) with these bot token scopes:
+Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**. Give it a name (e.g. `pi-context`) and select your workspace.
 
-- `channels:history` — read public channel messages
-- `channels:read` — list public channels
-- `groups:history` — read private channel messages
-- `groups:read` — list private channels
-- `im:history` — read DMs
-- `files:read` — access file info and downloads
-- `search:read` — search messages (user token only)
+### 2. Add OAuth scopes
 
-### 2. Set environment variables
+In the left sidebar → **OAuth & Permissions** → scroll to **Scopes**.
+
+**Bot Token Scopes** (for `SLACK_BOT_TOKEN`):
+
+| Scope | Enables |
+|-------|---------|
+| `channels:read` | list public channels |
+| `channels:history` | read public channel messages |
+| `groups:read` | list private channels |
+| `groups:history` | read private channel messages |
+| `im:history` | read DMs |
+| `files:read` | file info + image/file downloads |
+
+**User Token Scopes** (for `SLACK_USER_TOKEN` — only needed for `slack_search`):
+
+| Scope | Enables |
+|-------|---------|
+| `search:read` | `slack_search` tool |
+
+> `search.messages` is only available with a **user** token — bots cannot search. Skip the user token entirely if you don't need search.
+
+### 3. Install to workspace
+
+Still on **OAuth & Permissions** → click **Install to Workspace** at the top → authorize. (If your workspace requires admin approval, an admin must approve it.)
+
+### 4. Copy the tokens
+
+After installing, the same page shows:
+
+- **Bot User OAuth Token** — starts with `xoxb-` → your `SLACK_BOT_TOKEN`
+- **User OAuth Token** — starts with `xoxp-` → your `SLACK_USER_TOKEN`
 
 ```bash
 export SLACK_BOT_TOKEN=xoxb-...
-export SLACK_USER_TOKEN=xoxp-...  # Optional, needed for search
+export SLACK_USER_TOKEN=xoxp-...  # Optional, needed for slack_search
 ```
 
-### 3. Optional project config
+### 5. Invite the bot to channels
 
-Create `.pi/slack.json` in your project:
+A bot token can only read channels the bot is **a member of**. In each Slack channel you want the agent to read, type:
+
+```
+/invite @your-app-name
+```
+
+Otherwise `slack_read_messages` returns `not_in_channel`.
+
+### 6. Optional project config
+
+Create `.pi/slack.json` in your project to set a default channel and message limit:
 
 ```json
 {
@@ -45,6 +79,14 @@ Create `.pi/slack.json` in your project:
   "messageLimit": 50
 }
 ```
+
+## Finding channel IDs
+
+Open a channel in Slack → click the channel name → scroll to the bottom of the popup; the ID (`C0123ABC456`) is shown there. Or run `slack_list_channels` once the bot is installed to list channels with their IDs.
+
+## Checking status
+
+Run `/slack` in pi to see token detection and project config status.
 
 ## Install
 
