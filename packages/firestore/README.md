@@ -19,7 +19,9 @@ pi install npm:@dreki-gg/pi-firestore
 
 ### 3. Configure your project
 
-Create `.pi/firestore.json` in your project root:
+Create `.pi/firestore.json` in your project root.
+
+Single-environment config is still supported:
 
 ```json
 {
@@ -28,16 +30,40 @@ Create `.pi/firestore.json` in your project root:
 }
 ```
 
+For multiple Firebase/Firestore environments, use `environments` and pick a default:
+
+```json
+{
+  "defaultEnvironment": "development",
+  "environments": {
+    "development": {
+      "projectId": "my-firebase-project-dev",
+      "serviceAccountKeyPath": "./service-account.dev.json",
+      "defaultCollection": "users"
+    },
+    "staging": {
+      "projectId": "my-firebase-project-staging",
+      "serviceAccountKeyPath": "./service-account.staging.json"
+    }
+  },
+  "maxSampleSize": 10,
+  "scanPaths": ["src"],
+  "scanExclude": ["node_modules", "dist", ".git"]
+}
+```
+
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
-| `projectId` | `string` | **Required.** GCP/Firebase project ID. Falls back to `.firebaserc` default project. | — |
-| `serviceAccountKeyPath` | `string` | **Required.** Path to service account JSON (relative to project root). | — |
-| `defaultCollection` | `string` | Default collection for queries. | _(none)_ |
-| `maxSampleSize` | `number` | Documents per collection to sample for relation analysis. | `10` |
-| `scanPaths` | `string[]` | Directories to scan for codebase relation analysis. | `["."]` |
-| `scanExclude` | `string[]` | Patterns to exclude from codebase scan. | `["node_modules", "dist", ".git"]` |
+| `defaultEnvironment` | `string` | Environment used when a tool call does not specify `environment`. | First configured environment |
+| `environments` | `Record<string, EnvironmentConfig>` | Named Firebase/Firestore environments. Each environment has its own project and service account. | — |
+| `projectId` | `string` | **Required in single-environment config.** GCP/Firebase project ID. Falls back to `.firebaserc` default project only in single-environment config. | — |
+| `serviceAccountKeyPath` | `string` | **Required in single-environment config.** Path to service account JSON (relative to project root). | — |
+| `defaultCollection` | `string` | Default collection for queries. In multi-environment config this belongs inside each environment. | _(none)_ |
+| `maxSampleSize` | `number` | Documents per collection to sample for relation analysis. Shared by all environments. | `10` |
+| `scanPaths` | `string[]` | Directories to scan for codebase relation analysis. Shared by all environments. | `["."]` |
+| `scanExclude` | `string[]` | Patterns to exclude from codebase scan. Shared by all environments. | `["node_modules", "dist", ".git"]` |
 
-> **Tip:** If you have a `.firebaserc` file, the `projectId` is read from its `projects.default` automatically.
+> **Tip:** If you have a `.firebaserc` file, the `projectId` is read from its `projects.default` automatically for the legacy single-environment config.
 
 ## Usage
 
@@ -61,6 +87,7 @@ List top-level collections or subcollections of a document.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
+| `environment` | `string?` | Configured environment name (e.g. `development`, `staging`). Defaults to `defaultEnvironment`. |
 | `path` | `string?` | Document path to list subcollections (e.g. `users/abc123`). Omit for top-level. |
 
 #### `firestore_query`
@@ -69,6 +96,7 @@ Query documents with filters, ordering, and pagination.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
+| `environment` | `string?` | Configured environment name. Defaults to `defaultEnvironment`. |
 | `collection` | `string` | **Required.** Collection path (e.g. `users` or `users/abc/orders`) |
 | `where` | `array?` | Filter conditions: `[{field, op, value}]` |
 | `orderBy` | `object?` | Sort: `{field, direction}` (asc/desc) |
@@ -83,6 +111,7 @@ Get a single document by full path, including subcollection list.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
+| `environment` | `string?` | Configured environment name. Defaults to `defaultEnvironment`. |
 | `path` | `string` | **Required.** Full document path (e.g. `users/abc123`) |
 
 #### `firestore_count`
@@ -91,6 +120,7 @@ Count documents in a collection with optional filters.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
+| `environment` | `string?` | Configured environment name. Defaults to `defaultEnvironment`. |
 | `collection` | `string` | **Required.** Collection path |
 | `where` | `array?` | Filter conditions (same format as query) |
 
@@ -100,6 +130,7 @@ Build a relation map between collections by scanning your codebase and analyzing
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
+| `environment` | `string?` | Configured environment name. Defaults to `defaultEnvironment`. |
 | `collections` | `string[]?` | Specific collections to analyze. Omit for all. |
 
 **How it works:**
@@ -115,13 +146,22 @@ Check your configuration and connection status:
 /firestore
 ```
 
-Shows: config status, project ID, service account status, Firestore client status, top-level collections.
+Check a specific environment:
+
+```
+/firestore staging
+```
+
+Shows: config status, available environments, selected environment, project ID, service account status, Firestore client status, top-level collections.
 
 ## Query Examples
 
 ```
-# List all collections
+# List all collections in the default environment
 → firestore_list_collections
+
+# List all collections in staging
+→ firestore_list_collections environment:"staging"
 
 # Get orders for a specific user
 → firestore_query collection:"orders" where:[{field:"userId", op:"==", value:"abc123"}]
@@ -141,8 +181,8 @@ Shows: config status, project ID, service account status, Firestore client statu
 
 ## How It Works
 
-1. The extension loads `.pi/firestore.json` and initializes Firebase Admin SDK on session start
-2. When the agent calls a tool, it uses the authenticated Firestore client to execute queries
+1. The extension loads `.pi/firestore.json` and initializes Firebase Admin SDK for the default environment on session start
+2. When a tool call specifies `environment`, the extension initializes and reuses a separate Firebase app for that environment
 3. Results are formatted as markdown with truncation to fit LLM context windows
 4. The relation map combines static code analysis with live data analysis for comprehensive relationship detection
 

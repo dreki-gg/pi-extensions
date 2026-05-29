@@ -56,9 +56,7 @@ export function createMessageHandlers(exec: ExecFn, aiChat?: AiChatFn) {
                 Effect.catchAll(() => Effect.succeed([])),
               ),
             ),
-            Effect.runPromise(
-              fetchCommentsAndReviews(prRef).pipe(Effect.provide(execLayer)),
-            ),
+            Effect.runPromise(fetchCommentsAndReviews(prRef).pipe(Effect.provide(execLayer))),
           ]);
 
           const files = parseDiff(rawDiff);

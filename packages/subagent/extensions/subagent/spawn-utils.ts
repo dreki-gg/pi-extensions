@@ -49,12 +49,19 @@ async function writePromptToTempFile(
   return { dir: tmpDir, filePath };
 }
 
-function cleanupTempFiles(
-  tmpPromptPath: string | null,
-  tmpPromptDir: string | null,
-): void {
-  if (tmpPromptPath) try { fs.unlinkSync(tmpPromptPath); } catch { /* ignore */ }
-  if (tmpPromptDir) try { fs.rmdirSync(tmpPromptDir); } catch { /* ignore */ }
+function cleanupTempFiles(tmpPromptPath: string | null, tmpPromptDir: string | null): void {
+  if (tmpPromptPath)
+    try {
+      fs.unlinkSync(tmpPromptPath);
+    } catch {
+      /* ignore */
+    }
+  if (tmpPromptDir)
+    try {
+      fs.rmdirSync(tmpPromptDir);
+    } catch {
+      /* ignore */
+    }
 }
 
 export interface ToolExecutionStartEvent {

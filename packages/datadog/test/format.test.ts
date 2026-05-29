@@ -82,9 +82,7 @@ describe('formatSearchResult', () => {
   });
 
   it('shows pagination notice when cursor present', () => {
-    const result = formatSearchResult(
-      makeResult({ cursor: 'abc123' }),
-    );
+    const result = formatSearchResult(makeResult({ cursor: 'abc123' }));
     expect(result).toContain('More results available');
   });
 

@@ -101,9 +101,7 @@ export function validateDocumentPath(path: string): void {
  */
 export function parseWhereOp(op: string): FirestoreOp {
   if (!VALID_OPS.includes(op as FirestoreOp)) {
-    throw new Error(
-      `Invalid operator "${op}". Valid operators: ${VALID_OPS.join(', ')}`,
-    );
+    throw new Error(`Invalid operator "${op}". Valid operators: ${VALID_OPS.join(', ')}`);
   }
   return op as FirestoreOp;
 }
@@ -117,10 +115,7 @@ const MAX_LIMIT = 100;
  * Lists collections. If docPath is provided, lists subcollections of that doc.
  * Otherwise lists top-level collections.
  */
-export async function listCollections(
-  db: Firestore,
-  docPath?: string,
-): Promise<CollectionInfo[]> {
+export async function listCollections(db: Firestore, docPath?: string): Promise<CollectionInfo[]> {
   let refs: FirebaseFirestore.CollectionReference[];
 
   if (docPath) {
@@ -140,10 +135,7 @@ export async function listCollections(
 /**
  * Queries documents from a collection with optional filters, ordering, and pagination.
  */
-export async function queryDocuments(
-  db: Firestore,
-  params: QueryParams,
-): Promise<QueryResult> {
+export async function queryDocuments(db: Firestore, params: QueryParams): Promise<QueryResult> {
   validateCollectionPath(params.collection);
 
   const limit = Math.min(params.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
@@ -164,10 +156,7 @@ export async function queryDocuments(
 
   // Apply pagination cursor
   if (params.startAfter) {
-    const cursorDoc = await db
-      .collection(params.collection)
-      .doc(params.startAfter)
-      .get();
+    const cursorDoc = await db.collection(params.collection).doc(params.startAfter).get();
     if (cursorDoc.exists) {
       query = query.startAfter(cursorDoc);
     }
@@ -205,10 +194,7 @@ export async function getDocument(
   validateDocumentPath(path);
 
   const docRef = db.doc(path);
-  const [snapshot, subcollectionRefs] = await Promise.all([
-    docRef.get(),
-    docRef.listCollections(),
-  ]);
+  const [snapshot, subcollectionRefs] = await Promise.all([docRef.get(), docRef.listCollections()]);
 
   if (!snapshot.exists) {
     throw new Error(`Document not found: ${path}`);

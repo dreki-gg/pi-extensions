@@ -114,7 +114,9 @@ function waitForReady(url: string, timeoutMs: number, intervalMs: number): Promi
 
     function poll() {
       if (Date.now() > deadline) {
-        reject(new ServerStartError({ reason: `Server did not become ready within ${timeoutMs}ms` }));
+        reject(
+          new ServerStartError({ reason: `Server did not become ready within ${timeoutMs}ms` }),
+        );
         return;
       }
 

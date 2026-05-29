@@ -20,25 +20,19 @@ describe('extractCollectionRefs', () => {
   it("extracts collection('name') with single quotes", () => {
     const code = `const ref = db.collection('orders');`;
     const refs = extractCollectionRefs(code, 'src/app.ts');
-    expect(refs).toContainEqual(
-      expect.objectContaining({ collection: 'orders' }),
-    );
+    expect(refs).toContainEqual(expect.objectContaining({ collection: 'orders' }));
   });
 
   it('extracts doc("collection/id") pattern', () => {
     const code = `const ref = db.doc("users/abc123");`;
     const refs = extractCollectionRefs(code, 'src/app.ts');
-    expect(refs).toContainEqual(
-      expect.objectContaining({ collection: 'users' }),
-    );
+    expect(refs).toContainEqual(expect.objectContaining({ collection: 'users' }));
   });
 
   it('extracts template literal collection refs', () => {
     const code = 'const ref = db.collection(`users`);';
     const refs = extractCollectionRefs(code, 'src/app.ts');
-    expect(refs).toContainEqual(
-      expect.objectContaining({ collection: 'users' }),
-    );
+    expect(refs).toContainEqual(expect.objectContaining({ collection: 'users' }));
   });
 
   it('extracts multiple collections from same file', () => {
@@ -71,11 +65,11 @@ describe('extractCollectionRefs', () => {
 
 describe('inferFieldRelationships', () => {
   it('detects userId → users as high confidence', () => {
-    const rels = inferFieldRelationships(
+    const rels = inferFieldRelationships('orders', { userId: 'abc123', total: 100 }, [
+      'users',
       'orders',
-      { userId: 'abc123', total: 100 },
-      ['users', 'orders', 'products'],
-    );
+      'products',
+    ]);
     expect(rels).toContainEqual(
       expect.objectContaining({
         from: 'orders',
@@ -86,11 +80,11 @@ describe('inferFieldRelationships', () => {
   });
 
   it('detects productRef → products as high confidence', () => {
-    const rels = inferFieldRelationships(
+    const rels = inferFieldRelationships('orders', { productRef: 'xyz', total: 100 }, [
+      'users',
       'orders',
-      { productRef: 'xyz', total: 100 },
-      ['users', 'orders', 'products'],
-    );
+      'products',
+    ]);
     expect(rels).toContainEqual(
       expect.objectContaining({
         from: 'orders',
@@ -101,11 +95,11 @@ describe('inferFieldRelationships', () => {
   });
 
   it('detects generic _id suffix as medium confidence', () => {
-    const rels = inferFieldRelationships(
+    const rels = inferFieldRelationships('orders', { customer_id: 'abc123' }, [
+      'users',
+      'customers',
       'orders',
-      { customer_id: 'abc123' },
-      ['users', 'customers', 'orders'],
-    );
+    ]);
     expect(rels).toContainEqual(
       expect.objectContaining({
         from: 'orders',
@@ -116,11 +110,10 @@ describe('inferFieldRelationships', () => {
   });
 
   it('detects path-like values as medium confidence', () => {
-    const rels = inferFieldRelationships(
+    const rels = inferFieldRelationships('orders', { authorPath: 'users/abc123' }, [
+      'users',
       'orders',
-      { authorPath: 'users/abc123' },
-      ['users', 'orders'],
-    );
+    ]);
     expect(rels).toContainEqual(
       expect.objectContaining({
         from: 'orders',
@@ -131,11 +124,7 @@ describe('inferFieldRelationships', () => {
   });
 
   it('returns empty for non-reference fields', () => {
-    const rels = inferFieldRelationships(
-      'users',
-      { name: 'Alice', age: 30 },
-      ['users', 'orders'],
-    );
+    const rels = inferFieldRelationships('users', { name: 'Alice', age: 30 }, ['users', 'orders']);
     expect(rels).toHaveLength(0);
   });
 });

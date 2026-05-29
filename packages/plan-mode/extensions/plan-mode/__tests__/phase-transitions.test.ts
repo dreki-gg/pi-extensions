@@ -4,10 +4,21 @@ import type { PlanData, TaskRecord } from '../types.js';
 
 function makePlan(overrides?: Partial<PlanData>): PlanData {
   const task: TaskRecord = {
-    _type: 'task', id: 't-001', description: 'Do work', details: 'Details',
-    status: 'pending', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+    _type: 'task',
+    id: 't-001',
+    description: 'Do work',
+    details: 'Details',
+    status: 'pending',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
   };
-  return { title: 'Test Plan', planName: 'test-plan', handoff: '# Handoff', tasks: [task], ...overrides };
+  return {
+    title: 'Test Plan',
+    planName: 'test-plan',
+    handoff: '# Handoff',
+    tasks: [task],
+    ...overrides,
+  };
 }
 
 describe('PlanModeState', () => {

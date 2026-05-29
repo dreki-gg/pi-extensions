@@ -251,10 +251,7 @@ function handleDocSync(uri: string, text: string) {
 function handleNotification(msg: JsonRpcNotification) {
   switch (msg.method) {
     case 'textDocument/didOpen':
-      handleDocSync(
-        msg.params?.textDocument?.uri ?? lastUri,
-        msg.params?.textDocument?.text ?? '',
-      );
+      handleDocSync(msg.params?.textDocument?.uri ?? lastUri, msg.params?.textDocument?.text ?? '');
       break;
     case 'textDocument/didChange':
       handleDocSync(
@@ -263,10 +260,7 @@ function handleNotification(msg: JsonRpcNotification) {
       );
       break;
     case 'textDocument/didSave':
-      handleDocSync(
-        msg.params?.textDocument?.uri ?? lastUri,
-        msg.params?.text ?? '',
-      );
+      handleDocSync(msg.params?.textDocument?.uri ?? lastUri, msg.params?.text ?? '');
       break;
     case 'exit':
       process.exit(0);

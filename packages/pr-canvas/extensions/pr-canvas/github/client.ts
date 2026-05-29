@@ -65,9 +65,9 @@ export const fetchOverview = (prRef: string) =>
     );
 
     // Map reviewRequests to our reviewers format
-    const reviewers = (raw.reviewRequests ?? []).map(
-      (r: { login?: string }) => ({ login: r.login ?? 'unknown' }),
-    );
+    const reviewers = (raw.reviewRequests ?? []).map((r: { login?: string }) => ({
+      login: r.login ?? 'unknown',
+    }));
 
     return { ...overview, reviewers } as PrOverview & { reviewers: Array<{ login: string }> };
   });
@@ -92,18 +92,18 @@ export const fetchCommentsAndReviews = (prRef: string) =>
     const json = yield* gh(['pr', 'view', prRef, '--json', 'comments,reviews']);
     const raw = yield* parseJson(json, 'pr view comments');
 
-    const comments = yield* Schema.decode(Schema.Array(PrCommentSchema))(
-      raw.comments ?? [],
-    ).pipe(Effect.catchTag('ParseError', () => Effect.succeed([] as PrComment[])));
+    const comments = yield* Schema.decode(Schema.Array(PrCommentSchema))(raw.comments ?? []).pipe(
+      Effect.catchTag('ParseError', () => Effect.succeed([] as PrComment[])),
+    );
 
     // GitHub returns `submittedAt` for reviews (not `createdAt`); normalize it.
     const normalizedReviews = (raw.reviews ?? []).map((r: Record<string, unknown>) => ({
       ...r,
       createdAt: r.createdAt ?? r.submittedAt ?? '',
     }));
-    const reviews = yield* Schema.decode(Schema.Array(PrReviewSchema))(
-      normalizedReviews,
-    ).pipe(Effect.catchTag('ParseError', () => Effect.succeed([] as PrReview[])));
+    const reviews = yield* Schema.decode(Schema.Array(PrReviewSchema))(normalizedReviews).pipe(
+      Effect.catchTag('ParseError', () => Effect.succeed([] as PrReview[])),
+    );
 
     return { comments, reviews };
   });

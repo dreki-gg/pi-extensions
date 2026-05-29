@@ -59,7 +59,12 @@ export function registerPrCanvasCommands(pi: ExtensionAPI) {
     try {
       await manager.start({ port: APP_PORT, wsBridgeUrl: `ws://localhost:${WS_PORT}` });
     } catch (err) {
-      const reason = err instanceof Error ? err.message : err && typeof err === 'object' && 'reason' in err ? (err as any).reason : String(err);
+      const reason =
+        err instanceof Error
+          ? err.message
+          : err && typeof err === 'object' && 'reason' in err
+            ? (err as any).reason
+            : String(err);
       ctx.ui.notify(`Failed to start server: ${reason}\nApp dir: ${appDir}`, 'error');
       ctx.ui.setStatus('pr-canvas', undefined);
       await bridge.stop();
@@ -138,17 +143,18 @@ export function registerPrCanvasCommands(pi: ExtensionAPI) {
         }
 
         case 'status': {
-          const serverStatus = manager?.isRunning ? `✅ Server: http://localhost:${APP_PORT}` : '⏹ Server: stopped';
-          const bridgeStatus = bridge?.isRunning ? `✅ Bridge: ws://localhost:${WS_PORT}` : '⏹ Bridge: stopped';
+          const serverStatus = manager?.isRunning
+            ? `✅ Server: http://localhost:${APP_PORT}`
+            : '⏹ Server: stopped';
+          const bridgeStatus = bridge?.isRunning
+            ? `✅ Bridge: ws://localhost:${WS_PORT}`
+            : '⏹ Bridge: stopped';
           ctx.ui.notify(`${serverStatus}\n${bridgeStatus}`, 'info');
           break;
         }
 
         default:
-          ctx.ui.notify(
-            'Usage: /pr-canvas start | stop | open [number] | status',
-            'warning',
-          );
+          ctx.ui.notify('Usage: /pr-canvas start | stop | open [number] | status', 'warning');
       }
     },
   });

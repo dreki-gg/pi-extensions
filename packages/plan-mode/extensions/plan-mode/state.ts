@@ -25,9 +25,7 @@ export class PlanModeState {
   }
 
   restore(entries: Array<{ type: string; customType?: string; data?: PersistedState }>): void {
-    const saved = entries
-      .filter((e) => e.type === 'custom' && e.customType === 'plan-mode')
-      .pop();
+    const saved = entries.filter((e) => e.type === 'custom' && e.customType === 'plan-mode').pop();
     if (saved?.data) {
       this.planEnabled = saved.data.planEnabled ?? this.planEnabled;
       this.executing = saved.data.executing ?? this.executing;

@@ -14,13 +14,22 @@ export interface PlanManifestEntry {
 
 export async function readPlansManifest(): Promise<PlanManifestEntry[]> {
   let text: string;
-  try { text = await readFile(MANIFEST_PATH, 'utf8'); } catch { return []; }
+  try {
+    text = await readFile(MANIFEST_PATH, 'utf8');
+  } catch {
+    return [];
+  }
   const entries: PlanManifestEntry[] = [];
   for (const [index, raw] of text.split(/\r?\n/).entries()) {
     if (!raw.trim()) continue;
     let parsed: unknown;
-    try { parsed = JSON.parse(raw); } catch (error) { throw new Error(`Invalid plans.jsonl at line ${index + 1}: ${(error as Error).message}`); }
-    if (!isPlanManifestEntry(parsed)) throw new Error(`Invalid plans.jsonl record at line ${index + 1}`);
+    try {
+      parsed = JSON.parse(raw);
+    } catch (error) {
+      throw new Error(`Invalid plans.jsonl at line ${index + 1}: ${(error as Error).message}`);
+    }
+    if (!isPlanManifestEntry(parsed))
+      throw new Error(`Invalid plans.jsonl record at line ${index + 1}`);
     entries.push(parsed);
   }
   return entries;
@@ -28,11 +37,15 @@ export async function readPlansManifest(): Promise<PlanManifestEntry[]> {
 
 export async function writePlansManifest(entries: PlanManifestEntry[]): Promise<void> {
   await mkdir('.plans', { recursive: true });
-  const content = entries.map((entry) => JSON.stringify(entry)).join('\n') + (entries.length ? '\n' : '');
+  const content =
+    entries.map((entry) => JSON.stringify(entry)).join('\n') + (entries.length ? '\n' : '');
   await writeFileAtomic(MANIFEST_PATH, content);
 }
 
-export async function upsertPlanEntry(name: string, updates: { status: 'in-progress' | 'done'; title?: string }): Promise<void> {
+export async function upsertPlanEntry(
+  name: string,
+  updates: { status: 'in-progress' | 'done'; title?: string },
+): Promise<void> {
   const entries = await readPlansManifest();
   const now = new Date().toISOString();
   const index = entries.findIndex((entry) => entry.name === name);
@@ -53,5 +66,12 @@ export async function upsertPlanEntry(name: string, updates: { status: 'in-progr
 function isPlanManifestEntry(value: unknown): value is PlanManifestEntry {
   if (typeof value !== 'object' || value === null) return false;
   const record = value as Record<string, unknown>;
-  return record._type === 'plan' && typeof record.name === 'string' && (record.status === 'in-progress' || record.status === 'done') && typeof record.title === 'string' && typeof record.created_at === 'string' && (record.completed_at === null || typeof record.completed_at === 'string');
+  return (
+    record._type === 'plan' &&
+    typeof record.name === 'string' &&
+    (record.status === 'in-progress' || record.status === 'done') &&
+    typeof record.title === 'string' &&
+    typeof record.created_at === 'string' &&
+    (record.completed_at === null || typeof record.completed_at === 'string')
+  );
 }

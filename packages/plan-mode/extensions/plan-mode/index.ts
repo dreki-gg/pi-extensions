@@ -18,7 +18,14 @@
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Key } from '@earendil-works/pi-tui';
-import { PLAN_TOOLS, EXEC_TOOLS, PLAN_MODEL, PLAN_THINKING, EXEC_MODEL, EXEC_THINKING } from './constants.js';
+import {
+  PLAN_TOOLS,
+  EXEC_TOOLS,
+  PLAN_MODEL,
+  PLAN_THINKING,
+  EXEC_MODEL,
+  EXEC_THINKING,
+} from './constants.js';
 import type { ThinkingLevel } from './types.js';
 import { PlanModeState } from './state.js';
 import { loadHandoff, readAndClearExecPending } from './storage/plan-storage.js';
@@ -63,7 +70,12 @@ export default function planMode(pi: ExtensionAPI): void {
       if (notes) task.notes = notes;
       await writeTasksJsonl(
         state.planDir,
-        { _type: 'meta', title: state.plan.title, plan_name: state.plan.planName, created_at: state.plan.tasks[0]?.created_at ?? task.updated_at },
+        {
+          _type: 'meta',
+          title: state.plan.title,
+          plan_name: state.plan.planName,
+          created_at: state.plan.tasks[0]?.created_at ?? task.updated_at,
+        },
         state.plan.tasks,
       );
       state.persist(pi);
@@ -72,7 +84,8 @@ export default function planMode(pi: ExtensionAPI): void {
 
   // ── Commands ──────────────────────────────────────────────────────────────
   pi.registerCommand('plan', {
-    description: 'Enter plan mode, optionally with a starting prompt. Use "/plan resume" to pick up an existing plan.',
+    description:
+      'Enter plan mode, optionally with a starting prompt. Use "/plan resume" to pick up an existing plan.',
     handler: async (args, ctx) => {
       const trimmed = args?.trim();
       if (trimmed === 'resume') {
@@ -96,7 +109,8 @@ export default function planMode(pi: ExtensionAPI): void {
         return;
       }
       const taskList = state.plan.tasks.map((task) => `${task.id}. ${task.description}`).join('\n');
-      const first = state.plan.tasks.find((task) => task.status === 'pending')?.id ?? state.plan.tasks[0]?.id;
+      const first =
+        state.plan.tasks.find((task) => task.status === 'pending')?.id ?? state.plan.tasks[0]?.id;
       const kickoff = `Execute the following plan: "${state.plan.title}"\n\nTasks:\n${taskList}\n\nStart with ${first}. Call update_task after completing each task.`;
       await executeInNewSession(ctx, state.planDir, state.plan, kickoff);
     },
@@ -168,7 +182,11 @@ export default function planMode(pi: ExtensionAPI): void {
   pi.on('before_agent_start', async () => {
     if (state.planEnabled) {
       return {
-        message: { customType: 'plan-mode-context', content: buildPlanModePrompt(), display: false },
+        message: {
+          customType: 'plan-mode-context',
+          content: buildPlanModePrompt(),
+          display: false,
+        },
       };
     }
     if (state.executing && state.plan) {
@@ -194,17 +212,31 @@ export default function planMode(pi: ExtensionAPI): void {
           : `Task ${bs.id}: ${bs.description}`;
 
         const choice = await ctx.ui.select(`Task blocked — ${info}\n\nWhat next?`, [
-          'Skip this task', 'Provide instructions', 'Re-plan', 'Abort execution',
+          'Skip this task',
+          'Provide instructions',
+          'Re-plan',
+          'Abort execution',
         ]);
 
         if (choice === 'Skip this task') {
           bs.status = 'skipped';
           bs.updated_at = new Date().toISOString();
-          await writeTasksJsonl(state.planDir!, { _type: 'meta', title: state.plan.title, plan_name: state.plan.planName, created_at: state.plan.tasks[0]?.created_at ?? bs.updated_at }, state.plan.tasks);
+          await writeTasksJsonl(
+            state.planDir!,
+            {
+              _type: 'meta',
+              title: state.plan.title,
+              plan_name: state.plan.planName,
+              created_at: state.plan.tasks[0]?.created_at ?? bs.updated_at,
+            },
+            state.plan.tasks,
+          );
           updateUI(state, ctx);
           state.persist(pi);
           if (state.plan.tasks.some((s) => s.status === 'pending')) {
-            pi.sendUserMessage('The blocked task has been skipped. Continue with the next task.', { deliverAs: 'followUp' });
+            pi.sendUserMessage('The blocked task has been skipped. Continue with the next task.', {
+              deliverAs: 'followUp',
+            });
           }
         } else if (choice === 'Provide instructions') {
           const instructions = await ctx.ui.editor('Instructions for the blocked task:', '');
@@ -212,7 +244,16 @@ export default function planMode(pi: ExtensionAPI): void {
             bs.status = 'pending';
             bs.notes = undefined;
             bs.updated_at = new Date().toISOString();
-            await writeTasksJsonl(state.planDir!, { _type: 'meta', title: state.plan.title, plan_name: state.plan.planName, created_at: state.plan.tasks[0]?.created_at ?? bs.updated_at }, state.plan.tasks);
+            await writeTasksJsonl(
+              state.planDir!,
+              {
+                _type: 'meta',
+                title: state.plan.title,
+                plan_name: state.plan.planName,
+                created_at: state.plan.tasks[0]?.created_at ?? bs.updated_at,
+              },
+              state.plan.tasks,
+            );
             updateUI(state, ctx);
             state.persist(pi);
             pi.sendUserMessage(
@@ -235,18 +276,28 @@ export default function planMode(pi: ExtensionAPI): void {
       }
 
       // Check completion
-      const allResolved = state.plan.tasks.every((s) => s.status === 'done' || s.status === 'skipped');
+      const allResolved = state.plan.tasks.every(
+        (s) => s.status === 'done' || s.status === 'skipped',
+      );
       if (allResolved) {
         if (state.planDir) {
           await upsertPlanEntry(state.plan.planName, { status: 'done', title: state.plan.title });
-          await writeTasksJsonl(state.planDir, { _type: 'meta', title: state.plan.title, plan_name: state.plan.planName, created_at: state.plan.tasks[0]?.created_at ?? new Date().toISOString() }, state.plan.tasks);
+          await writeTasksJsonl(
+            state.planDir,
+            {
+              _type: 'meta',
+              title: state.plan.title,
+              plan_name: state.plan.planName,
+              created_at: state.plan.tasks[0]?.created_at ?? new Date().toISOString(),
+            },
+            state.plan.tasks,
+          );
         }
         const done = state.plan.tasks.filter((s) => s.status === 'done').length;
         const skipped = state.plan.tasks.filter((s) => s.status === 'skipped').length;
         const total = state.plan.tasks.length;
-        const stats = skipped > 0
-          ? `${done}/${total} done, ${skipped} skipped`
-          : `${done}/${total} done`;
+        const stats =
+          skipped > 0 ? `${done}/${total} done, ${skipped} skipped` : `${done}/${total} done`;
 
         // Build a summary of what was actually done from task notes
         const changeSummary = state.plan.tasks
@@ -302,7 +353,14 @@ export default function planMode(pi: ExtensionAPI): void {
       state.planDir = pending.planDir;
       {
         const snapshot = await readTasksJsonl(pending.planDir);
-        state.plan = snapshot ? { title: snapshot.meta.title, planName: snapshot.meta.plan_name, handoff: (await loadHandoff(pending.planDir)) ?? '', tasks: snapshot.tasks } : undefined;
+        state.plan = snapshot
+          ? {
+              title: snapshot.meta.title,
+              planName: snapshot.meta.plan_name,
+              handoff: (await loadHandoff(pending.planDir)) ?? '',
+              tasks: snapshot.tasks,
+            }
+          : undefined;
       }
       if (state.plan) {
         state.executing = true;

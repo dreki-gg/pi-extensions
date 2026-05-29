@@ -40,7 +40,9 @@ describe('generateHeuristicMindMap', () => {
   });
 
   it('groups source files by directory', () => {
-    const sourceGroups = groups.filter((g) => g.changeType !== 'test' && g.changeType !== 'config' && g.changeType !== 'docs');
+    const sourceGroups = groups.filter(
+      (g) => g.changeType !== 'test' && g.changeType !== 'config' && g.changeType !== 'docs',
+    );
     expect(sourceGroups.length).toBeGreaterThan(0);
   });
 
@@ -87,18 +89,33 @@ describe('generateHeuristicSummary', () => {
   });
 
   it('highlights deleted files', () => {
-    expect(summary.highlights.some((h) => h.includes('Removed') || h.includes('removed'))).toBe(true);
+    expect(summary.highlights.some((h) => h.includes('Removed') || h.includes('removed'))).toBe(
+      true,
+    );
   });
 
   it('handles empty PR gracefully', () => {
     const empty: PrData = {
       overview: {
-        number: 1, title: 'Empty', body: '', author: { login: 'u' },
-        state: 'OPEN', labels: [], reviewers: [], baseRefName: 'main',
-        headRefName: 'fix', url: '', additions: 0, deletions: 0,
-        createdAt: '', updatedAt: '',
+        number: 1,
+        title: 'Empty',
+        body: '',
+        author: { login: 'u' },
+        state: 'OPEN',
+        labels: [],
+        reviewers: [],
+        baseRefName: 'main',
+        headRefName: 'fix',
+        url: '',
+        additions: 0,
+        deletions: 0,
+        createdAt: '',
+        updatedAt: '',
       },
-      files: [], checks: [], comments: [], reviews: [],
+      files: [],
+      checks: [],
+      comments: [],
+      reviews: [],
     };
     const result = generateHeuristicSummary(empty);
     expect(result.purpose).toBe('Empty');

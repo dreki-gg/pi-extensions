@@ -8,10 +8,22 @@ import type { TaskMeta, TaskRecord } from '../types.js';
 let dir: string;
 const now = '2026-05-27T12:00:00.000Z';
 const meta: TaskMeta = { _type: 'meta', title: 'Plan', plan_name: 'plan', created_at: now };
-const task: TaskRecord = { _type: 'task', id: 't-001', description: 'Do work', details: 'Details', status: 'pending', created_at: now, updated_at: now };
+const task: TaskRecord = {
+  _type: 'task',
+  id: 't-001',
+  description: 'Do work',
+  details: 'Details',
+  status: 'pending',
+  created_at: now,
+  updated_at: now,
+};
 
-beforeEach(async () => { dir = await mkdtemp(join(tmpdir(), 'plan-mode-tasks-')); });
-afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
+beforeEach(async () => {
+  dir = await mkdtemp(join(tmpdir(), 'plan-mode-tasks-'));
+});
+afterEach(async () => {
+  await rm(dir, { recursive: true, force: true });
+});
 
 describe('tasks.jsonl storage', () => {
   test('round trips meta and tasks', async () => {
@@ -20,7 +32,14 @@ describe('tasks.jsonl storage', () => {
   });
 
   test('round trips tasks without details (lightweight checklist)', async () => {
-    const lightweight: TaskRecord = { _type: 'task', id: 't-002', description: 'Quick fix', status: 'pending', created_at: now, updated_at: now };
+    const lightweight: TaskRecord = {
+      _type: 'task',
+      id: 't-002',
+      description: 'Quick fix',
+      status: 'pending',
+      created_at: now,
+      updated_at: now,
+    };
     await writeTasksJsonl(dir, meta, [lightweight]);
     const result = await readTasksJsonl(dir);
     expect(result?.tasks[0]?.id).toBe('t-002');

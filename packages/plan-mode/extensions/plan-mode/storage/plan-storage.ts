@@ -11,7 +11,9 @@ export async function writeExecPending(dir: string, config: ExecPendingConfig): 
   await writeFile(`${dir}/${EXEC_PENDING_FILE}`, JSON.stringify(config, null, 2) + '\n', 'utf-8');
 }
 
-export async function readAndClearExecPending(): Promise<{ planDir: string; config: ExecPendingConfig } | undefined> {
+export async function readAndClearExecPending(): Promise<
+  { planDir: string; config: ExecPendingConfig } | undefined
+> {
   try {
     const entries = await readdir('.plans', { withFileTypes: true });
     for (const entry of entries) {

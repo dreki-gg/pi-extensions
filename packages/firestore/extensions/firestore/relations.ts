@@ -46,10 +46,7 @@ const COLLECTION_PATTERNS = [
 /**
  * Extracts collection references from a source code string.
  */
-export function extractCollectionRefs(
-  code: string,
-  filePath: string,
-): CodebaseRef[] {
+export function extractCollectionRefs(code: string, filePath: string): CodebaseRef[] {
   const refs: CodebaseRef[] = [];
 
   for (const pattern of COLLECTION_PATTERNS) {
@@ -164,9 +161,7 @@ export function inferFieldRelationships(
           to: targetCollection,
           type: 'reference_field',
           confidence: 'high',
-          evidence: [
-            `Field "${field}" in ${sourceCollection} → ${targetCollection} collection`,
-          ],
+          evidence: [`Field "${field}" in ${sourceCollection} → ${targetCollection} collection`],
         });
         continue;
       }
@@ -187,9 +182,7 @@ export function inferFieldRelationships(
             to: targetCollection,
             type: 'reference_field',
             confidence: 'medium',
-            evidence: [
-              `Field "${field}" contains path-like value referencing ${targetCollection}`,
-            ],
+            evidence: [`Field "${field}" contains path-like value referencing ${targetCollection}`],
           });
         }
       }
@@ -210,9 +203,7 @@ const CONFIDENCE_RANK: Record<string, number> = {
 /**
  * Merges duplicate relationships, combining evidence and keeping highest confidence.
  */
-export function mergeRelationships(
-  relationships: Relationship[],
-): Relationship[] {
+export function mergeRelationships(relationships: Relationship[]): Relationship[] {
   const map = new Map<string, Relationship>();
 
   for (const rel of relationships) {
@@ -319,10 +310,7 @@ export async function buildRelationMap(
   }
 
   // 4. Merge all relationships
-  const allRelationships = mergeRelationships([
-    ...codeRelationships,
-    ...fieldRelationships,
-  ]);
+  const allRelationships = mergeRelationships([...codeRelationships, ...fieldRelationships]);
 
   return {
     collections: collectionNodes,

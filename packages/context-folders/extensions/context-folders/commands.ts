@@ -42,7 +42,10 @@ export function registerCommands(pi: ExtensionAPI, getState: () => State): void 
           saveConfig(state.cwd, state.config);
           state.reload(ctx.ui);
           const resolved = path.resolve(state.cwd, folderPath);
-          ctx.ui.notify(`Added context folder: ${label || path.basename(resolved)} (${resolved})`, 'info');
+          ctx.ui.notify(
+            `Added context folder: ${label || path.basename(resolved)} (${resolved})`,
+            'info',
+          );
           break;
         }
 

@@ -80,32 +80,70 @@ function buildFlowGroup(pr: PrData): MindMapGroup | undefined {
   const surfaces = detectSurfaces(pr);
   const dataStructures = detectDataStructures(pr);
   const sourceFiles = pr.files.filter(
-    (file) => !isTestFile(file.path) && !isConfigFile(file.path) && !isDocFile(file.path) && /\.(ts|tsx|js|jsx|go|rs|py|rb)$/.test(file.path),
+    (file) =>
+      !isTestFile(file.path) &&
+      !isConfigFile(file.path) &&
+      !isDocFile(file.path) &&
+      /\.(ts|tsx|js|jsx|go|rs|py|rb)$/.test(file.path),
   );
-  const flowFiles = sourceFiles.filter((file) => /route|api|handler|controller|middleware|auth|token|service|lib|type|schema|model/i.test(file.path));
+  const flowFiles = sourceFiles.filter((file) =>
+    /route|api|handler|controller|middleware|auth|token|service|lib|type|schema|model/i.test(
+      file.path,
+    ),
+  );
 
-  if (surfaces.length === 0 && dataStructures.length === 0 && flowFiles.length < 2) return undefined;
+  if (surfaces.length === 0 && dataStructures.length === 0 && flowFiles.length < 2)
+    return undefined;
 
-  const files = [...new Set([...(flowFiles.length > 0 ? flowFiles : sourceFiles).map((file) => file.path), ...dataStructures.map((structure) => structure.source.split(':L')[0])])];
+  const files = [
+    ...new Set([
+      ...(flowFiles.length > 0 ? flowFiles : sourceFiles).map((file) => file.path),
+      ...dataStructures.map((structure) => structure.source.split(':L')[0]),
+    ]),
+  ];
   const hasAuth = files.some((file) => /auth|token|middleware/i.test(file));
   const hasService = files.some((file) => /service/i.test(file));
   const hasLibrary = files.some((file) => /\/lib\//i.test(file));
-  const label = inferFlowLabel(pr.overview.title, { hasAuth, hasService, hasLibrary, surfaces: surfaces.length, dataStructures: dataStructures.length });
+  const label = inferFlowLabel(pr.overview.title, {
+    hasAuth,
+    hasService,
+    hasLibrary,
+    surfaces: surfaces.length,
+    dataStructures: dataStructures.length,
+  });
   const relationships = [];
 
   if (surfaces.length > 0) {
-    relationships.push(`Routes changed: ${surfaces.map((surface) => `${surface.method} ${surface.path}`).join(', ')}`);
+    relationships.push(
+      `Routes changed: ${surfaces.map((surface) => `${surface.method} ${surface.path}`).join(', ')}`,
+    );
   }
-  if (hasAuth) relationships.push('Requests pass through authMiddleware/token validation before protected handlers continue.');
-  if (hasService) relationships.push(`Service boundary changed: ${files.filter((file) => /service/i.test(file)).join(', ')}`);
-  if (hasLibrary) relationships.push(`Shared library behavior changed: ${files.filter((file) => /\/lib\//i.test(file)).join(', ')}`);
-  if (dataStructures.length > 0) relationships.push(`New data shapes: ${dataStructures.map((structure) => structure.name).join(', ')}`);
+  if (hasAuth)
+    relationships.push(
+      'Requests pass through authMiddleware/token validation before protected handlers continue.',
+    );
+  if (hasService)
+    relationships.push(
+      `Service boundary changed: ${files.filter((file) => /service/i.test(file)).join(', ')}`,
+    );
+  if (hasLibrary)
+    relationships.push(
+      `Shared library behavior changed: ${files.filter((file) => /\/lib\//i.test(file)).join(', ')}`,
+    );
+  if (dataStructures.length > 0)
+    relationships.push(
+      `New data shapes: ${dataStructures.map((structure) => structure.name).join(', ')}`,
+    );
 
   return {
     label,
     description: relationships[0] ?? 'Mental model of the main changed flow and data contracts.',
     files,
-    changeType: surfaces.some((surface) => surface.change === 'NEW') || pr.files.some((file) => file.status === 'added') ? 'feature' : 'refactor',
+    changeType:
+      surfaces.some((surface) => surface.change === 'NEW') ||
+      pr.files.some((file) => file.status === 'added')
+        ? 'feature'
+        : 'refactor',
     diagram: buildMermaidDiagram(surfaces, hasAuth, dataStructures, files),
     relationships,
   };
@@ -113,7 +151,13 @@ function buildFlowGroup(pr: PrData): MindMapGroup | undefined {
 
 function inferFlowLabel(
   title: string,
-  signals: { hasAuth: boolean; hasService: boolean; hasLibrary: boolean; surfaces: number; dataStructures: number },
+  signals: {
+    hasAuth: boolean;
+    hasService: boolean;
+    hasLibrary: boolean;
+    surfaces: number;
+    dataStructures: number;
+  },
 ): string {
   if (signals.hasAuth) return 'Request Auth Flow';
   if (/signed.?url|file|download|upload/i.test(title)) return 'File Access Flow';
@@ -142,7 +186,8 @@ function buildMermaidDiagram(
         lines.push('  Auth-->>API: user identity or rejection');
       }
       lines.push('  API->>Handler: continue request');
-      if (surface.responseShape !== 'not inferable from diff') lines.push(`  Handler-->>Caller: ${sanitizeMermaidMessage(surface.responseShape)}`);
+      if (surface.responseShape !== 'not inferable from diff')
+        lines.push(`  Handler-->>Caller: ${sanitizeMermaidMessage(surface.responseShape)}`);
     }
 
     return lines.join('\n');
@@ -154,24 +199,44 @@ function buildMermaidDiagram(
 
   if (serviceFiles.length > 0 || libFiles.length > 0 || typeFiles.length > 0) {
     const lines = ['flowchart TD'];
-    if (serviceFiles.length > 0) lines.push(`  Service["${sanitizeMermaidLabel(shortFileList(serviceFiles))}"]`);
-    if (libFiles.length > 0) lines.push(`  Library["${sanitizeMermaidLabel(shortFileList(libFiles))}"]`);
-    if (typeFiles.length > 0 || dataStructures.length > 0) lines.push(`  Types["${sanitizeMermaidLabel(dataStructures.length > 0 ? dataStructures.map((structure) => structure.name).join(', ') : shortFileList(typeFiles))}"]`);
+    if (serviceFiles.length > 0)
+      lines.push(`  Service["${sanitizeMermaidLabel(shortFileList(serviceFiles))}"]`);
+    if (libFiles.length > 0)
+      lines.push(`  Library["${sanitizeMermaidLabel(shortFileList(libFiles))}"]`);
+    if (typeFiles.length > 0 || dataStructures.length > 0)
+      lines.push(
+        `  Types["${sanitizeMermaidLabel(dataStructures.length > 0 ? dataStructures.map((structure) => structure.name).join(', ') : shortFileList(typeFiles))}"]`,
+      );
     if (serviceFiles.length > 0 && libFiles.length > 0) lines.push('  Service --> Library');
-    if (libFiles.length > 0 && (typeFiles.length > 0 || dataStructures.length > 0)) lines.push('  Library --> Types');
-    if (serviceFiles.length > 0 && libFiles.length === 0 && (typeFiles.length > 0 || dataStructures.length > 0)) lines.push('  Service --> Types');
+    if (libFiles.length > 0 && (typeFiles.length > 0 || dataStructures.length > 0))
+      lines.push('  Library --> Types');
+    if (
+      serviceFiles.length > 0 &&
+      libFiles.length === 0 &&
+      (typeFiles.length > 0 || dataStructures.length > 0)
+    )
+      lines.push('  Service --> Types');
     if (lines.length > 1) return lines.join('\n');
   }
 
   if (dataStructures.length > 0) {
-    return ['flowchart TD', '  Diff[PR diff]', ...dataStructures.slice(0, 5).map((structure) => `  Diff --> ${structure.name}[${structure.name}]`)].join('\n');
+    return [
+      'flowchart TD',
+      '  Diff[PR diff]',
+      ...dataStructures
+        .slice(0, 5)
+        .map((structure) => `  Diff --> ${structure.name}[${structure.name}]`),
+    ].join('\n');
   }
 
   return 'flowchart TD\n  Change[Changed files] --> Review[Reviewer mental model]';
 }
 
 function shortFileList(files: string[]): string {
-  return files.map((file) => file.split('/').pop() ?? file).slice(0, 3).join(', ');
+  return files
+    .map((file) => file.split('/').pop() ?? file)
+    .slice(0, 3)
+    .join(', ');
 }
 
 function sanitizeMermaidLabel(value: string): string {
@@ -183,22 +248,30 @@ function sanitizeMermaidMessage(value: string): string {
 }
 
 function isTestFile(path: string): boolean {
-  return /\b(test|tests|spec|specs|__tests__|__test__)\b/i.test(path) ||
+  return (
+    /\b(test|tests|spec|specs|__tests__|__test__)\b/i.test(path) ||
     /\.(test|spec)\.\w+$/.test(path) ||
-    /\.test$/.test(path);
+    /\.test$/.test(path)
+  );
 }
 
 function isConfigFile(path: string): boolean {
   const name = path.split('/').pop() ?? '';
-  return /^(tsconfig|package|jest\.config|vitest\.config|webpack|vite\.config|rollup|babel|\.eslint|\.prettier|Dockerfile|docker-compose|Makefile|\.github)/i.test(name) ||
-    /\.(json|ya?ml|toml|ini|env)$/.test(name) && !path.includes('src/');
+  return (
+    /^(tsconfig|package|jest\.config|vitest\.config|webpack|vite\.config|rollup|babel|\.eslint|\.prettier|Dockerfile|docker-compose|Makefile|\.github)/i.test(
+      name,
+    ) ||
+    (/\.(json|ya?ml|toml|ini|env)$/.test(name) && !path.includes('src/'))
+  );
 }
 
 function isDocFile(path: string): boolean {
   const name = path.split('/').pop() ?? '';
-  return /\.(md|mdx|txt|rst)$/i.test(name) ||
+  return (
+    /\.(md|mdx|txt|rst)$/i.test(name) ||
     /^docs?\//i.test(path) ||
-    /^(README|CHANGELOG|CONTRIBUTING|LICENSE|AUTHORS)/i.test(name);
+    /^(README|CHANGELOG|CONTRIBUTING|LICENSE|AUTHORS)/i.test(name)
+  );
 }
 
 function groupByDirectory(
@@ -209,7 +282,8 @@ function groupByDirectory(
   for (const file of files) {
     const parts = file.path.split('/');
     // Use first two directory levels for grouping, or just the file name
-    const key = parts.length > 2 ? `${parts[0]}/${parts[1]}` : parts.length > 1 ? parts[0] : '(root)';
+    const key =
+      parts.length > 2 ? `${parts[0]}/${parts[1]}` : parts.length > 1 ? parts[0] : '(root)';
 
     if (!groups[key]) groups[key] = [];
     groups[key].push(file);
@@ -263,9 +337,7 @@ function describeDirectoryChanges(
   return parts.join(', ') || 'Changes in this area';
 }
 
-function describeTestChanges(
-  files: { status: string }[],
-): string {
+function describeTestChanges(files: { status: string }[]): string {
   const added = files.filter((f) => f.status === 'added').length;
   const modified = files.filter((f) => f.status === 'modified').length;
 

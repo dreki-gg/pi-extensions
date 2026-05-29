@@ -21,36 +21,54 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
   pi.registerTool({
     name: 'submit_plan',
     label: 'Submit Plan',
-    description: 'Finalize a conversational plan with task IDs, JSONL storage, HANDOFF.md, and generated plan.html.',
-    promptSnippet: 'Finalize the plan with title, handoff, tasks, dependencies, and optional prototype Pug',
+    description:
+      'Finalize a conversational plan with task IDs, JSONL storage, HANDOFF.md, and generated plan.html.',
+    promptSnippet:
+      'Finalize the plan with title, handoff, tasks, dependencies, and optional prototype Pug',
     promptGuidelines: [
       'Only call submit_plan after shared understanding has been reached with the user.',
       'Each task needs an id like t-001, a short description, and optional depends_on task IDs.',
-      'When a different agent or human will execute the plan, include detailed implementation instructions in each task\'s details field.',
+      "When a different agent or human will execute the plan, include detailed implementation instructions in each task's details field.",
       'When you are planning and executing yourself (same session), use lightweight checklist-style tasks: just id + description, omit details. Put the real context in the handoff document instead.',
       'The handoff must be thorough enough that both a human reviewer and executor agent with zero prior context can understand the plan.',
     ],
     parameters: Type.Object({
-      name: Type.String({ description: 'Short kebab-case name for the plan (e.g. "add-auth-middleware")' }),
+      name: Type.String({
+        description: 'Short kebab-case name for the plan (e.g. "add-auth-middleware")',
+      }),
       title: Type.String({ description: 'Human-readable plan title' }),
       handoff: Type.String({ description: 'Markdown content for HANDOFF.md' }),
       tasks: Type.Array(
         Type.Object({
           id: Type.String({ description: 'Stable task ID, e.g. t-001' }),
-          description: Type.String({ description: 'Short task label for progress display (≤60 chars)' }),
-          details: Type.Optional(Type.String({ description: 'Full implementation instructions for this task. Omit for lightweight checklist-style plans when you are executing yourself.' })),
+          description: Type.String({
+            description: 'Short task label for progress display (≤60 chars)',
+          }),
+          details: Type.Optional(
+            Type.String({
+              description:
+                'Full implementation instructions for this task. Omit for lightweight checklist-style plans when you are executing yourself.',
+            }),
+          ),
           depends_on: Type.Optional(Type.Array(Type.String({ description: 'Dependency task ID' }))),
         }),
         { minItems: 1 },
       ),
-      prototype: Type.Optional(Type.String({ description: 'Optional Pug markup for the prototype section in plan.html' })),
+      prototype: Type.Optional(
+        Type.String({ description: 'Optional Pug markup for the prototype section in plan.html' }),
+      ),
     }),
 
     async execute(_toolCallId, params) {
       const planName = toKebabCase(params.name);
       const planDir = `.plans/${planName}`;
       const now = new Date().toISOString();
-      const meta: TaskMeta = { _type: 'meta', title: params.title, plan_name: planName, created_at: now };
+      const meta: TaskMeta = {
+        _type: 'meta',
+        title: params.title,
+        plan_name: planName,
+        created_at: now,
+      };
       const tasks: TaskRecord[] = params.tasks.map((task) => ({
         _type: 'task',
         id: task.id,
@@ -72,7 +90,12 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
       callbacks.onPlanSubmitted(planDir, plan);
 
       return {
-        content: [{ type: 'text' as const, text: `Plan "${params.title}" saved with ${tasks.length} tasks. Review ${planDir}/plan.html, then execute when ready.` }],
+        content: [
+          {
+            type: 'text' as const,
+            text: `Plan "${params.title}" saved with ${tasks.length} tasks. Review ${planDir}/plan.html, then execute when ready.`,
+          },
+        ],
         details: { planDir, plan },
         terminate: true,
       };
@@ -91,7 +114,8 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
       const plan = (result.details as { plan?: PlanData } | undefined)?.plan;
       if (!plan) return new Text(theme.fg('success', '✓ Plan saved'), 0, 0);
       const lines = [theme.fg('success', '✓ ') + theme.fg('accent', theme.bold(plan.title)), ''];
-      for (const task of plan.tasks) lines.push(`  ${theme.fg('muted', task.id)} ${task.description}`);
+      for (const task of plan.tasks)
+        lines.push(`  ${theme.fg('muted', task.id)} ${task.description}`);
       return new Text(lines.join('\n'), 0, 0);
     },
   });

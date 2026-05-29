@@ -58,10 +58,7 @@ export function registerCreateAgentCommand(pi: ExtensionAPI) {
       const filePath = path.join(promptsDir, `${name}.md`);
 
       if (fs.existsSync(filePath)) {
-        ctx.ui.notify(
-          `Agent "${name}" already exists at ${filePath}`,
-          'warning',
-        );
+        ctx.ui.notify(`Agent "${name}" already exists at ${filePath}`, 'warning');
         return;
       }
 
@@ -69,16 +66,14 @@ export function registerCreateAgentCommand(pi: ExtensionAPI) {
       fs.mkdirSync(promptsDir, { recursive: true });
 
       // Write the template
-      const content = TEMPLATE
-        .replace(/\{\{name\}\}/g, name)
-        .replace(/\{\{description\}\}/g, description);
+      const content = TEMPLATE.replace(/\{\{name\}\}/g, name).replace(
+        /\{\{description\}\}/g,
+        description,
+      );
 
       fs.writeFileSync(filePath, content, 'utf-8');
 
-      ctx.ui.notify(
-        `Created agent "${name}" at ${path.relative(ctx.cwd, filePath)}`,
-        'info',
-      );
+      ctx.ui.notify(`Created agent "${name}" at ${path.relative(ctx.cwd, filePath)}`, 'info');
 
       // Send a follow-up so the LLM can help refine the prompt
       pi.sendUserMessage(

@@ -63,6 +63,8 @@ describe('task meta type guard', () => {
 
   test('rejects malformed meta records', () => {
     expect(isTaskMeta({ _type: 'meta', title: 'Refactor' })).toBe(false);
-    expect(isTaskMeta({ _type: 'task', title: 'Refactor', plan_name: 'refactor', created_at: now })).toBe(false);
+    expect(
+      isTaskMeta({ _type: 'task', title: 'Refactor', plan_name: 'refactor', created_at: now }),
+    ).toBe(false);
   });
 });

@@ -4,7 +4,10 @@ import { escapeHtml } from '../template';
 export function renderOverview(pr: PrOverview): string {
   const stateBadge = renderStateBadge(pr.state);
   const labels = pr.labels
-    .map((l) => `<span class="badge badge-label" style="border-color: #${l.color}40">${escapeHtml(l.name)}</span>`)
+    .map(
+      (l) =>
+        `<span class="badge badge-label" style="border-color: #${l.color}40">${escapeHtml(l.name)}</span>`,
+    )
     .join(' ');
   const reviewers = pr.reviewers.map((r) => escapeHtml(r.login)).join(', ') || 'None';
   const body = renderMarkdownBasic(pr.body);

@@ -8,10 +8,7 @@
     { "name": "auth", "color": "0075ca" },
     { "name": "security", "color": "e4e669" }
   ],
-  "reviewers": [
-    { "login": "reviewer1" },
-    { "login": "reviewer2" }
-  ],
+  "reviewers": [{ "login": "reviewer1" }, { "login": "reviewer2" }],
   "baseRefName": "main",
   "headRefName": "feat/auth-middleware",
   "url": "https://github.com/org/repo/pull/142",

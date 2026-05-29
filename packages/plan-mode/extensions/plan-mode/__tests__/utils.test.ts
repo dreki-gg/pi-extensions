@@ -14,7 +14,9 @@ describe('isSafeCommand', () => {
 
     test('command with 2>/dev/null stderr redirect', () => {
       expect(
-        isSafeCommand('cat .release-please-manifest.json 2>/dev/null; echo "---"; cat release-please-config.json 2>/dev/null'),
+        isSafeCommand(
+          'cat .release-please-manifest.json 2>/dev/null; echo "---"; cat release-please-config.json 2>/dev/null',
+        ),
       ).toBe(true);
     });
 

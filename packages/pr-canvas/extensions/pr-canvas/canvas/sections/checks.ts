@@ -16,7 +16,9 @@ export function renderChecks(checks: PrCheck[]): string {
   }
 
   const passed = checks.filter((c) => c.state === 'SUCCESS').length;
-  const failed = checks.filter((c) => c.state === 'FAILURE' || c.state === 'STARTUP_FAILURE').length;
+  const failed = checks.filter(
+    (c) => c.state === 'FAILURE' || c.state === 'STARTUP_FAILURE',
+  ).length;
   const pending = checks.length - passed - failed;
 
   const summary = [

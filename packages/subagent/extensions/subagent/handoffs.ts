@@ -39,11 +39,19 @@ interface SectionEntry {
 }
 
 function normalizeWhitespace(value: string): string {
-  return value.replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  return value
+    .replace(/\r/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function normalizeSectionTitle(title: string): string {
-  return title.trim().toLowerCase().replace(/[\s/]+/g, ' ').replace(/[():]/g, '');
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[\s/]+/g, ' ')
+    .replace(/[():]/g, '');
 }
 
 function splitMarkdownSections(markdown: string): { preamble: string; sections: SectionEntry[] } {
@@ -141,7 +149,10 @@ function extractPaths(text: string): HandoffFileRef[] {
   const files: HandoffFileRef[] = [];
 
   const addPath = (rawPath: string, notes?: string) => {
-    const path = rawPath.trim().replace(/^`|`$/g, '').replace(/[),.:;]+$/g, '');
+    const path = rawPath
+      .trim()
+      .replace(/^`|`$/g, '')
+      .replace(/[),.:;]+$/g, '');
     if (!path.includes('/')) return;
     if (path.startsWith('http://') || path.startsWith('https://')) return;
     if (seen.has(path)) return;
@@ -203,7 +214,9 @@ export function buildHandoffFromResult(input: {
   const riskItems = uniq(extractListItems(getFirstSectionBody(sections, ['Risks'])));
   const openQuestions = uniq([
     ...extractListItems(getFirstSectionBody(sections, ['Open Questions'])),
-    ...toQuestions(extractListItems(getFirstSectionBody(sections, ['Notes', 'Constraints or Unknowns']))),
+    ...toQuestions(
+      extractListItems(getFirstSectionBody(sections, ['Notes', 'Constraints or Unknowns'])),
+    ),
   ]);
   const goal =
     extractParagraph(getFirstSectionBody(sections, ['Goal'])) ??

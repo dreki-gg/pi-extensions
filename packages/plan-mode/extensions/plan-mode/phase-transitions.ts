@@ -5,7 +5,14 @@
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
 import type { PlanModeState } from './state.js';
 import type { ThinkingLevel } from './types.js';
-import { PLAN_TOOLS, EXEC_TOOLS, PLAN_MODEL, PLAN_THINKING, EXEC_MODEL, EXEC_THINKING } from './constants.js';
+import {
+  PLAN_TOOLS,
+  EXEC_TOOLS,
+  PLAN_MODEL,
+  PLAN_THINKING,
+  EXEC_MODEL,
+  EXEC_THINKING,
+} from './constants.js';
 import { updateUI } from './ui.js';
 
 export async function switchModel(
@@ -40,10 +47,7 @@ export async function enterPlanMode(
   pi.setActiveTools(PLAN_TOOLS);
   await switchModel(pi, ctx, PLAN_MODEL);
   pi.setThinkingLevel(PLAN_THINKING);
-  ctx.ui.notify(
-    `Plan mode ON — ${PLAN_MODEL.provider}/${PLAN_MODEL.id}:${PLAN_THINKING}`,
-    'info',
-  );
+  ctx.ui.notify(`Plan mode ON — ${PLAN_MODEL.provider}/${PLAN_MODEL.id}:${PLAN_THINKING}`, 'info');
   updateUI(state, ctx);
   state.persist(pi);
 }

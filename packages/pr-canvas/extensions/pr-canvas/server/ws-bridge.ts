@@ -74,8 +74,7 @@ export function createWsBridge(): WsBridge {
               Schema.decode(WsMessageToServer)(parsed).pipe(
                 Effect.matchEffect({
                   onSuccess: (msg) => Effect.succeed({ ok: true as const, msg }),
-                  onFailure: (e) =>
-                    Effect.succeed({ ok: false as const, error: e.message }),
+                  onFailure: (e) => Effect.succeed({ ok: false as const, error: e.message }),
                 }),
               ),
             );

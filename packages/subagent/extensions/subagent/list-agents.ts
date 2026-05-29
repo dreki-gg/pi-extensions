@@ -37,11 +37,12 @@ export function registerListAgentsTool(
       const discovery = discoverAgents(ctx.cwd, agentScope, resolvedPaths);
 
       if (discovery.agents.length === 0) {
-        const dirs = agentScope === 'user'
-          ? '~/.pi/agent/prompts'
-          : agentScope === 'project'
-            ? '.pi/prompts'
-            : '~/.pi/agent/prompts and .pi/prompts';
+        const dirs =
+          agentScope === 'user'
+            ? '~/.pi/agent/prompts'
+            : agentScope === 'project'
+              ? '.pi/prompts'
+              : '~/.pi/agent/prompts and .pi/prompts';
         return {
           content: [
             {
@@ -53,10 +54,7 @@ export function registerListAgentsTool(
         };
       }
 
-      const lines: string[] = [
-        `Available agents (scope: ${agentScope}):`,
-        '',
-      ];
+      const lines: string[] = [`Available agents (scope: ${agentScope}):`, ''];
 
       for (const agent of discovery.agents) {
         lines.push(`### ${agent.name}`);

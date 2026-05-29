@@ -102,9 +102,9 @@ describe('agent_end handler safety', () => {
     if (violations.length > 0) {
       throw new Error(
         `Found sendUserMessage calls inside agent_end without deliverAs.\n` +
-        `The agent is still "processing" during agent_end, so deliverAs is required.\n\n` +
-        `Violations:\n${violations.map((v) => `  - ${v}`).join('\n')}\n\n` +
-        `Fix: add { deliverAs: 'followUp' } to each call.`,
+          `The agent is still "processing" during agent_end, so deliverAs is required.\n\n` +
+          `Violations:\n${violations.map((v) => `  - ${v}`).join('\n')}\n\n` +
+          `Fix: add { deliverAs: 'followUp' } to each call.`,
       );
     }
   });

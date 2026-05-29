@@ -1,9 +1,4 @@
-import type {
-  DocumentResult,
-  QueryResult,
-  CollectionInfo,
-  WhereClause,
-} from './client.js';
+import type { DocumentResult, QueryResult, CollectionInfo, WhereClause } from './client.js';
 import type { RelationMap } from './relations.js';
 
 const MAX_DATA_LENGTH = 500;
@@ -19,10 +14,7 @@ function truncate(text: string, maxLength: number): string {
 /**
  * Stringifies an object, truncating nested depth beyond MAX_DEPTH.
  */
-function safeStringify(
-  obj: Record<string, unknown>,
-  maxLength: number,
-): string {
+function safeStringify(obj: Record<string, unknown>, maxLength: number): string {
   const pruned = pruneDepth(obj, 0);
   return truncate(JSON.stringify(pruned, null, 2), maxLength);
 }
@@ -150,10 +142,7 @@ export function formatRelationMap(map: RelationMap): string {
       col.sampleFields.length > 0
         ? ` — fields: ${col.sampleFields.map((f) => `\`${f}\``).join(', ')}`
         : '';
-    const count =
-      col.documentCount !== undefined
-        ? ` (${col.documentCount} docs)`
-        : '';
+    const count = col.documentCount !== undefined ? ` (${col.documentCount} docs)` : '';
     lines.push(`- **${col.id}**${count}${fields}`);
   }
 
@@ -165,12 +154,7 @@ export function formatRelationMap(map: RelationMap): string {
   } else {
     lines.push('### Relationships');
     for (const rel of map.relationships) {
-      const icon =
-        rel.confidence === 'high'
-          ? '🟢'
-          : rel.confidence === 'medium'
-            ? '🟡'
-            : '🔴';
+      const icon = rel.confidence === 'high' ? '🟢' : rel.confidence === 'medium' ? '🟡' : '🔴';
       lines.push(
         `- ${icon} **${rel.from}** → **${rel.to}** (${rel.type}, confidence: ${rel.confidence})`,
       );

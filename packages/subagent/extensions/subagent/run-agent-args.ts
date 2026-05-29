@@ -10,16 +10,18 @@ export interface RunAgentCommandOptions {
 }
 
 function tokenize(input: string): string[] {
-  return input.match(/"[^"]*"|'[^']*'|\S+/g)?.map((token) => token.replace(/^['"]|['"]$/g, '')) ?? [];
+  return (
+    input.match(/"[^"]*"|'[^']*'|\S+/g)?.map((token) => token.replace(/^['"]|['"]$/g, '')) ?? []
+  );
 }
 
 export function formatRunAgentUsage(): string {
   return 'Usage: /run-agent [--scope user|project|both] [--model <id>] [--thinking <level>] [--yes-project-agents] <agent> [task]';
 }
 
-export function parseRunAgentArgs(rawArgs?: string):
-  | { ok: true; options: RunAgentCommandOptions }
-  | { ok: false; error: string } {
+export function parseRunAgentArgs(
+  rawArgs?: string,
+): { ok: true; options: RunAgentCommandOptions } | { ok: false; error: string } {
   const tokens = tokenize(rawArgs?.trim() ?? '');
   const taskTokens: string[] = [];
 

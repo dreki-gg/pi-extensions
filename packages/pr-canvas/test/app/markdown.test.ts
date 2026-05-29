@@ -25,9 +25,7 @@ flowchart TD
   A --> B
 \`\`\``);
 
-    expect(blocks).toEqual([
-      { type: 'mermaid', source: 'flowchart TD\n  A --> B\n' },
-    ]);
+    expect(blocks).toEqual([{ type: 'mermaid', source: 'flowchart TD\n  A --> B\n' }]);
   });
 
   it('keeps non-Mermaid code fences inside markdown chunks', () => {

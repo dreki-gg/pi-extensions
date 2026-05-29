@@ -63,9 +63,7 @@ describe('PrCheckSchema', () => {
   });
 
   it('defaults missing fields', async () => {
-    const result = await Effect.runPromise(
-      Schema.decode(Schema.Array(PrCheckSchema))([{}]),
-    );
+    const result = await Effect.runPromise(Schema.decode(Schema.Array(PrCheckSchema))([{}]));
     expect(result[0].name).toBe('');
     expect(result[0].state).toBe('PENDING');
   });
@@ -73,9 +71,7 @@ describe('PrCheckSchema', () => {
 
 describe('WsMessageToServer', () => {
   it('validates pr:list message', async () => {
-    const result = await Effect.runPromise(
-      Schema.decode(WsMessageToServer)({ type: 'pr:list' }),
-    );
+    const result = await Effect.runPromise(Schema.decode(WsMessageToServer)({ type: 'pr:list' }));
     expect(result.type).toBe('pr:list');
   });
 

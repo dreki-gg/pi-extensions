@@ -50,9 +50,7 @@ export function buildExecutionPrompt(plan: PlanData): string | undefined {
     .join('\n\n');
 
   const currentTask = remaining[0];
-  const currentDetails = currentTask.details
-    ? `\nDetails: ${currentTask.details}`
-    : '';
+  const currentDetails = currentTask.details ? `\nDetails: ${currentTask.details}` : '';
 
   return `[EXECUTING PLAN — FOLLOW THE PLAN EXACTLY]
 

@@ -14,21 +14,15 @@ describe('validateCollectionPath', () => {
   });
 
   it('accepts a nested subcollection path', () => {
-    expect(() =>
-      validateCollectionPath('users/abc123/orders'),
-    ).not.toThrow();
+    expect(() => validateCollectionPath('users/abc123/orders')).not.toThrow();
   });
 
   it('accepts deeply nested subcollection', () => {
-    expect(() =>
-      validateCollectionPath('users/abc/orders/xyz/items'),
-    ).not.toThrow();
+    expect(() => validateCollectionPath('users/abc/orders/xyz/items')).not.toThrow();
   });
 
   it('rejects a document path (even segments)', () => {
-    expect(() => validateCollectionPath('users/abc123')).toThrow(
-      'collection path',
-    );
+    expect(() => validateCollectionPath('users/abc123')).toThrow('collection path');
   });
 
   it('rejects empty string', () => {
@@ -46,9 +40,7 @@ describe('validateDocumentPath', () => {
   });
 
   it('accepts a nested document path', () => {
-    expect(() =>
-      validateDocumentPath('users/abc/orders/xyz'),
-    ).not.toThrow();
+    expect(() => validateDocumentPath('users/abc/orders/xyz')).not.toThrow();
   });
 
   it('rejects a collection path (odd segments)', () => {

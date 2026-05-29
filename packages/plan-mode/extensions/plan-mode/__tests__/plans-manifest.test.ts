@@ -3,17 +3,34 @@ import { chdir } from 'node:process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { readPlansManifest, upsertPlanEntry, writePlansManifest } from '../storage/plans-manifest.js';
+import {
+  readPlansManifest,
+  upsertPlanEntry,
+  writePlansManifest,
+} from '../storage/plans-manifest.js';
 
 const originalCwd = process.cwd();
 let dir: string;
 
-beforeEach(async () => { dir = await mkdtemp(join(tmpdir(), 'plan-mode-manifest-')); chdir(dir); });
-afterEach(async () => { chdir(originalCwd); await rm(dir, { recursive: true, force: true }); });
+beforeEach(async () => {
+  dir = await mkdtemp(join(tmpdir(), 'plan-mode-manifest-'));
+  chdir(dir);
+});
+afterEach(async () => {
+  chdir(originalCwd);
+  await rm(dir, { recursive: true, force: true });
+});
 
 describe('plans.jsonl manifest', () => {
   test('round trips entries', async () => {
-    const entry = { _type: 'plan' as const, name: 'refactor', status: 'in-progress' as const, title: 'Refactor', created_at: 'now', completed_at: null };
+    const entry = {
+      _type: 'plan' as const,
+      name: 'refactor',
+      status: 'in-progress' as const,
+      title: 'Refactor',
+      created_at: 'now',
+      completed_at: null,
+    };
     await writePlansManifest([entry]);
     await expect(readPlansManifest()).resolves.toEqual([entry]);
   });
@@ -27,7 +44,16 @@ describe('plans.jsonl manifest', () => {
   });
 
   test('upserts existing entries without changing created_at', async () => {
-    await writePlansManifest([{ _type: 'plan', name: 'p', status: 'in-progress', title: 'Old', created_at: 'created', completed_at: null }]);
+    await writePlansManifest([
+      {
+        _type: 'plan',
+        name: 'p',
+        status: 'in-progress',
+        title: 'Old',
+        created_at: 'created',
+        completed_at: null,
+      },
+    ]);
     await upsertPlanEntry('p', { status: 'done', title: 'New' });
     const [entry] = await readPlansManifest();
     expect(entry.created_at).toBe('created');

@@ -83,12 +83,9 @@ describe('createMessageHandlers', () => {
 
   it('handles ai:chat without AI service', async () => {
     let response: any = null;
-    await handler(
-      { type: 'ai:chat', message: 'test', prNumber: 42 } as any,
-      (data) => {
-        response = data;
-      },
-    );
+    await handler({ type: 'ai:chat', message: 'test', prNumber: 42 } as any, (data) => {
+      response = data;
+    });
 
     expect(response).not.toBeNull();
     expect(response.type).toBe('error');
@@ -96,8 +93,7 @@ describe('createMessageHandlers', () => {
   });
 
   it('handles ai:chat with AI service', async () => {
-    const mockAiChat = async (message: string, _context: string) =>
-      `Answer to: ${message}`;
+    const mockAiChat = async (message: string, _context: string) => `Answer to: ${message}`;
     const handlerWithAi = createMessageHandlers(mockExec, mockAiChat);
 
     let response: any = null;

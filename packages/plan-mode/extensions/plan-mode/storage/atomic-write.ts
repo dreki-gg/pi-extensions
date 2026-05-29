@@ -8,7 +8,11 @@ export interface AtomicWriteOptions {
   mode?: number;
 }
 
-export async function writeFileAtomic(path: string, data: string | Buffer, options: AtomicWriteOptions = {}): Promise<void> {
+export async function writeFileAtomic(
+  path: string,
+  data: string | Buffer,
+  options: AtomicWriteOptions = {},
+): Promise<void> {
   const dir = dirname(path);
   const tempPath = join(dir, `.${process.pid}.${randomUUID()}.tmp`);
   let completed = false;

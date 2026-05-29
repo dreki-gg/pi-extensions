@@ -7,7 +7,11 @@ import {
   formatRelationMap,
   formatQuerySummary,
 } from '../extensions/firestore/format.js';
-import type { DocumentResult, QueryResult, CollectionInfo } from '../extensions/firestore/client.js';
+import type {
+  DocumentResult,
+  QueryResult,
+  CollectionInfo,
+} from '../extensions/firestore/client.js';
 import type { RelationMap } from '../extensions/firestore/relations.js';
 
 const sampleDoc: DocumentResult = {
@@ -109,9 +113,7 @@ describe('formatCountResult', () => {
   });
 
   it('formats count with filters', () => {
-    const result = formatCountResult('users', 5, [
-      { field: 'status', op: '==', value: 'active' },
-    ]);
+    const result = formatCountResult('users', 5, [{ field: 'status', op: '==', value: 'active' }]);
     expect(result).toContain('users');
     expect(result).toContain('5');
     expect(result).toContain('status');

@@ -36,8 +36,12 @@ describe('generateReviewIntelligence', () => {
     const result = await generateReviewIntelligence(pr, rawDiff);
 
     expect(result.summary.tldr).toContain('JWT');
-    expect(result.summary.whatChanged.some((item) => item.includes('src/middleware/auth.ts:L'))).toBe(true);
-    expect(result.summary.hotSpots.some((item) => item.toLowerCase().includes('fallback secret'))).toBe(true);
+    expect(
+      result.summary.whatChanged.some((item) => item.includes('src/middleware/auth.ts:L')),
+    ).toBe(true);
+    expect(
+      result.summary.hotSpots.some((item) => item.toLowerCase().includes('fallback secret')),
+    ).toBe(true);
     expect(result.summary.openQuestions.length).toBeGreaterThan(0);
   });
 
@@ -47,8 +51,18 @@ describe('generateReviewIntelligence', () => {
     expect(result.summary.endpoints).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ method: 'GET', path: '/public', change: 'NEW' }),
-        expect.objectContaining({ method: 'GET', path: '/data', auth: expect.stringContaining('authMiddleware'), change: 'CHANGED' }),
-        expect.objectContaining({ method: 'GET', path: '/health', auth: expect.stringContaining('authMiddleware'), change: 'CHANGED' }),
+        expect.objectContaining({
+          method: 'GET',
+          path: '/data',
+          auth: expect.stringContaining('authMiddleware'),
+          change: 'CHANGED',
+        }),
+        expect.objectContaining({
+          method: 'GET',
+          path: '/health',
+          auth: expect.stringContaining('authMiddleware'),
+          change: 'CHANGED',
+        }),
       ]),
     );
   });
@@ -58,8 +72,14 @@ describe('generateReviewIntelligence', () => {
 
     expect(result.summary.dataStructures).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: 'AuthRequest', source: expect.stringContaining('src/middleware/auth.ts:L') }),
-        expect.objectContaining({ name: 'TokenPayload', source: expect.stringContaining('src/middleware/token-validator.ts:L') }),
+        expect.objectContaining({
+          name: 'AuthRequest',
+          source: expect.stringContaining('src/middleware/auth.ts:L'),
+        }),
+        expect.objectContaining({
+          name: 'TokenPayload',
+          source: expect.stringContaining('src/middleware/token-validator.ts:L'),
+        }),
       ]),
     );
   });
@@ -69,37 +89,42 @@ describe('generateReviewIntelligence', () => {
 
     expect(result.mindMap.length).toBeGreaterThan(0);
     expect(result.mindMap.some((group) => group.diagram?.includes('sequenceDiagram'))).toBe(true);
-    expect(result.mindMap.some((group) => group.relationships?.some((rel) => rel.includes('authMiddleware')))).toBe(true);
+    expect(
+      result.mindMap.some((group) =>
+        group.relationships?.some((rel) => rel.includes('authMiddleware')),
+      ),
+    ).toBe(true);
   });
 
   it('uses parseable AI output when an AI boundary is supplied', async () => {
-    const ai = async () => JSON.stringify({
-      summary: {
-        purpose: 'AI purpose',
-        impact: 'AI impact',
-        tldr: 'AI TLDR',
-        whatChanged: ['AI changed'],
-        systemFlow: ['AI flow'],
-        endpoints: [],
-        dataStructures: [],
-        hotSpots: ['AI hot spot'],
-        openQuestions: ['AI question'],
-        sourceReferences: [],
-        concerns: ['AI concern'],
-        highlights: ['AI highlight'],
-        generatedBy: 'ai',
-      },
-      mindMap: [
-        {
-          label: 'AI model',
-          description: 'AI-generated mental model',
-          files: ['src/index.ts'],
-          changeType: 'feature',
-          diagram: 'flowchart TD\n  A --> B',
-          relationships: ['A calls B'],
+    const ai = async () =>
+      JSON.stringify({
+        summary: {
+          purpose: 'AI purpose',
+          impact: 'AI impact',
+          tldr: 'AI TLDR',
+          whatChanged: ['AI changed'],
+          systemFlow: ['AI flow'],
+          endpoints: [],
+          dataStructures: [],
+          hotSpots: ['AI hot spot'],
+          openQuestions: ['AI question'],
+          sourceReferences: [],
+          concerns: ['AI concern'],
+          highlights: ['AI highlight'],
+          generatedBy: 'ai',
         },
-      ],
-    });
+        mindMap: [
+          {
+            label: 'AI model',
+            description: 'AI-generated mental model',
+            files: ['src/index.ts'],
+            changeType: 'feature',
+            diagram: 'flowchart TD\n  A --> B',
+            relationships: ['A calls B'],
+          },
+        ],
+      });
 
     const result = await generateReviewIntelligence(pr, rawDiff, ai);
 
@@ -135,11 +160,41 @@ describe('generateHeuristicMindMap compatibility', () => {
         deletions: 20,
       },
       files: [
-        { path: 'server/cloud-run/src/lib/resilient-call.ts', status: 'added', additions: 40, deletions: 0, patch: '@@ -0,0 +1,40 @@\n+export async function resilientCall() {}' },
-        { path: 'server/cloud-run/src/lib/signed-url.ts', status: 'modified', additions: 30, deletions: 10, patch: '@@ -1,1 +1,3 @@\n+export async function getSignedUrl() {}' },
-        { path: 'server/cloud-run/src/services/files.service.ts', status: 'modified', additions: 25, deletions: 8, patch: '@@ -1,1 +1,3 @@\n+export async function fetchFile() {}' },
-        { path: 'server/cloud-run/src/types/files.ts', status: 'added', additions: 12, deletions: 0, patch: '@@ -0,0 +1,12 @@\n+export interface FileDownload {\n+  url: string;\n+}' },
-        { path: 'server/cloud-run/src/lib/signed-url.test.ts', status: 'added', additions: 20, deletions: 0, patch: '' },
+        {
+          path: 'server/cloud-run/src/lib/resilient-call.ts',
+          status: 'added',
+          additions: 40,
+          deletions: 0,
+          patch: '@@ -0,0 +1,40 @@\n+export async function resilientCall() {}',
+        },
+        {
+          path: 'server/cloud-run/src/lib/signed-url.ts',
+          status: 'modified',
+          additions: 30,
+          deletions: 10,
+          patch: '@@ -1,1 +1,3 @@\n+export async function getSignedUrl() {}',
+        },
+        {
+          path: 'server/cloud-run/src/services/files.service.ts',
+          status: 'modified',
+          additions: 25,
+          deletions: 8,
+          patch: '@@ -1,1 +1,3 @@\n+export async function fetchFile() {}',
+        },
+        {
+          path: 'server/cloud-run/src/types/files.ts',
+          status: 'added',
+          additions: 12,
+          deletions: 0,
+          patch: '@@ -0,0 +1,12 @@\n+export interface FileDownload {\n+  url: string;\n+}',
+        },
+        {
+          path: 'server/cloud-run/src/lib/signed-url.test.ts',
+          status: 'added',
+          additions: 20,
+          deletions: 0,
+          patch: '',
+        },
       ],
     };
 

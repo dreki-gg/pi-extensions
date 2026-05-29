@@ -86,7 +86,10 @@ export function detectSurfaces(pr: PrData): ReviewSurface[] {
     }
 
     for (const raw of file.patch.split('\n')) {
-      const added = /^\+\s*router\.(get|post|put|patch|delete)\(['"]([^'"]+)['"]\s*(?:,\s*([^,()]+))?/.exec(raw);
+      const added =
+        /^\+\s*router\.(get|post|put|patch|delete)\(['"]([^'"]+)['"]\s*(?:,\s*([^,()]+))?/.exec(
+          raw,
+        );
       if (!added) continue;
 
       const method = added[1].toUpperCase();
@@ -98,8 +101,14 @@ export function detectSurfaces(pr: PrData): ReviewSurface[] {
       surfaces.push({
         method,
         path,
-        auth: maybeMiddleware && !maybeMiddleware.includes('req') ? maybeMiddleware : 'not visible in route signature',
-        requestShape: method === 'GET' ? 'query/path params only (body not visible)' : 'not inferable from diff',
+        auth:
+          maybeMiddleware && !maybeMiddleware.includes('req')
+            ? maybeMiddleware
+            : 'not visible in route signature',
+        requestShape:
+          method === 'GET'
+            ? 'query/path params only (body not visible)'
+            : 'not inferable from diff',
         responseShape: inferResponseShape(raw),
         change: removedRoutes.has(key) ? 'CHANGED' : 'NEW',
         source,
@@ -139,7 +148,9 @@ export function detectDataStructures(pr: PrData): ReviewDataStructure[] {
 
       structures.push({
         name: match[1],
-        source: sourceForLine(file, `export interface ${match[1]}`) ?? formatReference(firstAddedRange(file) ?? { path: file.path, start: 1, end: 1 }),
+        source:
+          sourceForLine(file, `export interface ${match[1]}`) ??
+          formatReference(firstAddedRange(file) ?? { path: file.path, start: 1, end: 1 }),
         fields,
       });
     }
@@ -173,7 +184,14 @@ export function describeFileRole(file: PrFile): string {
 
 export function hasSecretFallback(pr: PrData): string | undefined {
   for (const file of pr.files) {
-    const line = file.patch.split('\n').find((entry) => /^\+/.test(entry) && /secret|token|password|api[_-]?key/i.test(entry) && /default|fallback|hardcoded|['"][^'"]+['"]/.test(entry));
+    const line = file.patch
+      .split('\n')
+      .find(
+        (entry) =>
+          /^\+/.test(entry) &&
+          /secret|token|password|api[_-]?key/i.test(entry) &&
+          /default|fallback|hardcoded|['"][^'"]+['"]/.test(entry),
+      );
     if (line) return sourceForLine(file, line.slice(1).trim()) ?? file.path;
   }
   return undefined;

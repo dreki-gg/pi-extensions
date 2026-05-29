@@ -139,17 +139,17 @@ describe('unified lsp tool dispatch', () => {
       emptyManager({
         anyClient: () => ({
           workspaceSymbol: async (query: string) => [
-          {
-            name: `${query}Service`,
-            kind: 5,
-            location: {
-              uri: 'file:///repo/src/service.ts',
-              range: { start: { line: 9, character: 0 }, end: { line: 9, character: 5 } },
+            {
+              name: `${query}Service`,
+              kind: 5,
+              location: {
+                uri: 'file:///repo/src/service.ts',
+                range: { start: { line: 9, character: 0 }, end: { line: 9, character: 5 } },
+              },
+              containerName: 'services',
             },
-            containerName: 'services',
-          },
-        ],
-      }),
+          ],
+        }),
       }),
     );
 

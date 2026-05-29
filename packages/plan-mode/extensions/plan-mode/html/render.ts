@@ -32,7 +32,10 @@ function markdownToHtml(markdown: string): string {
     // Fenced code blocks
     if (line.startsWith('```')) {
       if (!inCode) {
-        if (inList) { html.push('</ul>'); inList = false; }
+        if (inList) {
+          html.push('</ul>');
+          inList = false;
+        }
         inCode = true;
         codeLang = line.slice(3).trim();
         codeLines.length = 0;
@@ -53,7 +56,10 @@ function markdownToHtml(markdown: string): string {
     // Headings
     const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
     if (headingMatch) {
-      if (inList) { html.push('</ul>'); inList = false; }
+      if (inList) {
+        html.push('</ul>');
+        inList = false;
+      }
       const level = headingMatch[1].length;
       html.push(`<h${level}>${inlineMarkdown(escapeHtml(headingMatch[2]))}</h${level}>`);
       continue;
@@ -62,19 +68,28 @@ function markdownToHtml(markdown: string): string {
     // List items (- or *)
     const listMatch = line.match(/^\s*[-*]\s+(.*)$/);
     if (listMatch) {
-      if (!inList) { html.push('<ul>'); inList = true; }
+      if (!inList) {
+        html.push('<ul>');
+        inList = true;
+      }
       html.push(`<li>${inlineMarkdown(escapeHtml(listMatch[1]))}</li>`);
       continue;
     }
 
     // Blank line
     if (!line.trim()) {
-      if (inList) { html.push('</ul>'); inList = false; }
+      if (inList) {
+        html.push('</ul>');
+        inList = false;
+      }
       continue;
     }
 
     // Paragraph
-    if (inList) { html.push('</ul>'); inList = false; }
+    if (inList) {
+      html.push('</ul>');
+      inList = false;
+    }
     html.push(`<p>${inlineMarkdown(escapeHtml(line))}</p>`);
   }
 
@@ -88,17 +103,19 @@ function markdownToHtml(markdown: string): string {
 
 /** Converts inline markdown (bold, italic, inline code, links) in already-escaped HTML. */
 function inlineMarkdown(text: string): string {
-  return text
-    // Inline code: `code`
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    // Bold: **text** or __text__
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/__(.+?)__/g, '<strong>$1</strong>')
-    // Italic: *text* or _text_
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/_(.+?)_/g, '<em>$1</em>')
-    // Links: [text](url)
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  return (
+    text
+      // Inline code: `code`
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      // Bold: **text** or __text__
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/__(.+?)__/g, '<strong>$1</strong>')
+      // Italic: *text* or _text_
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/_(.+?)_/g, '<em>$1</em>')
+      // Links: [text](url)
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+  );
 }
 
 function escapeHtml(value: string): string {

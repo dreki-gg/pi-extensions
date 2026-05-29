@@ -5,7 +5,15 @@ import type { PlanData, TaskRecord } from '../types.js';
 
 const now = '2026-01-01T00:00:00Z';
 function makeTask(overrides?: Partial<TaskRecord>): TaskRecord {
-  return { _type: 'task', id: 't-001', description: 'Do work', status: 'pending', created_at: now, updated_at: now, ...overrides };
+  return {
+    _type: 'task',
+    id: 't-001',
+    description: 'Do work',
+    status: 'pending',
+    created_at: now,
+    updated_at: now,
+    ...overrides,
+  };
 }
 
 describe('buildPlanModePrompt', () => {
@@ -54,13 +62,23 @@ describe('buildExecutionPrompt', () => {
   });
 
   test('includes Details line when task has details', () => {
-    const plan: PlanData = { title: 'Test', planName: 'test', handoff: '# H', tasks: [makeTask({ details: 'Full instructions here' })] };
+    const plan: PlanData = {
+      title: 'Test',
+      planName: 'test',
+      handoff: '# H',
+      tasks: [makeTask({ details: 'Full instructions here' })],
+    };
     const prompt = buildExecutionPrompt(plan)!;
     expect(prompt).toContain('Details: Full instructions here');
   });
 
   test('returns undefined when no pending tasks', () => {
-    const plan: PlanData = { title: 'Test', planName: 'test', handoff: '# H', tasks: [makeTask({ status: 'done' })] };
+    const plan: PlanData = {
+      title: 'Test',
+      planName: 'test',
+      handoff: '# H',
+      tasks: [makeTask({ status: 'done' })],
+    };
     expect(buildExecutionPrompt(plan)).toBeUndefined();
   });
 });

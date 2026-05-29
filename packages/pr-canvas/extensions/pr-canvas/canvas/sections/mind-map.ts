@@ -32,9 +32,7 @@ export function renderMindMap(groups: MindMapGroup[]): string {
 
 function renderGroupCard(group: MindMapGroup): string {
   const badgeClass = `badge badge-sm badge-${group.changeType}`;
-  const files = group.files
-    .map((f) => `<li>${escapeHtml(f)}</li>`)
-    .join('');
+  const files = group.files.map((f) => `<li>${escapeHtml(f)}</li>`).join('');
 
   return `
     <div class="mind-group">

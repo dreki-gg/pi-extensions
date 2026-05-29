@@ -4,10 +4,7 @@
  */
 
 /** Drop everything before the execution start index. */
-export function filterExecutionMessages<T>(
-  messages: T[],
-  executionStartIdx: number,
-): T[] {
+export function filterExecutionMessages<T>(messages: T[], executionStartIdx: number): T[] {
   return messages.filter((_m, i) => i >= executionStartIdx);
 }
 

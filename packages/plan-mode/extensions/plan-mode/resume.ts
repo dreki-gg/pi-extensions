@@ -2,7 +2,11 @@
  * Resume and execution handoff — pick up in-progress plans, model picker, new session handoff.
  */
 
-import type { ExtensionAPI, ExtensionContext, ExtensionCommandContext } from '@earendil-works/pi-coding-agent';
+import type {
+  ExtensionAPI,
+  ExtensionContext,
+  ExtensionCommandContext,
+} from '@earendil-works/pi-coding-agent';
 import type { PlanModeState } from './state.js';
 import type { PlanData } from './types.js';
 import { EXEC_THINKING, EXEC_MODEL_OPTIONS } from './constants.js';
@@ -11,7 +15,9 @@ import { loadHandoff, writeExecPending } from './storage/plan-storage.js';
 import { readTasksJsonl, writeTasksJsonl } from './storage/task-storage.js';
 import { enterPlanMode } from './phase-transitions.js';
 
-export async function pickExecutionModel(ctx: ExtensionContext): Promise<{ provider: string; id: string } | undefined> {
+export async function pickExecutionModel(
+  ctx: ExtensionContext,
+): Promise<{ provider: string; id: string } | undefined> {
   const labels = EXEC_MODEL_OPTIONS.map((o) => o.label);
   const choice = await ctx.ui.select('Execute with:', labels);
   if (!choice) return undefined;
@@ -38,7 +44,11 @@ export async function executeInNewSession(
   });
 }
 
-export async function resumePlan(state: PlanModeState, pi: ExtensionAPI, ctx: ExtensionCommandContext): Promise<void> {
+export async function resumePlan(
+  state: PlanModeState,
+  pi: ExtensionAPI,
+  ctx: ExtensionCommandContext,
+): Promise<void> {
   const manifest = await readPlansManifest();
   const inProgress = manifest.filter((entry) => entry.status === 'in-progress');
 
@@ -70,12 +80,17 @@ export async function resumePlan(state: PlanModeState, pi: ExtensionAPI, ctx: Ex
     tasks: snapshot.tasks,
   };
 
-  const doneCount = state.plan.tasks.filter((task) => task.status === 'done' || task.status === 'skipped').length;
+  const doneCount = state.plan.tasks.filter(
+    (task) => task.status === 'done' || task.status === 'skipped',
+  ).length;
   const pendingCount = state.plan.tasks.filter((task) => task.status === 'pending').length;
   const blockedCount = state.plan.tasks.filter((task) => task.status === 'blocked').length;
 
   if (pendingCount === 0 && blockedCount === 0) {
-    ctx.ui.notify(`Plan "${state.plan.title}" is already complete (${doneCount}/${state.plan.tasks.length} done).`, 'info');
+    ctx.ui.notify(
+      `Plan "${state.plan.title}" is already complete (${doneCount}/${state.plan.tasks.length} done).`,
+      'info',
+    );
     state.plan = undefined;
     state.planDir = undefined;
     return;

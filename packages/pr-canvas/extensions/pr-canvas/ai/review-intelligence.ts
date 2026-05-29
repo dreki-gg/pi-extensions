@@ -1,5 +1,13 @@
 import type { PrData } from '../github/types';
-import { detectDataStructures, detectSurfaces, buildSourceReferences, describeFileRole, firstAddedRange, formatReference, hasSecretFallback } from './diff-analysis';
+import {
+  detectDataStructures,
+  detectSurfaces,
+  buildSourceReferences,
+  describeFileRole,
+  firstAddedRange,
+  formatReference,
+  hasSecretFallback,
+} from './diff-analysis';
 import { generateHeuristicMindMap } from './mind-map';
 import type { AiSummary, MindMapGroup, ReviewIntelligence } from './types';
 
@@ -54,13 +62,20 @@ export function buildRichHeuristicSummary(pr: PrData): AiSummary {
     );
   }
   if (dataStructures.length > 0) {
-    highlights.unshift(`Data structures: ${dataStructures.map((structure) => structure.name).join(', ')}`);
+    highlights.unshift(
+      `Data structures: ${dataStructures.map((structure) => structure.name).join(', ')}`,
+    );
   }
 
   return {
     ...legacy,
     highlights,
-    concerns: [...new Set([...legacy.concerns, ...hotSpots.filter((item) => /secret|auth|CI|fail|coverage/i.test(item))])],
+    concerns: [
+      ...new Set([
+        ...legacy.concerns,
+        ...hotSpots.filter((item) => /secret|auth|CI|fail|coverage/i.test(item)),
+      ]),
+    ],
     tldr: buildTldr(pr, endpoints, dataStructures),
     whatChanged,
     systemFlow,
@@ -84,20 +99,31 @@ function buildLegacySummary(pr: PrData): AiSummary {
   };
 }
 
-function buildTldr(pr: PrData, endpoints: ReturnType<typeof detectSurfaces>, dataStructures: ReturnType<typeof detectDataStructures>): string {
+function buildTldr(
+  pr: PrData,
+  endpoints: ReturnType<typeof detectSurfaces>,
+  dataStructures: ReturnType<typeof detectDataStructures>,
+): string {
   const noun = inferPrimarySystem(pr);
-  const endpointPart = endpoints.length > 0
-    ? ` It exposes or changes ${endpoints.length} callable surface${endpoints.length === 1 ? '' : 's'} (${endpoints.map((s) => `${s.method} ${s.path}`).join(', ')}).`
+  const endpointPart =
+    endpoints.length > 0
+      ? ` It exposes or changes ${endpoints.length} callable surface${endpoints.length === 1 ? '' : 's'} (${endpoints.map((s) => `${s.method} ${s.path}`).join(', ')}).`
+      : '';
+  const dataPart =
+    dataStructures.length > 0
+      ? ` It also introduces ${dataStructures.map((s) => s.name).join(', ')} data shape${dataStructures.length === 1 ? '' : 's'}.`
+      : '';
+  const authKind = /jwt|jsonwebtoken|token/i.test(
+    `${pr.overview.title}\n${pr.overview.body}\n${pr.files.map((file) => file.patch).join('\n')}`,
+  )
+    ? ' JWT'
     : '';
-  const dataPart = dataStructures.length > 0
-    ? ` It also introduces ${dataStructures.map((s) => s.name).join(', ')} data shape${dataStructures.length === 1 ? '' : 's'}.`
-    : '';
-  const authKind = /jwt|jsonwebtoken|token/i.test(`${pr.overview.title}\n${pr.overview.body}\n${pr.files.map((file) => file.patch).join('\n')}`) ? ' JWT' : '';
   return `${pr.overview.title} centers on the${authKind} ${noun}, touching ${pr.files.length} files with +${pr.overview.additions}/-${pr.overview.deletions} lines.${endpointPart}${dataPart}`;
 }
 
 function inferPrimarySystem(pr: PrData): string {
-  const text = `${pr.overview.title}\n${pr.overview.body}\n${pr.files.map((f) => f.path).join('\n')}`.toLowerCase();
+  const text =
+    `${pr.overview.title}\n${pr.overview.body}\n${pr.files.map((f) => f.path).join('\n')}`.toLowerCase();
   if (/auth|jwt|token|permission/.test(text)) return 'the authentication/control-flow boundary';
   if (/websocket|socket|bridge/.test(text)) return 'the WebSocket/event bridge';
   if (/route|api|endpoint|handler/.test(text)) return 'API routing';
@@ -105,19 +131,32 @@ function inferPrimarySystem(pr: PrData): string {
   return 'the changed subsystem';
 }
 
-function buildSystemFlow(pr: PrData, endpoints: ReturnType<typeof detectSurfaces>, dataStructures: ReturnType<typeof detectDataStructures>): string[] {
+function buildSystemFlow(
+  pr: PrData,
+  endpoints: ReturnType<typeof detectSurfaces>,
+  dataStructures: ReturnType<typeof detectDataStructures>,
+): string[] {
   const flow: string[] = [];
   if (endpoints.length > 0) {
-    flow.push(`Caller enters ${endpoints.map((surface) => `${surface.method} ${surface.path}`).join(', ')}; changed routes now declare ${summarizeAuth(endpoints)}.`);
+    flow.push(
+      `Caller enters ${endpoints.map((surface) => `${surface.method} ${surface.path}`).join(', ')}; changed routes now declare ${summarizeAuth(endpoints)}.`,
+    );
   }
   const middlewareFiles = pr.files.filter((file) => /middleware|auth|token/i.test(file.path));
   if (middlewareFiles.length > 0) {
-    flow.push(`Middleware/utilities in ${middlewareFiles.map((file) => file.path).join(', ')} validate or derive request identity before downstream handlers run.`);
+    flow.push(
+      `Middleware/utilities in ${middlewareFiles.map((file) => file.path).join(', ')} validate or derive request identity before downstream handlers run.`,
+    );
   }
   if (dataStructures.length > 0) {
-    flow.push(`Typed contracts introduced here: ${dataStructures.map((structure) => structure.name).join(', ')}.`);
+    flow.push(
+      `Typed contracts introduced here: ${dataStructures.map((structure) => structure.name).join(', ')}.`,
+    );
   }
-  if (flow.length === 0) flow.push('Diff changes are grouped by file role; no explicit request/event flow was detectable from route or handler patterns.');
+  if (flow.length === 0)
+    flow.push(
+      'Diff changes are grouped by file role; no explicit request/event flow was detectable from route or handler patterns.',
+    );
   return flow;
 }
 
@@ -128,19 +167,36 @@ function summarizeAuth(endpoints: ReturnType<typeof detectSurfaces>): string {
 
 function buildHotSpots(pr: PrData, secretFallback?: string): string[] {
   const hotSpots: string[] = [];
-  if (secretFallback) hotSpots.push(`Security: verify fallback secret handling before merge (${secretFallback}).`);
+  if (secretFallback)
+    hotSpots.push(`Security: verify fallback secret handling before merge (${secretFallback}).`);
 
-  const failedChecks = pr.checks.filter((check) => check.state === 'FAILURE' || check.state === 'STARTUP_FAILURE');
-  if (failedChecks.length > 0) hotSpots.push(`CI: ${failedChecks.map((check) => check.name).join(', ')} failing; confirm failures are unrelated or fixed.`);
+  const failedChecks = pr.checks.filter(
+    (check) => check.state === 'FAILURE' || check.state === 'STARTUP_FAILURE',
+  );
+  if (failedChecks.length > 0)
+    hotSpots.push(
+      `CI: ${failedChecks.map((check) => check.name).join(', ')} failing; confirm failures are unrelated or fixed.`,
+    );
 
-  const hasSourceChanges = pr.files.some((file) => !/\b(test|tests|spec|__tests__)\b|\.(test|spec)\./.test(file.path) && /\.(ts|tsx|js|jsx)$/.test(file.path));
-  const hasTests = pr.files.some((file) => /\b(test|tests|spec|__tests__)\b|\.(test|spec)\./.test(file.path));
-  if (hasSourceChanges && !hasTests) hotSpots.push('Coverage: source files changed without test files in this PR.');
+  const hasSourceChanges = pr.files.some(
+    (file) =>
+      !/\b(test|tests|spec|__tests__)\b|\.(test|spec)\./.test(file.path) &&
+      /\.(ts|tsx|js|jsx)$/.test(file.path),
+  );
+  const hasTests = pr.files.some((file) =>
+    /\b(test|tests|spec|__tests__)\b|\.(test|spec)\./.test(file.path),
+  );
+  if (hasSourceChanges && !hasTests)
+    hotSpots.push('Coverage: source files changed without test files in this PR.');
 
   const routeFiles = pr.files.filter((file) => /route|api|handler|controller/.test(file.path));
-  for (const file of routeFiles) hotSpots.push(`Contract boundary: check changed route behavior and status codes in ${file.path}.`);
+  for (const file of routeFiles)
+    hotSpots.push(
+      `Contract boundary: check changed route behavior and status codes in ${file.path}.`,
+    );
 
-  if (hotSpots.length === 0) hotSpots.push('Review the largest changed files for edge cases and contract drift.');
+  if (hotSpots.length === 0)
+    hotSpots.push('Review the largest changed files for edge cases and contract drift.');
   return hotSpots.slice(0, 6);
 }
 
@@ -151,15 +207,27 @@ function buildOpenQuestions(
   secretFallback?: string,
 ): string[] {
   const questions: string[] = [];
-  if (secretFallback) questions.push('Should this PR fail fast when the secret is unset instead of using a fallback/default?');
+  if (secretFallback)
+    questions.push(
+      'Should this PR fail fast when the secret is unset instead of using a fallback/default?',
+    );
   for (const endpoint of endpoints) {
-    if (endpoint.auth === 'not visible in route signature') questions.push(`What auth model protects ${endpoint.method} ${endpoint.path}?`);
-    if (endpoint.responseShape === 'not inferable from diff') questions.push(`What exact response contract should reviewers expect from ${endpoint.method} ${endpoint.path}?`);
+    if (endpoint.auth === 'not visible in route signature')
+      questions.push(`What auth model protects ${endpoint.method} ${endpoint.path}?`);
+    if (endpoint.responseShape === 'not inferable from diff')
+      questions.push(
+        `What exact response contract should reviewers expect from ${endpoint.method} ${endpoint.path}?`,
+      );
   }
   for (const structure of dataStructures) {
-    if (structure.fields.length === 0) questions.push(`What fields make up ${structure.name}, and are they serialized or internal-only?`);
+    if (structure.fields.length === 0)
+      questions.push(
+        `What fields make up ${structure.name}, and are they serialized or internal-only?`,
+      );
   }
-  return questions.length > 0 ? [...new Set(questions)].slice(0, 6) : ['None — the diff is self-contained.'];
+  return questions.length > 0
+    ? [...new Set(questions)].slice(0, 6)
+    : ['None — the diff is self-contained.'];
 }
 
 function changeVerb(status: string): string {
@@ -183,35 +251,72 @@ function derivePurpose(pr: PrData): string {
 function deriveImpact(pr: PrData): string {
   const dirs = new Set(pr.files.map((f) => f.path.split('/')[0]));
   const parts: string[] = [];
-  if (dirs.size > 0) parts.push(`Affects ${dirs.size} top-level ${dirs.size === 1 ? 'area' : 'areas'}: ${[...dirs].join(', ')}`);
-  parts.push(`${pr.overview.additions} lines added, ${pr.overview.deletions} lines removed across ${pr.files.length} files`);
+  if (dirs.size > 0)
+    parts.push(
+      `Affects ${dirs.size} top-level ${dirs.size === 1 ? 'area' : 'areas'}: ${[...dirs].join(', ')}`,
+    );
+  parts.push(
+    `${pr.overview.additions} lines added, ${pr.overview.deletions} lines removed across ${pr.files.length} files`,
+  );
   return parts.join('. ') + '.';
 }
 
 function deriveConcerns(pr: PrData): string[] {
   const concerns: string[] = [];
-  if (pr.files.length > 20) concerns.push(`Large PR with ${pr.files.length} files — consider splitting`);
-  if (pr.overview.deletions > 500) concerns.push(`Significant deletions (${pr.overview.deletions} lines) — verify nothing is lost`);
+  if (pr.files.length > 20)
+    concerns.push(`Large PR with ${pr.files.length} files — consider splitting`);
+  if (pr.overview.deletions > 500)
+    concerns.push(
+      `Significant deletions (${pr.overview.deletions} lines) — verify nothing is lost`,
+    );
 
-  const hasTests = pr.files.some((f) => f.status !== 'deleted' && (/\.(test|spec)\.\w+$/.test(f.path) || /\b(test|tests|spec|__tests__)\b/.test(f.path)));
-  const hasSourceChanges = pr.files.some((f) => f.status !== 'deleted' && !(/\.(test|spec)\.\w+$/.test(f.path)) && /\.(ts|js|tsx|jsx|py|rb|go|rs)$/.test(f.path));
-  if (hasSourceChanges && !hasTests) concerns.push('No test files modified — consider adding test coverage');
+  const hasTests = pr.files.some(
+    (f) =>
+      f.status !== 'deleted' &&
+      (/\.(test|spec)\.\w+$/.test(f.path) || /\b(test|tests|spec|__tests__)\b/.test(f.path)),
+  );
+  const hasSourceChanges = pr.files.some(
+    (f) =>
+      f.status !== 'deleted' &&
+      !/\.(test|spec)\.\w+$/.test(f.path) &&
+      /\.(ts|js|tsx|jsx|py|rb|go|rs)$/.test(f.path),
+  );
+  if (hasSourceChanges && !hasTests)
+    concerns.push('No test files modified — consider adding test coverage');
 
-  const failedChecks = pr.checks.filter((c) => c.state === 'FAILURE' || c.state === 'STARTUP_FAILURE');
-  if (failedChecks.length > 0) concerns.push(`${failedChecks.length} CI check${failedChecks.length > 1 ? 's' : ''} failing: ${failedChecks.map((c) => c.name).join(', ')}`);
+  const failedChecks = pr.checks.filter(
+    (c) => c.state === 'FAILURE' || c.state === 'STARTUP_FAILURE',
+  );
+  if (failedChecks.length > 0)
+    concerns.push(
+      `${failedChecks.length} CI check${failedChecks.length > 1 ? 's' : ''} failing: ${failedChecks.map((c) => c.name).join(', ')}`,
+    );
   return concerns;
 }
 
 function deriveHighlights(pr: PrData): string[] {
   const highlights: string[] = [];
   const newFiles = pr.files.filter((f) => f.status === 'added');
-  if (newFiles.length > 0) highlights.push(newFiles.length <= 3 ? `New files: ${newFiles.map((f) => f.path).join(', ')}` : `${newFiles.length} new files added`);
+  if (newFiles.length > 0)
+    highlights.push(
+      newFiles.length <= 3
+        ? `New files: ${newFiles.map((f) => f.path).join(', ')}`
+        : `${newFiles.length} new files added`,
+    );
 
   const deletedFiles = pr.files.filter((f) => f.status === 'deleted');
-  if (deletedFiles.length > 0) highlights.push(deletedFiles.length <= 3 ? `Removed: ${deletedFiles.map((f) => f.path).join(', ')}` : `${deletedFiles.length} files removed`);
+  if (deletedFiles.length > 0)
+    highlights.push(
+      deletedFiles.length <= 3
+        ? `Removed: ${deletedFiles.map((f) => f.path).join(', ')}`
+        : `${deletedFiles.length} files removed`,
+    );
 
-  const biggest = [...pr.files].sort((a, b) => (b.additions + b.deletions) - (a.additions + a.deletions))[0];
-  if (biggest && biggest.additions + biggest.deletions > 50) highlights.push(`Most changed: ${biggest.path} (+${biggest.additions} −${biggest.deletions})`);
+  const biggest = [...pr.files].sort(
+    (a, b) => b.additions + b.deletions - (a.additions + a.deletions),
+  )[0];
+  if (biggest && biggest.additions + biggest.deletions > 50)
+    highlights.push(`Most changed: ${biggest.path} (+${biggest.additions} −${biggest.deletions})`);
   return highlights;
 }
 
@@ -224,7 +329,9 @@ PR #${pr.overview.number}: ${pr.overview.title}`;
 }
 
 function buildReviewContext(pr: PrData, rawDiff: string): string {
-  const compactFiles = pr.files.map((file) => `${file.status} ${file.path} +${file.additions}/-${file.deletions}`).join('\n');
+  const compactFiles = pr.files
+    .map((file) => `${file.status} ${file.path} +${file.additions}/-${file.deletions}`)
+    .join('\n');
   return [
     `Title: ${pr.overview.title}`,
     `Body:\n${pr.overview.body || '(empty)'}`,
@@ -263,8 +370,10 @@ function normalizeSummary(summary: AiSummary): AiSummary {
   return {
     purpose: summary.purpose || summary.tldr || 'AI-generated review summary',
     impact: summary.impact || summary.systemFlow?.join(' ') || 'Impact inferred by AI review.',
-    concerns: Array.isArray(summary.concerns) ? summary.concerns : summary.hotSpots ?? [],
-    highlights: Array.isArray(summary.highlights) ? summary.highlights : summary.whatChanged ?? [],
+    concerns: Array.isArray(summary.concerns) ? summary.concerns : (summary.hotSpots ?? []),
+    highlights: Array.isArray(summary.highlights)
+      ? summary.highlights
+      : (summary.whatChanged ?? []),
     tldr: summary.tldr,
     whatChanged: summary.whatChanged ?? [],
     systemFlow: summary.systemFlow ?? [],
@@ -278,5 +387,10 @@ function normalizeSummary(summary: AiSummary): AiSummary {
 }
 
 function isMindMapGroup(group: MindMapGroup): group is MindMapGroup {
-  return Boolean(group && typeof group.label === 'string' && typeof group.description === 'string' && Array.isArray(group.files));
+  return Boolean(
+    group &&
+    typeof group.label === 'string' &&
+    typeof group.description === 'string' &&
+    Array.isArray(group.files),
+  );
 }

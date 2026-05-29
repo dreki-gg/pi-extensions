@@ -1,7 +1,11 @@
 import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import { join } from 'node:path';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { loadProjectConfig, getCredentials, getCredentialStatus } from '../extensions/datadog/config.js';
+import {
+  loadProjectConfig,
+  getCredentials,
+  getCredentialStatus,
+} from '../extensions/datadog/config.js';
 
 const TMP_DIR = join(import.meta.dirname, '.tmp-config-test');
 
@@ -48,10 +52,7 @@ describe('loadProjectConfig', () => {
   });
 
   it('uses defaults for omitted fields', async () => {
-    writeFileSync(
-      join(TMP_DIR, '.pi', 'datadog.json'),
-      JSON.stringify({ service: 'my-api' }),
-    );
+    writeFileSync(join(TMP_DIR, '.pi', 'datadog.json'), JSON.stringify({ service: 'my-api' }));
 
     const config = await loadProjectConfig(TMP_DIR);
     expect(config.service).toBe('my-api');
@@ -70,10 +71,7 @@ describe('loadProjectConfig', () => {
   });
 
   it('throws on invalid field types', async () => {
-    writeFileSync(
-      join(TMP_DIR, '.pi', 'datadog.json'),
-      JSON.stringify({ service: 123 }),
-    );
+    writeFileSync(join(TMP_DIR, '.pi', 'datadog.json'), JSON.stringify({ service: 123 }));
     await expect(loadProjectConfig(TMP_DIR)).rejects.toThrow('"service" must be a string');
   });
 

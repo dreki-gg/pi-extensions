@@ -1,5 +1,11 @@
 # @dreki-gg/pi-firestore
 
+## 0.3.0
+
+### Minor Changes
+
+- Add multi-environment `.pi/firestore.json` support with `defaultEnvironment`, named `environments`, and optional `environment` tool parameters.
+
 ## 0.2.4
 
 ### Patch Changes

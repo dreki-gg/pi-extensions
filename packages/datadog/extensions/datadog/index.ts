@@ -26,10 +26,7 @@ export default function datadogExtension(pi: ExtensionAPI) {
     try {
       projectConfig = await loadProjectConfig(ctx.cwd);
     } catch (err) {
-      ctx.ui.notify(
-        `Datadog config error: ${(err as Error).message}`,
-        'warning',
-      );
+      ctx.ui.notify(`Datadog config error: ${(err as Error).message}`, 'warning');
       projectConfig = null;
     }
   });
@@ -48,7 +45,8 @@ export default function datadogExtension(pi: ExtensionAPI) {
       }),
       from: Type.Optional(
         Type.String({
-          description: 'Start time — relative (15m, 1h, 7d) or ISO 8601. Defaults to project config or 1h.',
+          description:
+            'Start time — relative (15m, 1h, 7d) or ISO 8601. Defaults to project config or 1h.',
         }),
       ),
       to: Type.Optional(

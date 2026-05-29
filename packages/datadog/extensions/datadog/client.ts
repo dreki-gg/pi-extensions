@@ -73,10 +73,7 @@ export function resolveTime(input: string): Date {
 /**
  * Builds the full Datadog query by merging the user query with config defaults.
  */
-export function buildQuery(
-  params: LogSearchParams,
-  config: DatadogProjectConfig,
-): string {
+export function buildQuery(params: LogSearchParams, config: DatadogProjectConfig): string {
   const parts: string[] = [params.query];
 
   const service = params.service ?? config.service;
@@ -101,10 +98,7 @@ export function buildQuery(
   return parts.join(' ');
 }
 
-function createApiInstance(
-  credentials: DatadogCredentials,
-  site: string,
-): v2.LogsApi {
+function createApiInstance(credentials: DatadogCredentials, site: string): v2.LogsApi {
   const configuration = client.createConfiguration({
     authMethods: {
       apiKeyAuth: credentials.apiKey,
@@ -142,8 +136,7 @@ export async function searchLogs(
   const fromTime = resolveTime(params.from ?? config.defaultTimeRange);
   const toTime = resolveTime(params.to ?? 'now');
   const limit = Math.min(params.limit ?? 25, 100);
-  const sortOrder =
-    params.sort === 'oldest' ? 'timestamp' : '-timestamp';
+  const sortOrder = params.sort === 'oldest' ? 'timestamp' : '-timestamp';
 
   const api = createApiInstance(credentials, config.site);
 
