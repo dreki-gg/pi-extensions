@@ -1,5 +1,11 @@
 # @dreki-gg/pi-pr-canvas
 
+## 1.0.4
+
+### Patch Changes
+
+- Fix Pierre component initialization: use createEffect instead of onMount so components wait for data before mounting. Fix FileTree constructor to use `new FileTree({ paths }) + tree.render()` API. Fix CodeView to use `new CodeView(opts) + viewer.setup() + viewer.setItems()` API.
+
 ## 1.0.3
 
 ### Patch Changes
