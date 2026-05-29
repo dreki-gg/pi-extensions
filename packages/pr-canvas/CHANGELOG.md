@@ -1,5 +1,11 @@
 # @dreki-gg/pi-pr-canvas
 
+## 1.0.1
+
+### Patch Changes
+
+- Cleanup: remove dead code (old command.ts), fix require() in ESM handler catch, remove unused imports.
+
 ## 1.0.0
 
 ### Major Changes
