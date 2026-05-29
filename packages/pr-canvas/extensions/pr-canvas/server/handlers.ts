@@ -1,6 +1,7 @@
 import { Effect, Layer } from 'effect';
 import { ExecService } from '../effect/services';
-import type { AiChatError, GhCliError } from '../effect/errors';
+import { GhCliError } from '../effect/errors';
+import type { AiChatError } from '../effect/errors';
 import {
   fetchOverview,
   fetchDiff,
@@ -31,10 +32,8 @@ export function createMessageHandlers(exec: ExecFn, aiChat?: AiChatFn) {
     exec: (command: string, args: string[]) =>
       Effect.tryPromise({
         try: () => exec(command, args),
-        catch: (e) => {
-          const { GhCliError } = require('../effect/errors');
-          return new GhCliError({ command: `${command} ${args.join(' ')}`, stderr: String(e) });
-        },
+        catch: (e) =>
+          new GhCliError({ command: `${command} ${args.join(' ')}`, stderr: String(e) }),
       }) as Effect.Effect<{ stdout: string; stderr: string; code: number }, GhCliError>,
   });
 

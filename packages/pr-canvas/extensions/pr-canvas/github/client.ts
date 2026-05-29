@@ -1,12 +1,11 @@
 import { Effect, Schema } from 'effect';
 import { ExecService } from '../effect/services';
-import { GhCliError, GhNotFoundError } from '../effect/errors';
+import { GhCliError } from '../effect/errors';
 import {
   PrOverviewSchema,
   PrCheckSchema,
   PrCommentSchema,
   PrReviewSchema,
-  PrReviewRequestSchema,
   PrListItemSchema,
 } from '../effect/schemas';
 import type { PrOverview, PrCheck, PrComment, PrReview } from './types';
