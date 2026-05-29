@@ -16,10 +16,24 @@ export interface WsConnection {
 export function createWsConnection(url: string): WsConnection {
   const [status, setStatus] = createSignal<WsStatus>('connecting');
   const listeners = new Map<string, Set<(msg: any) => void>>();
+  // Messages requested before the socket is OPEN are queued here and
+  // flushed once the connection is ready. Without this, the initial
+  // pr:data request fired from onMount races the WS handshake and is
+  // silently dropped, leaving the UI stuck on "Loading...".
+  let pending: WsMessageToServer[] = [];
   let ws: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let reconnectDelay = 1000;
   let disposed = false;
+
+  function flushPending() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const queued = pending;
+    pending = [];
+    for (const msg of queued) {
+      ws.send(JSON.stringify(msg));
+    }
+  }
 
   function connect() {
     if (disposed) return;
@@ -30,6 +44,7 @@ export function createWsConnection(url: string): WsConnection {
     ws.onopen = () => {
       setStatus('open');
       reconnectDelay = 1000; // Reset backoff on successful connect
+      flushPending();
     };
 
     ws.onmessage = (event) => {
@@ -85,6 +100,9 @@ export function createWsConnection(url: string): WsConnection {
     send(msg: WsMessageToServer) {
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(msg));
+      } else {
+        // Queue until the socket opens (or reopens after a reconnect).
+        pending.push(msg);
       }
     },
 

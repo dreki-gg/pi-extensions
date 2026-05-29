@@ -1,5 +1,5 @@
 import { createStore } from 'solid-js/store';
-import type { WsConnection } from './ws';
+import type { WsConnection, WsStatus } from './ws';
 import type { PrListItem, FullPrData, ChatMessage } from './types';
 
 export interface PrStore {
@@ -16,6 +16,7 @@ export interface PrStore {
 
 export interface PrStoreActions {
   store: PrStore;
+  connectionStatus: () => WsStatus;
   loadPrList: () => void;
   loadPr: (number: number) => void;
   subscribePr: (number: number) => void;
@@ -87,6 +88,7 @@ export function createPrStore(ws: WsConnection): PrStoreActions {
 
   return {
     store,
+    connectionStatus: ws.status,
 
     loadPrList() {
       setStore('loading', true);

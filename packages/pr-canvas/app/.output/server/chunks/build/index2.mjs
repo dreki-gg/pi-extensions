@@ -1,5 +1,5 @@
 import { w as mt, D as ssr, p as escape, f as createComponent, S as Show, H as ssrHydrationKey, F as For, s as ht } from '../nitro/nitro.mjs';
-import { u as u1, f as f1 } from './Icon-r-WyPaTQ2.mjs';
+import { u as u1, f as f1 } from './Icon-BaqE27Xx2.mjs';
 import 'node:http';
 import 'node:https';
 import 'node:events';

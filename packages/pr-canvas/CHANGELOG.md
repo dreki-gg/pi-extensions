@@ -1,5 +1,11 @@
 # @dreki-gg/pi-pr-canvas
 
+## 1.1.1
+
+### Patch Changes
+
+- Fix PR stuck on "Loading...": the initial pr:data request fired from onMount raced the WebSocket handshake and was silently dropped. The WS client now queues outgoing messages while connecting and flushes them on open. Also surface a "Can't reach the server" hint when the bridge is unreachable (instead of an endless spinner), normalize review timestamps (GitHub returns submittedAt for reviews), and remove the now-unused legacy GhClient adapter.
+
 ## 1.1.0
 
 ### Minor Changes

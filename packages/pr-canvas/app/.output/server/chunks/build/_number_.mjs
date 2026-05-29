@@ -1,6 +1,6 @@
 import { D as ssr, p as escape, f as createComponent, H as ssrHydrationKey, S as Show, l as createSignal, F as For, E as ssrAttribute, I as ssrStyle, h as createEffect, y as on, J as ssrStyleProperty, i as createMemo } from '../nitro/nitro.mjs';
-import { d as ct, m as mt, h as ht } from './context-VkJfzLEW.mjs';
-import { f as f1, u as u1 } from './Icon-r-WyPaTQ.mjs';
+import { d as ct, m as mt, h as ht } from './context-DYtVF_Lv.mjs';
+import { f as f1, u as u1 } from './Icon-BaqE27Xx.mjs';
 import 'node:http';
 import 'node:https';
 import 'node:events';
@@ -19,11 +19,11 @@ function O(t) {
     return [createComponent(f1, { name: "back", size: 16 }), ssr(M, ssrHydrationKey())];
   } })), escape(createComponent(For, { get each() {
     return t.sections;
-  }, children: (l) => ssr(F, ssrHydrationKey(), `sidebar-nav-link ${s() === l.id ? "sidebar-nav-link-active" : ""}`, ssrAttribute("aria-current", s() === l.id ? "true" : escape(void 0, true), false), escape(createComponent(f1, { get name() {
-    return l.icon;
-  }, size: 18 })), escape(l.label), escape(createComponent(Show, { get when() {
-    return l.badge;
-  }, children: (o) => ssr(N, ssrHydrationKey(), ssrAttribute("data-tone", escape(o().tone, true), false), escape(o().text)) }))) })));
+  }, children: (o) => ssr(F, ssrHydrationKey(), `sidebar-nav-link ${s() === o.id ? "sidebar-nav-link-active" : ""}`, ssrAttribute("aria-current", s() === o.id ? "true" : escape(void 0, true), false), escape(createComponent(f1, { get name() {
+    return o.icon;
+  }, size: 18 })), escape(o.label), escape(createComponent(Show, { get when() {
+    return o.badge;
+  }, children: (m) => ssr(N, ssrHydrationKey(), ssrAttribute("data-tone", escape(m().tone, true), false), escape(m().text)) }))) })));
 }
 var T = ["<header", ' class="context-bar"><div class="context-bar-main"><span class="context-bar-number">#<!--$-->', '<!--/--></span><h1 class="context-bar-title"', ">", '</h1></div><div class="context-bar-meta"><span', ">", '</span><span class="context-bar-branch"><!--$-->', "<!--/--><!--$-->", "<!--/--> \u2190 <!--$-->", '<!--/--></span><span class="context-bar-stats"><span class="stat-add">+<!--$-->', '<!--/--></span><span class="stat-del">\u2212<!--$-->', '<!--/--></span></span><a class="context-bar-link"', ' target="_blank" rel="noreferrer">GitHub<!--$-->', "<!--/--></a></div></header>"];
 const q = (t) => `state-pill state-${t.toLowerCase()}`;
@@ -32,9 +32,9 @@ function H(t) {
 }
 var B = ["<p", ' class="ai-chat-hint">Ask anything about the changes, the diff, or why something was done.</p>'], K = ["<div", ' class="ai-chat-message ai-chat-message-assistant ai-chat-message-streaming"><p>', "</p></div>"], V = ["<aside", ' class="ai-chat-panel" aria-label="AI chat"><div class="ai-chat-header"><h2 class="ai-chat-title"><!--$-->', '<!--/-->Ask about this PR</h2><button type="button" class="ai-chat-close" aria-label="Close chat">', '</button></div><div class="ai-chat-messages"><!--$-->', "<!--/--><!--$-->", "<!--/--><!--$-->", '<!--/--></div><form class="ai-chat-form"><div class="ai-chat-input-row"><input id="ai-chat-input" class="ai-chat-input" placeholder="Ask about this PR"', "", '><button type="submit" class="ai-chat-submit"', ' aria-label="Send message">', "</button></div></form></aside>"], j = ["<div", ' class="', '"><button type="button" class="ai-chat-toggle"', "><!--$-->", "<!--/--><span>Ask AI</span></button><!--$-->", "<!--/--></div>"], G = ["<div", ' class="', '"><p>', "</p></div>"];
 function J(t) {
-  const { store: s, sendAiChat: c } = mt(), [l, o] = createSignal(false), [r, m] = createSignal("");
-  return ssr(j, ssrHydrationKey(), `ai-chat ${l() ? "ai-chat-open" : ""}`, ssrAttribute("aria-expanded", escape(l(), true), false), escape(createComponent(f1, { name: "robot", size: 18 })), escape(createComponent(Show, { get when() {
-    return l();
+  const { store: s, sendAiChat: c } = mt(), [o, m] = createSignal(false), [r, l] = createSignal("");
+  return ssr(j, ssrHydrationKey(), `ai-chat ${o() ? "ai-chat-open" : ""}`, ssrAttribute("aria-expanded", escape(o(), true), false), escape(createComponent(f1, { name: "robot", size: 18 })), escape(createComponent(Show, { get when() {
+    return o();
   }, get children() {
     return ssr(V, ssrHydrationKey(), escape(createComponent(f1, { name: "robot", size: 16 })), escape(createComponent(f1, { name: "close", size: 16 })), escape(createComponent(Show, { get when() {
       return s.aiChat.messages.length === 0 && !s.aiChat.loading;
@@ -74,7 +74,7 @@ function te(t) {
 }
 var ae = ["<section", ' id="section-file-tree" class="canvas-section"><div class="section-header"><h2 class="section-title">Files Changed</h2><span class="section-count"><!--$-->', "<!--/--> file<!--$-->", '<!--/--></span></div><div class="pierre-tree-container" style="', '"></div></section>'];
 function se(t) {
-  createEffect(on(() => t.files, async (l) => {
+  createEffect(on(() => t.files, async (o) => {
   }));
   const s = () => {
     var _a, _b;
@@ -93,24 +93,24 @@ function ce(t) {
 var le = ["<section", ' id="section-diff-preview" class="canvas-section"><div class="section-header-row"><h2 class="section-title">Diff</h2><button type="button" class="pierre-control-btn">', '</button></div><div class="pierre-diffs-container"></div></section>'];
 function oe(t) {
   const [s, c] = createSignal("stacked");
-  async function l(o, r) {
+  async function o(m, r) {
   }
-  return createEffect(on(() => [t.rawDiff, s()], ([o, r]) => {
-    o && l();
+  return createEffect(on(() => [t.rawDiff, s()], ([m, r]) => {
+    m && o();
   })), ssr(le, ssrHydrationKey(), s() === "stacked" ? "Split View" : "Unified View");
 }
 var de = ["<span", ' class="summary-pill summary-failure"><!--$-->', "<!--/--><!--$-->", "<!--/--> failing</span>"], me = ["<span", ' class="summary-pill summary-pending"><!--$-->', "<!--/--><!--$-->", "<!--/--> pending</span>"], ue = ["<span", ' class="summary-pill summary-success"><!--$-->', "<!--/--><!--$-->", "<!--/--> passed</span>"], he = ["<ul", ' class="checks-list">', "</ul>"], pe = ["<section", ' id="section-checks" class="canvas-section"><div class="section-header"><h2 class="section-title">CI Checks</h2><div class="checks-summary"><!--$-->', "<!--/--><!--$-->", "<!--/--><!--$-->", "<!--/--></div></div><!--$-->", "<!--/--></section>"], ve = ["<div", ' class="pr-card empty-copy-card">No CI checks reported.</div>'], ge = ["<p", ' class="check-description">', "</p>"], $e = ["<a", ' class="check-details-link"', ' target="_blank" rel="noreferrer">Details<!--$-->', "<!--/--></a>"], be = ["<li", ' class="check-item"', '><span class="', '">', '</span><div class="check-content"><h3 class="check-name">', "</h3><!--$-->", "<!--/--></div><!--$-->", "<!--/--></li>"];
 const A = (t) => t.toUpperCase() === "SUCCESS", x = (t) => ["FAILURE", "FAILED", "ERROR"].includes(t.toUpperCase()), $ = (t) => A(t) ? "success" : x(t) ? "failure" : "pending", f = { failure: 0, pending: 1, success: 2 };
 function fe(t) {
-  const s = createMemo(() => [...t.checks].sort((r, m) => f[$(r.state)] - f[$(m.state)])), c = () => t.checks.filter((r) => A(r.state)).length, l = () => t.checks.filter((r) => x(r.state)).length, o = () => t.checks.length - c() - l();
+  const s = createMemo(() => [...t.checks].sort((r, l) => f[$(r.state)] - f[$(l.state)])), c = () => t.checks.filter((r) => A(r.state)).length, o = () => t.checks.filter((r) => x(r.state)).length, m = () => t.checks.length - c() - o();
   return ssr(pe, ssrHydrationKey(), escape(createComponent(Show, { get when() {
-    return l() > 0;
-  }, get children() {
-    return ssr(de, ssrHydrationKey(), escape(createComponent(f1, { name: "cross", size: 13 })), escape(l()));
-  } })), escape(createComponent(Show, { get when() {
     return o() > 0;
   }, get children() {
-    return ssr(me, ssrHydrationKey(), escape(createComponent(f1, { name: "dot", size: 13 })), escape(o()));
+    return ssr(de, ssrHydrationKey(), escape(createComponent(f1, { name: "cross", size: 13 })), escape(o()));
+  } })), escape(createComponent(Show, { get when() {
+    return m() > 0;
+  }, get children() {
+    return ssr(me, ssrHydrationKey(), escape(createComponent(f1, { name: "dot", size: 13 })), escape(m()));
   } })), escape(createComponent(Show, { get when() {
     return c() > 0;
   }, get children() {
@@ -123,8 +123,8 @@ function fe(t) {
     return ssr(he, ssrHydrationKey(), escape(createComponent(For, { get each() {
       return s();
     }, children: (r) => {
-      const m = $(r.state);
-      return ssr(be, ssrHydrationKey(), ssrAttribute("data-status", escape(m, true), false), `check-icon check-${escape(m, true)}`, escape(createComponent(f1, { name: m === "success" ? "check" : m === "failure" ? "cross" : "dot", size: 14 })), escape(r.name), escape(createComponent(Show, { get when() {
+      const l = $(r.state);
+      return ssr(be, ssrHydrationKey(), ssrAttribute("data-status", escape(l, true), false), `check-icon check-${escape(l, true)}`, escape(createComponent(f1, { name: l === "success" ? "check" : l === "failure" ? "cross" : "dot", size: 14 })), escape(r.name), escape(createComponent(Show, { get when() {
         return r.description;
       }, get children() {
         return ssr(ge, ssrHydrationKey(), escape(r.description));
@@ -136,17 +136,17 @@ function fe(t) {
     } })));
   } })));
 }
-var ye = ["<section", ' id="section-comments" class="canvas-section comments-section"><div class="section-header"><h2 class="section-title">Comments</h2></div><div class="reviews-list"><h3 class="section-subtitle">Reviews</h3><!--$-->', '<!--/--></div><div class="pr-comments-list"><h3 class="section-subtitle">PR comments</h3><!--$-->', "<!--/--></div></section>"], we = ["<p", ' class="empty-copy">No reviews yet.</p>'], ke = ["<p", ' class="comment-body">', "</p>"], _e = ["<article", ' class="pr-card review-item"><div class="comment-header"><span class="', '">', '</span><span class="comment-author">', '</span><time class="comment-date">', "</time></div><!--$-->", '<!--/--><div class="inline-comments-list">', "</div></article>"], Ce = ["<span", ' class="comment-location"><!--$-->', "<!--/-->:<!--$-->", "<!--/--></span>"], Se = ["<div", ' class="inline-comment"><div class="comment-header"><span class="comment-author">', "</span><!--$-->", '<!--/--></div><p class="comment-body">', "</p></div>"], Ae = ["<p", ' class="empty-copy">No PR comments yet.</p>'], xe = ["<article", ' class="pr-card comment-item"><div class="comment-header"><span class="comment-author">', '</span><time class="comment-date">', '</time></div><p class="comment-body">', "</p></article>"];
+var ye = ["<section", ' id="section-comments" class="canvas-section comments-section"><div class="section-header"><h2 class="section-title">Comments</h2></div><div class="reviews-list"><h3 class="section-subtitle">Reviews</h3><!--$-->', '<!--/--></div><div class="pr-comments-list"><h3 class="section-subtitle">PR comments</h3><!--$-->', "<!--/--></div></section>"], we = ["<p", ' class="empty-copy">No reviews yet.</p>'], _e = ["<p", ' class="comment-body">', "</p>"], ke = ["<article", ' class="pr-card review-item"><div class="comment-header"><span class="', '">', '</span><span class="comment-author">', '</span><time class="comment-date">', "</time></div><!--$-->", '<!--/--><div class="inline-comments-list">', "</div></article>"], Ce = ["<span", ' class="comment-location"><!--$-->', "<!--/-->:<!--$-->", "<!--/--></span>"], Se = ["<div", ' class="inline-comment"><div class="comment-header"><span class="comment-author">', "</span><!--$-->", '<!--/--></div><p class="comment-body">', "</p></div>"], Ae = ["<p", ' class="empty-copy">No PR comments yet.</p>'], xe = ["<article", ' class="pr-card comment-item"><div class="comment-header"><span class="comment-author">', '</span><time class="comment-date">', '</time></div><p class="comment-body">', "</p></article>"];
 const y = (t) => t ? new Date(t).toLocaleString() : "Unknown";
 function Re(t) {
   return ssr(ye, ssrHydrationKey(), escape(createComponent(For, { get each() {
     return t.reviews;
   }, get fallback() {
     return ssr(we, ssrHydrationKey());
-  }, children: (s) => ssr(_e, ssrHydrationKey(), `review-state review-state-${escape(s.state.toLowerCase(), true)}`, escape(s.state), escape(s.author.login), escape(y(s.createdAt)), escape(createComponent(Show, { get when() {
+  }, children: (s) => ssr(ke, ssrHydrationKey(), `review-state review-state-${escape(s.state.toLowerCase(), true)}`, escape(s.state), escape(s.author.login), escape(y(s.createdAt)), escape(createComponent(Show, { get when() {
     return s.body;
   }, get children() {
-    return ssr(ke, ssrHydrationKey(), escape(s.body));
+    return ssr(_e, ssrHydrationKey(), escape(s.body));
   } })), escape(createComponent(For, { get each() {
     return s.comments;
   }, children: (c) => ssr(Se, ssrHydrationKey(), escape(c.author.login), escape(createComponent(Show, { get when() {
@@ -167,22 +167,22 @@ function De(t) {
     return t.summary.concerns;
   }, children: (s) => ssr(w, ssrHydrationKey(), escape(s)) })));
 }
-var Ue = ["<div", ' class="error-banner" role="alert">', "</div>"], ze = ["<div", ' class="pr-canvas-layout"><!--$-->', "<!--/--><!--$-->", '<!--/--><main class="pr-canvas-main"><!--$-->', "<!--/--><!--$-->", "<!--/--></main><!--$-->", "<!--/--></div>"], Le = ["<aside", ' class="canvas-sidebar canvas-sidebar-empty"></aside>'], Ee = ["<div", ' class="canvas-content"><!--$-->', "<!--/--><!--$-->", "<!--/--><!--$-->", "<!--/--><!--$-->", "<!--/--><!--$-->", "<!--/--><!--$-->", "<!--/--><!--$-->", "<!--/--></div>"], Me = ["<div", ' class="loading-state"><div class="spinner"></div><p>Loading pull request...</p></div>'], Pe = ["<div", ' class="empty-state"><p>Pull request data is not available.</p></div>'];
-const Fe = ["FAILURE", "FAILED", "ERROR"];
-function Ne(t) {
-  const s = t.data.files.length, c = t.mindMap.length, l = t.data.checks.filter((v) => Fe.includes(v.state.toUpperCase())).length, o = t.data.checks.filter((v) => v.state.toUpperCase() === "SUCCESS").length, r = t.data.comments.length + t.data.reviews.length, m = t.aiSummary.concerns.length;
-  return [{ id: "section-overview", label: "Overview", icon: "overview" }, { id: "section-file-tree", label: "Files", icon: "files", badge: s ? { text: String(s), tone: "default" } : void 0 }, { id: "section-mind-map", label: "Mind Map", icon: "mind-map", badge: c ? { text: String(c), tone: "default" } : void 0 }, { id: "section-diff-preview", label: "Diffs", icon: "diff" }, { id: "section-checks", label: "CI Checks", icon: "checks", badge: l > 0 ? { text: String(l), tone: "danger" } : o > 0 ? { text: String(o), tone: "success" } : void 0 }, { id: "section-comments", label: "Comments", icon: "comments", badge: r ? { text: String(r), tone: "default" } : void 0 }, { id: "section-ai-summary", label: "AI Summary", icon: "summary", badge: m ? { text: String(m), tone: "warning" } : void 0 }];
+var Ue = ["<div", ' class="error-banner" role="alert">', "</div>"], ze = ["<div", ' class="pr-canvas-layout"><!--$-->', "<!--/--><!--$-->", '<!--/--><main class="pr-canvas-main"><!--$-->', "<!--/--><!--$-->", "<!--/--></main><!--$-->", "<!--/--></div>"], Le = ["<aside", ' class="canvas-sidebar canvas-sidebar-empty"></aside>'], Ee = ["<div", ' class="canvas-content"><!--$-->', "<!--/--><!--$-->", "<!--/--><!--$-->", "<!--/--><!--$-->", "<!--/--><!--$-->", "<!--/--><!--$-->", "<!--/--><!--$-->", "<!--/--></div>"], Me = ["<p", ">Can't reach the PR Canvas server.</p>"], Pe = ["<p", ' class="loading-hint">Make sure <code>/pr-canvas start</code> is running, then reload this page.</p>'], Fe = ["<div", ' class="loading-state">', "</div>"], Ne = ["<div", ' class="spinner"></div>'], Oe = ["<p", ">Loading pull request...</p>"], Te = ["<div", ' class="empty-state"><p>Pull request data is not available.</p></div>'];
+const qe = ["FAILURE", "FAILED", "ERROR"];
+function He(t) {
+  const s = t.data.files.length, c = t.mindMap.length, o = t.data.checks.filter((v) => qe.includes(v.state.toUpperCase())).length, m = t.data.checks.filter((v) => v.state.toUpperCase() === "SUCCESS").length, r = t.data.comments.length + t.data.reviews.length, l = t.aiSummary.concerns.length;
+  return [{ id: "section-overview", label: "Overview", icon: "overview" }, { id: "section-file-tree", label: "Files", icon: "files", badge: s ? { text: String(s), tone: "default" } : void 0 }, { id: "section-mind-map", label: "Mind Map", icon: "mind-map", badge: c ? { text: String(c), tone: "default" } : void 0 }, { id: "section-diff-preview", label: "Diffs", icon: "diff" }, { id: "section-checks", label: "CI Checks", icon: "checks", badge: o > 0 ? { text: String(o), tone: "danger" } : m > 0 ? { text: String(m), tone: "success" } : void 0 }, { id: "section-comments", label: "Comments", icon: "comments", badge: r ? { text: String(r), tone: "default" } : void 0 }, { id: "section-ai-summary", label: "AI Summary", icon: "summary", badge: l ? { text: String(l), tone: "warning" } : void 0 }];
 }
-function je() {
-  const t = ct(), { store: s, loadPr: c, subscribePr: l } = mt(), o = () => Number(t.number);
+function We() {
+  const t = ct(), { store: s, loadPr: c, subscribePr: o, connectionStatus: m } = mt(), r = () => Number(t.number);
   return ssr(ze, ssrHydrationKey(), escape(createComponent(ht, { get children() {
     return ["PR #", t.number, " \xB7 PR Canvas"];
   } })), escape(createComponent(Show, { get when() {
     return s.currentPr;
   }, get fallback() {
     return ssr(Le, ssrHydrationKey());
-  }, children: (r) => createComponent(O, { get sections() {
-    return Ne(r());
+  }, children: (l) => createComponent(O, { get sections() {
+    return He(l());
   } }) })), escape(createComponent(Show, { get when() {
     return s.error;
   }, get children() {
@@ -190,41 +190,49 @@ function je() {
   } })), escape(createComponent(Show, { get when() {
     return !s.loading;
   }, get fallback() {
-    return createComponent(Oe, {});
+    return createComponent(Be, { get status() {
+      return m();
+    } });
   }, get children() {
     return createComponent(Show, { get when() {
       return s.currentPr;
     }, get fallback() {
-      return createComponent(Te, {});
-    }, children: (r) => [createComponent(H, { get pr() {
-      return r().data.overview;
+      return createComponent(Ke, {});
+    }, children: (l) => [createComponent(H, { get pr() {
+      return l().data.overview;
     } }), ssr(Ee, ssrHydrationKey(), escape(createComponent(te, { get pr() {
-      return r().data.overview;
+      return l().data.overview;
     } })), escape(createComponent(se, { get files() {
-      return r().data.files;
+      return l().data.files;
     } })), escape(createComponent(ce, { get groups() {
-      return r().mindMap;
+      return l().mindMap;
     } })), escape(createComponent(oe, { get rawDiff() {
-      return r().rawDiff;
+      return l().rawDiff;
     } })), escape(createComponent(fe, { get checks() {
-      return r().data.checks;
+      return l().data.checks;
     } })), escape(createComponent(Re, { get comments() {
-      return r().data.comments;
+      return l().data.comments;
     }, get reviews() {
-      return r().data.reviews;
+      return l().data.reviews;
     } })), escape(createComponent(De, { get summary() {
-      return r().aiSummary;
+      return l().aiSummary;
     } })))] });
   } })), escape(createComponent(J, { get prNumber() {
-    return o();
+    return r();
   } })));
 }
-function Oe() {
-  return ssr(Me, ssrHydrationKey());
+function Be(t) {
+  return ssr(Fe, ssrHydrationKey(), escape(createComponent(Show, { get when() {
+    return t.status === "closed";
+  }, get fallback() {
+    return [ssr(Ne, ssrHydrationKey()), ssr(Oe, ssrHydrationKey())];
+  }, get children() {
+    return [ssr(Me, ssrHydrationKey()), ssr(Pe, ssrHydrationKey())];
+  } })));
 }
-function Te() {
-  return ssr(Pe, ssrHydrationKey());
+function Ke() {
+  return ssr(Te, ssrHydrationKey());
 }
 
-export { je as default };
+export { We as default };
 //# sourceMappingURL=_number_.mjs.map

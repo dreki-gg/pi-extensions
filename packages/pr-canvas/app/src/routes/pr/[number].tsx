@@ -67,7 +67,7 @@ function buildSections(pr: FullPrData): SidebarSection[] {
 
 export default function PrCanvasRoute() {
   const params = useParams();
-  const { store, loadPr, subscribePr } = usePrStore();
+  const { store, loadPr, subscribePr, connectionStatus } = usePrStore();
   const prNumber = () => Number(params.number);
 
   onMount(() => {
@@ -88,7 +88,7 @@ export default function PrCanvasRoute() {
           <div class="error-banner" role="alert">{store.error}</div>
         </Show>
 
-        <Show when={!store.loading} fallback={<LoadingState />}>
+        <Show when={!store.loading} fallback={<LoadingState status={connectionStatus()} />}>
           <Show when={store.currentPr} fallback={<EmptyState />}>
             {(currentPr) => (
               <>
@@ -113,11 +113,23 @@ export default function PrCanvasRoute() {
   );
 }
 
-function LoadingState() {
+function LoadingState(props: { status: 'connecting' | 'open' | 'closed' }) {
   return (
     <div class="loading-state">
-      <div class="spinner" />
-      <p>Loading pull request...</p>
+      <Show
+        when={props.status === 'closed'}
+        fallback={
+          <>
+            <div class="spinner" />
+            <p>Loading pull request...</p>
+          </>
+        }
+      >
+        <p>Can't reach the PR Canvas server.</p>
+        <p class="loading-hint">
+          Make sure <code>/pr-canvas start</code> is running, then reload this page.
+        </p>
+      </Show>
     </div>
   );
 }

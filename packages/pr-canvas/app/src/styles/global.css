@@ -1060,6 +1060,21 @@ a.pr-card:hover {
   margin: 0;
 }
 
+.loading-hint {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.loading-hint code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
 .spinner {
   width: 28px;
   height: 28px;
