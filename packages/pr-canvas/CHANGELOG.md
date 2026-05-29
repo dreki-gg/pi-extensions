@@ -1,5 +1,21 @@
 # @dreki-gg/pi-pr-canvas
 
+## 1.0.0
+
+### Major Changes
+
+- PR Canvas v2: Interactive SolidStart web application with Pi integration.
+
+  - SolidStart app with SSR, file-based routing, dark theme
+  - WebSocket bridge for real-time Pi ↔ Web UI communication
+  - Effect v3: typed errors, Schema validation, service layers
+  - @pierre/diffs for syntax-highlighted diff rendering
+  - @pierre/trees for interactive file tree with git status
+  - AI chat panel for asking questions about the PR
+  - PR list dashboard + individual PR canvas view
+  - Commands: /pr-canvas start|stop|open|status
+  - 64 tests across 6 test files
+
 ## 0.3.0
 
 ### Minor Changes
