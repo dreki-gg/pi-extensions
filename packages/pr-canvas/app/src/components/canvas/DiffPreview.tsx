@@ -1,25 +1,20 @@
 import { createEffect, createSignal, on } from 'solid-js';
 
-const DIFFS_CDN = 'https://cdn.jsdelivr.net/npm/@pierre/diffs@1.2.4/+esm';
-
 interface DiffPreviewProps {
   rawDiff: string;
 }
 
 export default function DiffPreview(props: DiffPreviewProps) {
   let containerRef: HTMLDivElement | undefined;
-  let diffsModule: any = null;
   let currentViewer: any = null;
-  const [layout, setLayout] = createSignal<'stacked' | 'split'>('stacked');
+  const [diffStyle, setDiffStyle] = createSignal<'unified' | 'split'>('unified');
 
+  // Lazy-load the bundled package client-side only (it touches the DOM).
   async function loadModule() {
-    if (!diffsModule) {
-      diffsModule = await import(/* @vite-ignore */ DIFFS_CDN);
-    }
-    return diffsModule;
+    return import('@pierre/diffs');
   }
 
-  async function renderDiffs(rawDiff: string, diffLayout: string) {
+  async function renderDiffs(rawDiff: string, style: 'unified' | 'split') {
     if (!containerRef || !rawDiff) return;
 
     const mod = await loadModule();
@@ -36,20 +31,18 @@ export default function DiffPreview(props: DiffPreviewProps) {
       containerRef.replaceChildren();
     }
 
-    // Create CodeView using the vanilla JS API:
-    // new CodeView({ theme, layout, ... }) then viewer.setup(container) + viewer.setItems(items)
+    // Vanilla JS API: new CodeView(options) -> setup(container) -> setItems(items)
     currentViewer = new mod.CodeView({
       theme: 'github-dark',
-      layout: diffLayout,
+      diffStyle: style,
       hunkSeparators: 'line-info',
-      lineNumbers: true,
     });
 
     currentViewer.setup(containerRef);
 
-    const items = patchFiles.map((fileDiff: any, i: number) => ({
+    const items = patchFiles.map((fileDiff: unknown, i: number) => ({
       id: `diff-${i}`,
-      type: 'diff',
+      type: 'diff' as const,
       fileDiff,
       collapsed: true,
     }));
@@ -57,13 +50,13 @@ export default function DiffPreview(props: DiffPreviewProps) {
     currentViewer.setItems(items);
   }
 
-  // React to rawDiff and layout changes
+  // React to rawDiff and diffStyle changes
   createEffect(
     on(
-      () => [props.rawDiff, layout()] as const,
-      ([rawDiff, diffLayout]) => {
+      () => [props.rawDiff, diffStyle()] as const,
+      ([rawDiff, style]) => {
         if (rawDiff) {
-          renderDiffs(rawDiff, diffLayout);
+          renderDiffs(rawDiff, style);
         }
       },
     ),
@@ -76,9 +69,9 @@ export default function DiffPreview(props: DiffPreviewProps) {
         <button
           type="button"
           class="pierre-control-btn"
-          onClick={() => setLayout((l) => (l === 'stacked' ? 'split' : 'stacked'))}
+          onClick={() => setDiffStyle((s) => (s === 'unified' ? 'split' : 'unified'))}
         >
-          {layout() === 'stacked' ? 'Split View' : 'Unified View'}
+          {diffStyle() === 'unified' ? 'Split view' : 'Unified view'}
         </button>
       </div>
       <div ref={containerRef} class="pierre-diffs-container" />

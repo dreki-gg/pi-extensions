@@ -1,23 +1,17 @@
 import { createEffect, on } from 'solid-js';
 import type { PrFile } from '~/lib/types';
 
-const TREES_CDN = 'https://cdn.jsdelivr.net/npm/@pierre/trees@1.0.0-beta.4/+esm';
-
 interface FileTreeProps {
   files: PrFile[];
 }
 
 export default function FileTree(props: FileTreeProps) {
   let containerRef: HTMLDivElement | undefined;
-  let treeModule: any = null;
   let currentTree: any = null;
 
-  // Load the module once
+  // Lazy-load the bundled package client-side only (it touches the DOM).
   async function loadModule() {
-    if (!treeModule) {
-      treeModule = await import(/* @vite-ignore */ TREES_CDN);
-    }
-    return treeModule;
+    return import('@pierre/trees');
   }
 
   // React to file changes — createEffect re-runs when props.files changes
@@ -30,10 +24,8 @@ export default function FileTree(props: FileTreeProps) {
         const mod = await loadModule();
         const paths = files.map((f) => f.path);
 
-        const gitStatus: Record<string, string> = {};
-        for (const f of files) {
-          gitStatus[f.path] = f.status;
-        }
+        // @pierre/trees expects gitStatus as an array of { path, status }.
+        const gitStatus = files.map((f) => ({ path: f.path, status: f.status }));
 
         // Dispose previous tree if any
         if (currentTree) {
@@ -45,13 +37,11 @@ export default function FileTree(props: FileTreeProps) {
           containerRef.replaceChildren();
         }
 
-        // Create new tree using the vanilla JS API:
-        // new FileTree({ paths, gitStatus, ... }) then tree.render({ fileTreeContainer })
+        // Vanilla JS API: new FileTree(options) -> render({ fileTreeContainer })
         currentTree = new mod.FileTree({
           paths,
           gitStatus,
           flattenEmptyDirectories: true,
-          theme: 'dark',
         });
 
         currentTree.render({ fileTreeContainer: containerRef });

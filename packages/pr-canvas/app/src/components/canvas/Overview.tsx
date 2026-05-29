@@ -1,5 +1,6 @@
 import { For, Show } from 'solid-js';
 import Icon from '~/components/Icon';
+import Markdown from '~/components/Markdown';
 import type { PrOverview } from '~/lib/types';
 
 interface OverviewProps {
@@ -17,8 +18,7 @@ function labelStyle(color: string) {
 }
 
 export default function Overview(props: OverviewProps) {
-  const bodyParagraphs = () =>
-    props.pr.body.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+  const hasBody = () => props.pr.body.trim().length > 0;
 
   return (
     <section id="section-overview" class="canvas-section">
@@ -56,13 +56,8 @@ export default function Overview(props: OverviewProps) {
 
       <div class="pr-card pr-body-card">
         <h2 class="section-subtitle">Description</h2>
-        <Show
-          when={bodyParagraphs().length > 0}
-          fallback={<p class="empty-copy">No description provided.</p>}
-        >
-          <For each={bodyParagraphs()}>
-            {(paragraph) => <p class="pr-body-paragraph">{paragraph}</p>}
-          </For>
+        <Show when={hasBody()} fallback={<p class="empty-copy">No description provided.</p>}>
+          <Markdown source={props.pr.body} />
         </Show>
       </div>
     </section>

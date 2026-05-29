@@ -1,5 +1,11 @@
 # @dreki-gg/pi-pr-canvas
 
+## 1.2.0
+
+### Minor Changes
+
+- Bundle @pierre/diffs and @pierre/trees as local dependencies instead of loading from the jsdelivr CDN, so the app works fully offline and self-contained. Bundling surfaced real types that fixed two latent API bugs: diffs now use `diffStyle: 'unified' | 'split'` (was an invalid `layout` string, which left the diff view unstyled) and the file tree now passes `gitStatus` as the expected `{ path, status }[]` array. Also add a proper markdown renderer (markdown-it) for PR descriptions, replacing the naive paragraph splitter, with full GitHub-dark markdown styling (headings, code blocks, lists, tables, blockquotes, links).
+
 ## 1.1.1
 
 ### Patch Changes
