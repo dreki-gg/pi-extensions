@@ -53,13 +53,14 @@ export function registerPrCanvasCommands(pi: ExtensionAPI) {
 
     // 3. Start SolidStart server
     ctx.ui.setStatus('pr-canvas', '🚀 Starting PR Canvas server...');
-    manager = createServerManager(resolveAppDir());
+    const appDir = resolveAppDir();
+    manager = createServerManager(appDir);
 
     try {
       await manager.start({ port: APP_PORT, wsBridgeUrl: `ws://localhost:${WS_PORT}` });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      ctx.ui.notify(`Failed to start server: ${msg}`, 'error');
+      const reason = err instanceof Error ? err.message : err && typeof err === 'object' && 'reason' in err ? (err as any).reason : String(err);
+      ctx.ui.notify(`Failed to start server: ${reason}\nApp dir: ${appDir}`, 'error');
       ctx.ui.setStatus('pr-canvas', undefined);
       await bridge.stop();
       bridge = null;

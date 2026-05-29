@@ -1,6 +1,8 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { existsSync } from 'node:fs';
 import { get } from 'node:http';
+import { fileURLToPath } from 'node:url';
 import { ServerStartError, ServerStopError } from '../effect/errors';
 
 export interface ServerManager {
@@ -38,6 +40,12 @@ export function createServerManager(appDir: string): ServerManager {
       }
 
       const serverEntry = join(appDir, '.output', 'server', 'index.mjs');
+
+      if (!existsSync(serverEntry)) {
+        throw new ServerStartError({
+          reason: `Server entry not found at: ${serverEntry}. Run 'bun run build' in the pr-canvas package first.`,
+        });
+      }
 
       childProcess = spawn('node', [serverEntry], {
         env: {
@@ -132,9 +140,38 @@ function waitForReady(url: string, timeoutMs: number, intervalMs: number): Promi
 
 /**
  * Resolve the app directory relative to the extension's location.
+ * Works both with jiti (Node.js CJS compat) and native ESM.
  */
 export function resolveAppDir(): string {
-  // In the published package, app/.output is next to extensions/
-  // Walk up from this file: extensions/pr-canvas/server/manager.ts → package root
-  return join(__dirname, '..', '..', '..', 'app');
+  // Try multiple resolution strategies
+  const candidates: string[] = [];
+
+  // Strategy 1: __dirname (works in CJS / jiti)
+  if (typeof __dirname !== 'undefined') {
+    candidates.push(join(__dirname, '..', '..', '..', 'app'));
+  }
+
+  // Strategy 2: import.meta.url (works in ESM)
+  try {
+    if (typeof import.meta?.url === 'string') {
+      const thisDir = dirname(fileURLToPath(import.meta.url));
+      candidates.push(join(thisDir, '..', '..', '..', 'app'));
+    }
+  } catch {
+    // import.meta not available
+  }
+
+  // Strategy 3: process.cwd() fallback — look for node_modules package
+  candidates.push(join(process.cwd(), 'node_modules', '@dreki-gg', 'pi-pr-canvas', 'app'));
+
+  // Find the first candidate that has .output/server/index.mjs
+  for (const candidate of candidates) {
+    if (existsSync(join(candidate, '.output', 'server', 'index.mjs'))) {
+      return candidate;
+    }
+  }
+
+  // Return the first candidate even if it doesn't exist — the start() method
+  // will give a clear error about the missing file.
+  return candidates[0] ?? join(process.cwd(), 'app');
 }

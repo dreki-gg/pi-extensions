@@ -1,5 +1,11 @@
 # @dreki-gg/pi-pr-canvas
 
+## 1.0.2
+
+### Patch Changes
+
+- Fix server start failure: include app/.output/public in published package (client JS/CSS assets were missing). Improve resolveAppDir with multiple resolution strategies and existence check. Better error messages showing resolved path.
+
 ## 1.0.1
 
 ### Patch Changes
