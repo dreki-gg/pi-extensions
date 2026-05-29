@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { registerPrCanvasCommand } from './command';
+import { registerPrCanvasCommands } from './commands';
 
 export default function prCanvasExtension(pi: ExtensionAPI) {
-  registerPrCanvasCommand(pi);
+  registerPrCanvasCommands(pi);
 }
