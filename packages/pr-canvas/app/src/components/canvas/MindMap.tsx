@@ -1,4 +1,5 @@
-import { For } from 'solid-js';
+import { For, Show } from 'solid-js';
+import MermaidDiagram from '~/components/MermaidDiagram';
 import type { MindMapGroup } from '~/lib/types';
 
 interface MindMapProps {
@@ -20,6 +21,14 @@ export default function MindMap(props: MindMapProps) {
                 <h3 class="mind-map-title">{group.label}</h3>
               </div>
               <p class="mind-map-description">{group.description}</p>
+              <Show when={group.diagram}>
+                {(diagram) => <MermaidDiagram source={diagram()} />}
+              </Show>
+              <Show when={group.relationships?.length}>
+                <ul class="mind-map-relationships">
+                  <For each={group.relationships}>{(item) => <li>{item}</li>}</For>
+                </ul>
+              </Show>
               <ul class="mind-map-files">
                 <For each={group.files}>{(file) => <li class="mind-map-file">{file}</li>}</For>
               </ul>

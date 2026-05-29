@@ -1,4 +1,5 @@
 import type { PrData } from '../github/types';
+import { detectDataStructures, detectSurfaces } from './diff-analysis';
 import type { MindMapGroup } from './types';
 
 /**
@@ -13,6 +14,12 @@ export function generateHeuristicMindMap(pr: PrData): MindMapGroup[] {
 
   const groups: MindMapGroup[] = [];
   const assigned = new Set<string>();
+
+  const flowGroup = buildFlowGroup(pr);
+  if (flowGroup) {
+    groups.push(flowGroup);
+    flowGroup.files.forEach((file) => assigned.add(file));
+  }
 
   // 1. Test files
   const testFiles = files.filter((f) => isTestFile(f.path));
@@ -67,6 +74,112 @@ export function generateHeuristicMindMap(pr: PrData): MindMapGroup[] {
   }
 
   return groups;
+}
+
+function buildFlowGroup(pr: PrData): MindMapGroup | undefined {
+  const surfaces = detectSurfaces(pr);
+  const dataStructures = detectDataStructures(pr);
+  const sourceFiles = pr.files.filter(
+    (file) => !isTestFile(file.path) && !isConfigFile(file.path) && !isDocFile(file.path) && /\.(ts|tsx|js|jsx|go|rs|py|rb)$/.test(file.path),
+  );
+  const flowFiles = sourceFiles.filter((file) => /route|api|handler|controller|middleware|auth|token|service|lib|type|schema|model/i.test(file.path));
+
+  if (surfaces.length === 0 && dataStructures.length === 0 && flowFiles.length < 2) return undefined;
+
+  const files = [...new Set([...(flowFiles.length > 0 ? flowFiles : sourceFiles).map((file) => file.path), ...dataStructures.map((structure) => structure.source.split(':L')[0])])];
+  const hasAuth = files.some((file) => /auth|token|middleware/i.test(file));
+  const hasService = files.some((file) => /service/i.test(file));
+  const hasLibrary = files.some((file) => /\/lib\//i.test(file));
+  const label = inferFlowLabel(pr.overview.title, { hasAuth, hasService, hasLibrary, surfaces: surfaces.length, dataStructures: dataStructures.length });
+  const relationships = [];
+
+  if (surfaces.length > 0) {
+    relationships.push(`Routes changed: ${surfaces.map((surface) => `${surface.method} ${surface.path}`).join(', ')}`);
+  }
+  if (hasAuth) relationships.push('Requests pass through authMiddleware/token validation before protected handlers continue.');
+  if (hasService) relationships.push(`Service boundary changed: ${files.filter((file) => /service/i.test(file)).join(', ')}`);
+  if (hasLibrary) relationships.push(`Shared library behavior changed: ${files.filter((file) => /\/lib\//i.test(file)).join(', ')}`);
+  if (dataStructures.length > 0) relationships.push(`New data shapes: ${dataStructures.map((structure) => structure.name).join(', ')}`);
+
+  return {
+    label,
+    description: relationships[0] ?? 'Mental model of the main changed flow and data contracts.',
+    files,
+    changeType: surfaces.some((surface) => surface.change === 'NEW') || pr.files.some((file) => file.status === 'added') ? 'feature' : 'refactor',
+    diagram: buildMermaidDiagram(surfaces, hasAuth, dataStructures, files),
+    relationships,
+  };
+}
+
+function inferFlowLabel(
+  title: string,
+  signals: { hasAuth: boolean; hasService: boolean; hasLibrary: boolean; surfaces: number; dataStructures: number },
+): string {
+  if (signals.hasAuth) return 'Request Auth Flow';
+  if (/signed.?url|file|download|upload/i.test(title)) return 'File Access Flow';
+  if (signals.surfaces > 0) return 'Callable Surface Flow';
+  if (signals.hasService && signals.hasLibrary) return 'Service → Library Flow';
+  if (signals.hasService) return 'Service Flow';
+  if (signals.dataStructures > 0) return 'Data Model Flow';
+  return 'Change Flow';
+}
+
+function buildMermaidDiagram(
+  surfaces: ReturnType<typeof detectSurfaces>,
+  hasAuth: boolean,
+  dataStructures: ReturnType<typeof detectDataStructures>,
+  files: string[],
+): string {
+  if (surfaces.length > 0) {
+    const lines = ['sequenceDiagram', '  participant Caller', '  participant API'];
+    if (hasAuth) lines.push('  participant Auth as AuthMiddleware');
+    lines.push('  participant Handler');
+
+    for (const surface of surfaces.slice(0, 5)) {
+      lines.push(`  Caller->>API: ${surface.method} ${surface.path}`);
+      if (hasAuth && surface.auth !== 'not visible in route signature') {
+        lines.push(`  API->>Auth: ${surface.auth}`);
+        lines.push('  Auth-->>API: user identity or rejection');
+      }
+      lines.push('  API->>Handler: continue request');
+      if (surface.responseShape !== 'not inferable from diff') lines.push(`  Handler-->>Caller: ${sanitizeMermaidMessage(surface.responseShape)}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  const serviceFiles = files.filter((file) => /service/i.test(file));
+  const libFiles = files.filter((file) => /\/lib\//i.test(file));
+  const typeFiles = files.filter((file) => /type|schema|model/i.test(file));
+
+  if (serviceFiles.length > 0 || libFiles.length > 0 || typeFiles.length > 0) {
+    const lines = ['flowchart TD'];
+    if (serviceFiles.length > 0) lines.push(`  Service["${sanitizeMermaidLabel(shortFileList(serviceFiles))}"]`);
+    if (libFiles.length > 0) lines.push(`  Library["${sanitizeMermaidLabel(shortFileList(libFiles))}"]`);
+    if (typeFiles.length > 0 || dataStructures.length > 0) lines.push(`  Types["${sanitizeMermaidLabel(dataStructures.length > 0 ? dataStructures.map((structure) => structure.name).join(', ') : shortFileList(typeFiles))}"]`);
+    if (serviceFiles.length > 0 && libFiles.length > 0) lines.push('  Service --> Library');
+    if (libFiles.length > 0 && (typeFiles.length > 0 || dataStructures.length > 0)) lines.push('  Library --> Types');
+    if (serviceFiles.length > 0 && libFiles.length === 0 && (typeFiles.length > 0 || dataStructures.length > 0)) lines.push('  Service --> Types');
+    if (lines.length > 1) return lines.join('\n');
+  }
+
+  if (dataStructures.length > 0) {
+    return ['flowchart TD', '  Diff[PR diff]', ...dataStructures.slice(0, 5).map((structure) => `  Diff --> ${structure.name}[${structure.name}]`)].join('\n');
+  }
+
+  return 'flowchart TD\n  Change[Changed files] --> Review[Reviewer mental model]';
+}
+
+function shortFileList(files: string[]): string {
+  return files.map((file) => file.split('/').pop() ?? file).slice(0, 3).join(', ');
+}
+
+function sanitizeMermaidLabel(value: string): string {
+  return value.replace(/["`]/g, '').replace(/\s+/g, ' ').slice(0, 80);
+}
+
+function sanitizeMermaidMessage(value: string): string {
+  return value.replace(/[;`]/g, ',').replace(/\s+/g, ' ').slice(0, 80);
 }
 
 function isTestFile(path: string): boolean {

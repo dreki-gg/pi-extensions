@@ -65,11 +65,42 @@ export interface PrData {
   reviews: PrReview[];
 }
 
+export interface ReviewSurface {
+  method: string;
+  path: string;
+  auth: string;
+  requestShape: string;
+  responseShape: string;
+  change: 'NEW' | 'CHANGED';
+  source?: string;
+}
+
+export interface ReviewDataField {
+  name: string;
+  type: string;
+  required: string;
+  description: string;
+}
+
+export interface ReviewDataStructure {
+  name: string;
+  source: string;
+  fields: ReviewDataField[];
+}
+
+export interface SourceReference {
+  path: string;
+  range: string;
+  reason: string;
+}
+
 export interface MindMapGroup {
   label: string;
   description: string;
   files: string[];
   changeType: 'feature' | 'refactor' | 'fix' | 'test' | 'config' | 'docs' | 'other';
+  diagram?: string;
+  relationships?: string[];
 }
 
 export interface AiSummary {
@@ -77,6 +108,15 @@ export interface AiSummary {
   impact: string;
   concerns: string[];
   highlights: string[];
+  tldr?: string;
+  whatChanged?: string[];
+  systemFlow?: string[];
+  endpoints?: ReviewSurface[];
+  dataStructures?: ReviewDataStructure[];
+  hotSpots?: string[];
+  openQuestions?: string[];
+  sourceReferences?: SourceReference[];
+  generatedBy?: 'ai' | 'heuristic';
 }
 
 export interface PrListItem {

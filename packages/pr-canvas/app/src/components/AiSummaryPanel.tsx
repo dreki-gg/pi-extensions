@@ -12,7 +12,13 @@ interface AiSummaryPanelProps {
  */
 export default function AiSummaryPanel(props: AiSummaryPanelProps) {
   const [open, setOpen] = createSignal(false);
-  const concernCount = () => props.summary.concerns.length;
+  const hotSpotCount = () => (props.summary.hotSpots?.length ?? props.summary.concerns.length);
+  const tldr = () => props.summary.tldr || props.summary.purpose;
+  const whatChanged = () => props.summary.whatChanged ?? props.summary.highlights;
+  const hotSpots = () => props.summary.hotSpots ?? props.summary.concerns;
+  const openQuestions = () => props.summary.openQuestions ?? [];
+  const endpoints = () => props.summary.endpoints ?? [];
+  const dataStructures = () => props.summary.dataStructures ?? [];
 
   return (
     <div class="ai-summary-dock" classList={{ 'ai-summary-dock-open': open() }}>
@@ -25,8 +31,8 @@ export default function AiSummaryPanel(props: AiSummaryPanelProps) {
       >
         <Icon name="summary" size={16} />
         <span>AI Summary</span>
-        <Show when={concernCount() > 0}>
-          <span class="sidebar-badge" data-tone="warning">{concernCount()}</span>
+        <Show when={hotSpotCount() > 0}>
+          <span class="sidebar-badge" data-tone="warning">{hotSpotCount()}</span>
         </Show>
       </button>
 
@@ -49,26 +55,85 @@ export default function AiSummaryPanel(props: AiSummaryPanelProps) {
 
           <div class="ai-summary-panel-body">
             <section class="ai-summary-item">
-              <h3 class="ai-summary-item-title">Purpose</h3>
-              <p>{props.summary.purpose}</p>
+              <h3 class="ai-summary-item-title">TL;DR</h3>
+              <p>{tldr()}</p>
             </section>
-            <section class="ai-summary-item">
-              <h3 class="ai-summary-item-title">Impact</h3>
-              <p>{props.summary.impact}</p>
-            </section>
-            <Show when={props.summary.highlights.length > 0}>
+
+            <Show when={whatChanged().length > 0}>
               <section class="ai-summary-item">
-                <h3 class="ai-summary-item-title">Highlights</h3>
+                <h3 class="ai-summary-item-title">What changed</h3>
                 <ul class="ai-summary-list">
-                  <For each={props.summary.highlights}>{(item) => <li>{item}</li>}</For>
+                  <For each={whatChanged()}>{(item) => <li>{item}</li>}</For>
                 </ul>
               </section>
             </Show>
-            <Show when={props.summary.concerns.length > 0}>
+
+            <Show when={(props.summary.systemFlow?.length ?? 0) > 0}>
               <section class="ai-summary-item">
-                <h3 class="ai-summary-item-title">Concerns</h3>
+                <h3 class="ai-summary-item-title">System / data flow</h3>
+                <ul class="ai-summary-list">
+                  <For each={props.summary.systemFlow ?? []}>{(item) => <li>{item}</li>}</For>
+                </ul>
+              </section>
+            </Show>
+
+            <Show when={endpoints().length > 0}>
+              <section class="ai-summary-item">
+                <h3 class="ai-summary-item-title">Endpoints / surfaces</h3>
+                <div class="ai-summary-table-wrap">
+                  <table class="ai-summary-table">
+                    <thead>
+                      <tr>
+                        <th>Surface</th>
+                        <th>Auth</th>
+                        <th>Change</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <For each={endpoints()}>
+                        {(surface) => (
+                          <tr>
+                            <td><code>{surface.method} {surface.path}</code></td>
+                            <td>{surface.auth}</td>
+                            <td>{surface.change}</td>
+                          </tr>
+                        )}
+                      </For>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </Show>
+
+            <Show when={dataStructures().length > 0}>
+              <section class="ai-summary-item">
+                <h3 class="ai-summary-item-title">Data structures</h3>
+                <ul class="ai-summary-list">
+                  <For each={dataStructures()}>
+                    {(structure) => (
+                      <li>
+                        <strong>{structure.name}</strong> <span class="source-ref">{structure.source}</span>
+                      </li>
+                    )}
+                  </For>
+                </ul>
+              </section>
+            </Show>
+
+            <Show when={hotSpots().length > 0}>
+              <section class="ai-summary-item">
+                <h3 class="ai-summary-item-title">Review hot-spots</h3>
                 <ul class="ai-summary-list warning-list">
-                  <For each={props.summary.concerns}>{(item) => <li>{item}</li>}</For>
+                  <For each={hotSpots()}>{(item) => <li>{item}</li>}</For>
+                </ul>
+              </section>
+            </Show>
+
+            <Show when={openQuestions().length > 0}>
+              <section class="ai-summary-item">
+                <h3 class="ai-summary-item-title">Open questions</h3>
+                <ul class="ai-summary-list">
+                  <For each={openQuestions()}>{(item) => <li>{item}</li>}</For>
                 </ul>
               </section>
             </Show>

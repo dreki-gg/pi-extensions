@@ -1,4 +1,5 @@
 import { For, Show } from 'solid-js';
+import Markdown from '~/components/Markdown';
 import type { PrComment, PrReview } from '~/lib/types';
 
 interface CommentsProps {
@@ -26,7 +27,7 @@ export default function Comments(props: CommentsProps) {
                 <time class="comment-date">{formatDate(review.createdAt)}</time>
               </div>
               <Show when={review.body}>
-                <p class="comment-body">{review.body}</p>
+                <Markdown source={review.body} class="comment-markdown" />
               </Show>
               <div class="inline-comments-list">
                 <For each={review.comments}>
@@ -38,7 +39,7 @@ export default function Comments(props: CommentsProps) {
                           <span class="comment-location">{comment.path}:{comment.line}</span>
                         </Show>
                       </div>
-                      <p class="comment-body">{comment.body}</p>
+                      <Markdown source={comment.body} class="comment-markdown" />
                     </div>
                   )}
                 </For>
@@ -57,7 +58,7 @@ export default function Comments(props: CommentsProps) {
                 <span class="comment-author">{comment.author.login}</span>
                 <time class="comment-date">{formatDate(comment.createdAt)}</time>
               </div>
-              <p class="comment-body">{comment.body}</p>
+              <Markdown source={comment.body} class="comment-markdown" />
             </article>
           )}
         </For>

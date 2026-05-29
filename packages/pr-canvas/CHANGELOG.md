@@ -1,5 +1,29 @@
 # @dreki-gg/pi-pr-canvas
 
+## 1.5.4
+
+### Patch Changes
+
+- Display Mind Map cards as full-width rows instead of responsive columns.
+
+## 1.5.3
+
+### Patch Changes
+
+- Render Mermaid code fences inside PR descriptions and review comments using the safe Mermaid renderer.
+
+## 1.5.2
+
+### Patch Changes
+
+- Improve Mind Map fallback so service/library/type changes produce a semantic flow card instead of directory-only grouping.
+
+## 1.5.1
+
+### Patch Changes
+
+- Improve PR Canvas review intelligence with diff-aware architecture summaries, Mermaid mind maps, and Markdown-rendered PR comments.
+
 ## 1.5.0
 
 ### Minor Changes

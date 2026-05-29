@@ -394,6 +394,15 @@ button {
   white-space: pre-wrap;
 }
 
+.comment-markdown {
+  padding-top: 2px;
+  color: var(--text-secondary);
+}
+
+.comment-markdown pre {
+  background: #0a0f16;
+}
+
 /* ── Markdown body ──────────────────────────────────────── */
 .markdown-body {
   color: var(--text-secondary);
@@ -402,12 +411,20 @@ button {
   overflow-wrap: anywhere;
 }
 
-.markdown-body > :first-child {
+.markdown-body > :first-child,
+.markdown-chunk > :first-child {
   margin-top: 0;
 }
 
-.markdown-body > :last-child {
+.markdown-body > :last-child,
+.markdown-chunk > :last-child {
   margin-bottom: 0;
+}
+
+.markdown-chunk + .markdown-chunk,
+.markdown-chunk + .markdown-mermaid,
+.markdown-mermaid + .markdown-chunk {
+  margin-top: 12px;
 }
 
 .markdown-body h1,
@@ -588,7 +605,7 @@ button {
 /* ── Mind map ───────────────────────────────────────────── */
 .mind-map-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: 1fr;
   gap: 14px;
 }
 
@@ -654,6 +671,50 @@ button {
 .mind-map-description {
   margin: 0;
   color: var(--text-secondary);
+}
+
+.mind-map-relationships {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+}
+
+.mind-map-relationships li + li {
+  margin-top: 4px;
+}
+
+.mermaid-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+}
+
+.mermaid-rendered {
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.mermaid-rendered svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-source {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.mermaid-error {
+  margin: 0;
+  padding: 0 12px 12px;
+  color: var(--yellow);
+  font-size: 12px;
 }
 
 .mind-map-files {
@@ -1018,6 +1079,41 @@ button {
 .ai-summary-item p {
   margin: 6px 0 0;
   color: var(--text-secondary);
+}
+
+.ai-summary-table-wrap {
+  margin-top: 8px;
+  overflow-x: auto;
+}
+
+.ai-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.ai-summary-table th,
+.ai-summary-table td {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.ai-summary-table th {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  font-weight: 600;
+}
+
+.ai-summary-table code,
+.source-ref {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.source-ref {
+  color: var(--text-muted);
 }
 
 .ai-summary-item-title {

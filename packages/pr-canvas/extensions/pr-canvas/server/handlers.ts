@@ -10,8 +10,7 @@ import {
   fetchPrList,
 } from '../github/client';
 import { parseDiff } from '../github/parser';
-import { generateHeuristicMindMap } from '../ai/mind-map';
-import { generateHeuristicSummary } from '../ai/summary';
+import { generateReviewIntelligence } from '../ai/review-intelligence';
 import type { WsMessageToServer } from '../effect/schemas';
 import type { PrCheck, PrComment, PrReview } from '../github/types';
 
@@ -71,8 +70,11 @@ export function createMessageHandlers(exec: ExecFn, aiChat?: AiChatFn) {
             reviews: commentsData.reviews as PrReview[],
           };
 
-          const mindMap = generateHeuristicMindMap(prData);
-          const aiSummary = generateHeuristicSummary(prData);
+          const { mindMap, summary: aiSummary } = await generateReviewIntelligence(
+            prData,
+            rawDiff,
+            aiChat,
+          );
 
           reply({
             type: 'pr:data:result',
