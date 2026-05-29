@@ -11,18 +11,20 @@ import { renderAiSummary } from './sections/ai-summary';
 
 export interface CanvasData {
   pr: PrData;
+  /** Raw unified diff from `gh pr diff` — used by @pierre/diffs */
+  rawDiff: string;
   mindMap: MindMapGroup[];
   aiSummary: AiSummary;
 }
 
 export function generateCanvas(data: CanvasData): string {
-  const { pr, mindMap, aiSummary } = data;
+  const { pr, rawDiff, mindMap, aiSummary } = data;
 
   const sections = [
     renderOverview(pr.overview),
     renderFileTree(pr.files),
     renderMindMap(mindMap),
-    renderDiffPreview(pr.files),
+    renderDiffPreview(pr.files, rawDiff),
     renderChecks(pr.checks),
     renderComments(pr.comments, pr.reviews),
     renderAiSummary(aiSummary),

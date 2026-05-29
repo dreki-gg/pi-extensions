@@ -75,7 +75,7 @@ export function registerPrCanvasCommand(pi: ExtensionAPI) {
 
       // Generate HTML canvas
       ctx.ui.setStatus('pr-canvas', '🎨 Generating canvas...');
-      const html = generateCanvas({ pr: prData, mindMap, aiSummary });
+      const html = generateCanvas({ pr: prData, rawDiff, mindMap, aiSummary });
 
       // Write to temp file and open in browser
       const filePath = join(tmpdir(), `pr-canvas-${overview.number}.html`);

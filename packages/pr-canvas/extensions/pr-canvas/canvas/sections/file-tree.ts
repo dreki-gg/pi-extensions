@@ -1,6 +1,12 @@
 import type { PrFile } from '../../github/types';
-import { escapeHtml } from '../template';
 
+/**
+ * Render the file tree section.
+ *
+ * Embeds file paths and git status as JSON data for @pierre/trees to consume
+ * via the module script in the template. The library handles tree rendering,
+ * directory flattening, and git status badges.
+ */
 export function renderFileTree(files: PrFile[]): string {
   if (files.length === 0) {
     return `
@@ -15,9 +21,11 @@ export function renderFileTree(files: PrFile[]): string {
       </section>`;
   }
 
-  // Group files by directory
-  const tree = buildTree(files);
-  const treeHtml = renderTree(tree);
+  // Build the data structure for @pierre/trees
+  const treeData = {
+    paths: files.map((f) => f.path),
+    gitStatus: buildGitStatus(files),
+  };
 
   return `
     <section class="canvas-section" id="section-file-tree">
@@ -27,88 +35,33 @@ export function renderFileTree(files: PrFile[]): string {
         <span style="color: var(--text-muted); font-size: 0.8rem; font-weight: 400;">${files.length} file${files.length === 1 ? '' : 's'}</span>
       </button>
       <div class="section-body">
-        <div class="file-tree">${treeHtml}</div>
+        <div id="pierre-tree-container" style="height: ${Math.min(files.length * 28 + 40, 500)}px;"></div>
       </div>
+      <script type="application/json" id="pierre-tree-data">${JSON.stringify(treeData)}</script>
     </section>`;
 }
 
-interface TreeDir {
-  [key: string]: TreeDir | PrFile;
-}
-
-function buildTree(files: PrFile[]): TreeDir {
-  const tree: TreeDir = {};
-
+/**
+ * Map PrFile statuses to @pierre/trees gitStatus format.
+ * Keys are file paths, values are git status strings.
+ */
+function buildGitStatus(files: PrFile[]): Record<string, string> {
+  const status: Record<string, string> = {};
   for (const file of files) {
-    const parts = file.path.split('/');
-    let current = tree;
-    for (let i = 0; i < parts.length - 1; i++) {
-      const dir = parts[i];
-      if (!current[dir] || isFile(current[dir])) {
-        current[dir] = {};
-      }
-      current = current[dir] as TreeDir;
-    }
-    current[parts[parts.length - 1]] = file;
-  }
-
-  return tree;
-}
-
-function isFile(node: TreeDir | PrFile): node is PrFile {
-  return 'status' in node;
-}
-
-function renderTree(tree: TreeDir, depth: number = 0): string {
-  const entries = Object.entries(tree).sort(([, a], [, b]) => {
-    const aIsDir = !isFile(a);
-    const bIsDir = !isFile(b);
-    if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
-    return 0;
-  });
-
-  let html = '';
-
-  for (const [name, node] of entries) {
-    if (isFile(node)) {
-      html += renderFileEntry(name, node);
-    } else {
-      html += `<div class="tree-dir" style="padding-left: ${depth * 1}rem">${escapeHtml(name)}/</div>`;
-      html += renderTree(node, depth + 1);
+    switch (file.status) {
+      case 'added':
+        status[file.path] = 'added';
+        break;
+      case 'modified':
+        status[file.path] = 'modified';
+        break;
+      case 'deleted':
+        status[file.path] = 'deleted';
+        break;
+      case 'renamed':
+        status[file.path] = 'renamed';
+        break;
     }
   }
-
-  return html;
-}
-
-function renderFileEntry(name: string, file: PrFile): string {
-  const badgeClass = `badge-sm badge-${file.status}`;
-  const badgeLabel = file.status[0].toUpperCase();
-  const changeBar = renderChangeBar(file.additions, file.deletions);
-
-  const stats = [];
-  if (file.additions > 0) stats.push(`<span class="stat-add">+${file.additions}</span>`);
-  if (file.deletions > 0) stats.push(`<span class="stat-del">−${file.deletions}</span>`);
-
-  return `
-    <div class="tree-file">
-      <span class="${badgeClass}">${badgeLabel}</span>
-      <span class="tree-file-name">${escapeHtml(name)}</span>
-      <span class="tree-file-stats">${stats.join(' ')} ${changeBar}</span>
-    </div>`;
-}
-
-function renderChangeBar(additions: number, deletions: number): string {
-  const total = additions + deletions;
-  if (total === 0) return '';
-
-  const maxBlocks = 5;
-  const addBlocks = Math.round((additions / total) * maxBlocks);
-  const delBlocks = maxBlocks - addBlocks;
-
-  let blocks = '';
-  for (let i = 0; i < addBlocks; i++) blocks += '<span class="change-bar-block change-bar-add"></span>';
-  for (let i = 0; i < delBlocks; i++) blocks += '<span class="change-bar-block change-bar-del"></span>';
-
-  return `<span class="change-bar">${blocks}</span>`;
+  return status;
 }

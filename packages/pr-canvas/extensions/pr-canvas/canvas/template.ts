@@ -22,6 +22,7 @@ export function wrapInHtml(title: string, sections: string[]): string {
     ${body}
   </main>
   <script>${JS}</script>
+  <script type="module">${MODULE_JS}</script>
 </body>
 </html>`;
 }
@@ -400,6 +401,41 @@ const CSS = `
     margin: 0.5rem 0;
   }
 
+  /* ── Pierre Components ── */
+  #pierre-diffs-container {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  #pierre-tree-container {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--bg-primary);
+  }
+
+  .pierre-diff-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .pierre-control-btn {
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .pierre-control-btn:hover {
+    background: var(--border);
+    color: var(--text-primary);
+  }
+
   @media (max-width: 768px) {
     body { grid-template-columns: 1fr; }
     .sidebar { display: none; }
@@ -451,14 +487,95 @@ const JS = `
       });
     });
 
-    // Diff collapse/expand
-    document.querySelectorAll('.diff-header').forEach(header => {
-      header.addEventListener('click', () => {
-        const content = header.nextElementSibling;
-        if (content) content.classList.toggle('collapsed');
-        const chevron = header.querySelector('.chevron');
-        if (chevron) chevron.classList.toggle('collapsed');
-      });
-    });
   });
+`;
+
+const MODULE_JS = `
+  // Initialize @pierre/diffs and @pierre/trees from CDN
+  const DIFFS_CDN = 'https://cdn.jsdelivr.net/npm/@pierre/diffs@1.2.4/+esm';
+  const TREES_CDN = 'https://cdn.jsdelivr.net/npm/@pierre/trees@1.0.0-beta.4/+esm';
+
+  async function initPierreDiffs() {
+    const dataEl = document.getElementById('pierre-diff-data');
+    const container = document.getElementById('pierre-diffs-container');
+    if (!dataEl || !container) return;
+
+    try {
+      const rawDiff = JSON.parse(dataEl.textContent);
+      const { CodeView, parsePatchFiles } = await import(DIFFS_CDN);
+
+      const patchFiles = parsePatchFiles(rawDiff);
+      if (!patchFiles || patchFiles.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted);">Could not parse diff.</p>';
+        return;
+      }
+
+      const viewer = new CodeView({
+        theme: 'github-dark',
+        layout: 'stacked',
+        hunkSeparators: 'line-info',
+        lineNumbers: true,
+      });
+
+      viewer.setup(container);
+
+      const items = patchFiles.map((fileDiff, i) => ({
+        id: 'diff-' + i,
+        type: 'diff',
+        fileDiff,
+        collapsed: true,
+      }));
+
+      viewer.setItems(items);
+
+      // Layout toggle
+      const toggleBtn = document.getElementById('diff-layout-toggle');
+      if (toggleBtn) {
+        let isSplit = false;
+        toggleBtn.addEventListener('click', () => {
+          isSplit = !isSplit;
+          viewer.cleanUp();
+          const newViewer = new CodeView({
+            theme: 'github-dark',
+            layout: isSplit ? 'split' : 'stacked',
+            hunkSeparators: 'line-info',
+            lineNumbers: true,
+          });
+          container.innerHTML = '';
+          newViewer.setup(container);
+          newViewer.setItems(items);
+          toggleBtn.textContent = isSplit ? 'Unified View' : 'Split View';
+        });
+      }
+    } catch (err) {
+      console.error('Failed to initialize Pierre Diffs:', err);
+      container.innerHTML = '<p style="color: var(--red);">Failed to load diff viewer. Check your internet connection.</p>';
+    }
+  }
+
+  async function initPierreTree() {
+    const dataEl = document.getElementById('pierre-tree-data');
+    const container = document.getElementById('pierre-tree-container');
+    if (!dataEl || !container) return;
+
+    try {
+      const treeData = JSON.parse(dataEl.textContent);
+      const { FileTree } = await import(TREES_CDN);
+
+      const tree = new FileTree({
+        paths: treeData.paths,
+        gitStatus: treeData.gitStatus,
+        flattenEmptyDirectories: true,
+        theme: 'dark',
+      });
+
+      tree.render({ fileTreeContainer: container });
+    } catch (err) {
+      console.error('Failed to initialize Pierre Trees:', err);
+      container.innerHTML = '<p style="color: var(--red);">Failed to load file tree. Check your internet connection.</p>';
+    }
+  }
+
+  initPierreDiffs();
+  initPierreTree();
 `;

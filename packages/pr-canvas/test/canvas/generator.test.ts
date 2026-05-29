@@ -13,12 +13,12 @@ function loadFixture(name: string): string {
 
 function buildTestData(): CanvasData {
   const viewData = JSON.parse(loadFixture('pr-view.json'));
-  const diff = loadFixture('pr-diff.txt');
+  const rawDiff = loadFixture('pr-diff.txt');
   const checks = JSON.parse(loadFixture('pr-checks.json'));
 
   const pr: PrData = {
     overview: viewData,
-    files: parseDiff(diff),
+    files: parseDiff(rawDiff),
     checks,
     comments: viewData.comments ?? [],
     reviews: viewData.reviews ?? [],
@@ -46,7 +46,7 @@ function buildTestData(): CanvasData {
     highlights: ['New token validation utilities', 'Deprecated config cleanup'],
   };
 
-  return { pr, mindMap, aiSummary };
+  return { pr, rawDiff, mindMap, aiSummary };
 }
 
 describe('generateCanvas', () => {
@@ -75,10 +75,11 @@ describe('generateCanvas', () => {
     expect(html).toContain('id="section-ai-summary"');
   });
 
-  it('renders file tree with correct file count', () => {
+  it('renders file tree with Pierre Trees data', () => {
+    // File paths are embedded as JSON for @pierre/trees to consume
+    expect(html).toContain('id="pierre-tree-container"');
+    expect(html).toContain('id="pierre-tree-data"');
     expect(html).toContain('src/middleware/auth.ts');
-    expect(html).toContain('src/routes/api.ts');
-    expect(html).toContain('src/config/deprecated.ts');
   });
 
   it('renders checks with status icons', () => {
@@ -106,9 +107,16 @@ describe('generateCanvas', () => {
     expect(html).not.toContain('<link rel="stylesheet"');
   });
 
-  it('has inline JS (self-contained)', () => {
+  it('has inline JS and module scripts', () => {
     expect(html).toContain('<script>');
-    expect(html).not.toContain('<script src=');
+    expect(html).toContain('<script type="module">');
+  });
+
+  it('embeds Pierre diff data for CDN rendering', () => {
+    expect(html).toContain('id="pierre-diffs-container"');
+    expect(html).toContain('id="pierre-diff-data"');
+    expect(html).toContain('cdn.jsdelivr.net/npm/@pierre/diffs');
+    expect(html).toContain('cdn.jsdelivr.net/npm/@pierre/trees');
   });
 });
 
@@ -137,6 +145,7 @@ describe('generateCanvas with empty data', () => {
         comments: [],
         reviews: [],
       },
+      rawDiff: '',
       mindMap: [],
       aiSummary: {
         purpose: 'No changes.',
