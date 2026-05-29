@@ -1,5 +1,11 @@
 # @dreki-gg/pi-pr-canvas
 
+## 1.3.0
+
+### Minor Changes
+
+- Add a dedicated "Files changed" view. The sidebar's separate "Files" and "Diffs" entries are merged into a single "Files changed" item that opens a full-page master-detail route (`/pr/:number/files`): a list of changed files on the left (with status and +/- counts) and the selected file's syntax-highlighted diff on the right, with a unified/split toggle. The main canvas page now focuses on Overview, Mind Map, CI Checks, Comments, and AI Summary. The sidebar supports route-link items alongside in-page section anchors.
+
 ## 1.2.1
 
 ### Patch Changes

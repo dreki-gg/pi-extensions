@@ -167,6 +167,11 @@ button {
   background: var(--accent);
 }
 
+.sidebar-nav-link-route,
+.sidebar-nav-link-route:hover {
+  text-decoration: none;
+}
+
 .sidebar-nav-icon {
   display: inline-flex;
   flex: 0 0 auto;
@@ -1091,6 +1096,202 @@ button {
 }
 
 /* ── Dashboard ──────────────────────────────────────────── */
+/* Files changed page (master-detail) */
+.files-page {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.files-rail {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 10px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+}
+
+.files-rail-empty {
+  background: var(--bg-secondary);
+}
+
+.files-rail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 10px;
+}
+
+.files-rail-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.files-rail-count {
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.file-change-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.file-change-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.file-change-row:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.file-change-row-active {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.file-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.file-status-added {
+  color: var(--green);
+  background: rgba(63, 185, 80, 0.14);
+}
+
+.file-status-modified {
+  color: var(--yellow);
+  background: rgba(210, 153, 34, 0.14);
+}
+
+.file-status-deleted {
+  color: var(--red);
+  background: rgba(248, 81, 73, 0.14);
+}
+
+.file-status-renamed {
+  color: var(--accent);
+  background: rgba(88, 166, 255, 0.14);
+}
+
+.file-change-path {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.file-change-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.file-change-dir {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.file-change-stats {
+  display: inline-flex;
+  gap: 6px;
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.files-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-diff-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.file-diff-toolbar {
+  position: sticky;
+  top: 53px;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 24px;
+  background: color-mix(in srgb, var(--bg-primary) 86%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.file-diff-current {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.file-diff-surface {
+  padding: 16px 24px 80px;
+}
+
+.files-empty {
+  padding: 48px 24px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* Dashboard */
 .dashboard {
   width: min(100%, 1120px);
   margin: 0 auto;
@@ -1284,6 +1485,22 @@ a.pr-card:hover {
 
   .dashboard {
     padding: 28px 16px 72px;
+  }
+
+  .files-page {
+    grid-template-columns: 1fr;
+  }
+
+  .files-rail {
+    position: static;
+    height: auto;
+    max-height: 42vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .file-diff-toolbar {
+    top: 0;
   }
 }
 

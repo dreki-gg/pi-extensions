@@ -1,9 +1,17 @@
 {
-  "_Icon-ip1C7Ac1.js": {
-    "file": "assets/Icon-ip1C7Ac1.js",
+  "_ContextBar-CC-BJU1r.js": {
+    "file": "assets/ContextBar-CC-BJU1r.js",
+    "name": "ContextBar",
+    "imports": [
+      "_context-DmxQvWXa.js",
+      "_Icon--R-sqZdP.js"
+    ]
+  },
+  "_Icon--R-sqZdP.js": {
+    "file": "assets/Icon--R-sqZdP.js",
     "name": "Icon",
     "imports": [
-      "_context-DMfNwuCh.js"
+      "_context-DmxQvWXa.js"
     ]
   },
   "_angular-html-DMxchsRu.js": {
@@ -14,8 +22,8 @@
       "node_modules/@pierre/diffs/node_modules/@shikijs/langs/dist/html.mjs"
     ]
   },
-  "_context-DMfNwuCh.js": {
-    "file": "assets/context-DMfNwuCh.js",
+  "_context-DmxQvWXa.js": {
+    "file": "assets/context-DmxQvWXa.js",
     "name": "context"
   },
   "_preload-helper-ug3pwPZ1.js": {
@@ -2613,54 +2621,62 @@
     "src": "node_modules/@pierre/theme/dist/pierre-light.mjs",
     "isDynamicEntry": true
   },
-  "node_modules/@pierre/trees/dist/index.js": {
-    "file": "assets/index-CJXMEVvD.js",
-    "name": "index",
-    "src": "node_modules/@pierre/trees/dist/index.js",
-    "isDynamicEntry": true
-  },
   "src/routes/index.tsx?pick=default&pick=$css": {
-    "file": "assets/index-DdM3mkOp.js",
+    "file": "assets/index-BUzU5Q6T.js",
     "name": "index",
     "src": "src/routes/index.tsx?pick=default&pick=$css",
     "isEntry": true,
     "isDynamicEntry": true,
     "imports": [
-      "_context-DMfNwuCh.js",
-      "_Icon-ip1C7Ac1.js"
+      "_context-DmxQvWXa.js",
+      "_Icon--R-sqZdP.js"
     ]
   },
-  "src/routes/pr/[number].tsx?pick=default&pick=$css": {
-    "file": "assets/_number_-CedwadFK.js",
-    "name": "_number_",
-    "src": "src/routes/pr/[number].tsx?pick=default&pick=$css",
+  "src/routes/pr/[number]/files.tsx?pick=default&pick=$css": {
+    "file": "assets/files-oNTUdlxT.js",
+    "name": "files",
+    "src": "src/routes/pr/[number]/files.tsx?pick=default&pick=$css",
     "isEntry": true,
     "isDynamicEntry": true,
     "imports": [
-      "_context-DMfNwuCh.js",
-      "_Icon-ip1C7Ac1.js",
+      "_context-DmxQvWXa.js",
+      "_ContextBar-CC-BJU1r.js",
+      "_Icon--R-sqZdP.js",
       "_preload-helper-ug3pwPZ1.js"
     ],
     "dynamicImports": [
-      "node_modules/@pierre/trees/dist/index.js",
+      "node_modules/@pierre/diffs/dist/index.js",
       "node_modules/@pierre/diffs/dist/index.js"
     ]
   },
+  "src/routes/pr/[number]/index.tsx?pick=default&pick=$css": {
+    "file": "assets/index-CN14W20_.js",
+    "name": "index",
+    "src": "src/routes/pr/[number]/index.tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_context-DmxQvWXa.js",
+      "_Icon--R-sqZdP.js",
+      "_ContextBar-CC-BJU1r.js"
+    ]
+  },
   "virtual:$vinxi/handler/client": {
-    "file": "assets/client-B5rUdQeM.js",
+    "file": "assets/client-iWg4mJoJ.js",
     "name": "client",
     "src": "virtual:$vinxi/handler/client",
     "isEntry": true,
     "imports": [
-      "_context-DMfNwuCh.js",
+      "_context-DmxQvWXa.js",
       "_preload-helper-ug3pwPZ1.js"
     ],
     "dynamicImports": [
       "src/routes/index.tsx?pick=default&pick=$css",
-      "src/routes/pr/[number].tsx?pick=default&pick=$css"
+      "src/routes/pr/[number]/files.tsx?pick=default&pick=$css",
+      "src/routes/pr/[number]/index.tsx?pick=default&pick=$css"
     ],
     "css": [
-      "assets/client-D3tXA-SX.css"
+      "assets/client-my7u0XV9.css"
     ]
   }
 }

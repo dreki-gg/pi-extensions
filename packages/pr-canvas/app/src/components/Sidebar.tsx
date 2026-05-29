@@ -9,6 +9,8 @@ export interface SidebarSection {
   label: string;
   icon: IconName;
   badge?: { text: string; tone: BadgeTone };
+  /** When set, the item navigates to this route instead of scrolling to an anchor. */
+  href?: string;
 }
 
 interface SidebarProps {
@@ -53,27 +55,46 @@ export default function Sidebar(props: SidebarProps) {
 
       <nav class="sidebar-nav" aria-label="Pull request sections">
         <For each={props.sections}>
-          {(section) => (
-            <button
-              type="button"
-              class="sidebar-nav-link"
-              classList={{ 'sidebar-nav-link-active': activeSection() === section.id }}
-              aria-current={activeSection() === section.id ? 'true' : undefined}
-              onClick={() => scrollToSection(section.id)}
-            >
-              <span class="sidebar-nav-icon">
-                <Icon name={section.icon} size={18} />
-              </span>
-              <span class="sidebar-nav-label">{section.label}</span>
-              <Show when={section.badge}>
-                {(badge) => (
-                  <span class="sidebar-badge" data-tone={badge().tone}>
-                    {badge().text}
-                  </span>
+          {(section) => {
+            const inner = (
+              <>
+                <span class="sidebar-nav-icon">
+                  <Icon name={section.icon} size={18} />
+                </span>
+                <span class="sidebar-nav-label">{section.label}</span>
+                <Show when={section.badge}>
+                  {(badge) => (
+                    <span class="sidebar-badge" data-tone={badge().tone}>
+                      {badge().text}
+                    </span>
+                  )}
+                </Show>
+              </>
+            );
+
+            return (
+              <Show
+                when={section.href}
+                fallback={
+                  <button
+                    type="button"
+                    class="sidebar-nav-link"
+                    classList={{ 'sidebar-nav-link-active': activeSection() === section.id }}
+                    aria-current={activeSection() === section.id ? 'true' : undefined}
+                    onClick={() => scrollToSection(section.id)}
+                  >
+                    {inner}
+                  </button>
+                }
+              >
+                {(href) => (
+                  <A href={href()} class="sidebar-nav-link sidebar-nav-link-route">
+                    {inner}
+                  </A>
                 )}
               </Show>
-            </button>
-          )}
+            );
+          }}
         </For>
       </nav>
     </aside>
