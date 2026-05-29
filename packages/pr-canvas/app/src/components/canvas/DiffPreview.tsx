@@ -72,7 +72,7 @@ export default function DiffPreview(props: DiffPreviewProps) {
   return (
     <section id="section-diff-preview" class="canvas-section">
       <div class="section-header-row">
-        <h2 class="section-title">📝 Diff Preview</h2>
+        <h2 class="section-title">Diff</h2>
         <button
           type="button"
           class="pierre-control-btn"

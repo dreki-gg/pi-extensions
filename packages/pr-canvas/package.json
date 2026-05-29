@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-pr-canvas",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Visual GitHub Pull Request canvas for pi — generate a self-contained HTML overview of any PR with file tree, diffs, CI checks, comments, and AI-powered mind map",
   "keywords": [
     "pi-package",

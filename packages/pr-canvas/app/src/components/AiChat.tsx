@@ -1,5 +1,6 @@
 import { For, Show, createSignal } from 'solid-js';
 import { usePrStore } from '~/lib/context';
+import Icon from '~/components/Icon';
 
 interface AiChatProps {
   prNumber: number;
@@ -20,18 +21,39 @@ export default function AiChat(props: AiChatProps) {
 
   return (
     <div class="ai-chat" classList={{ 'ai-chat-open': open() }}>
-      <button type="button" class="ai-chat-toggle" onClick={() => setOpen((value) => !value)}>
-        🤖 AI Chat
+      <button
+        type="button"
+        class="ai-chat-toggle"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open()}
+      >
+        <Icon name="robot" size={18} />
+        <span>Ask AI</span>
       </button>
 
       <Show when={open()}>
         <aside class="ai-chat-panel" aria-label="AI chat">
           <div class="ai-chat-header">
-            <h2 class="ai-chat-title">AI Chat</h2>
-            <button type="button" class="ai-chat-close" onClick={() => setOpen(false)}>×</button>
+            <h2 class="ai-chat-title">
+              <Icon name="robot" size={16} />
+              Ask about this PR
+            </h2>
+            <button
+              type="button"
+              class="ai-chat-close"
+              onClick={() => setOpen(false)}
+              aria-label="Close chat"
+            >
+              <Icon name="close" size={16} />
+            </button>
           </div>
 
           <div class="ai-chat-messages">
+            <Show when={store.aiChat.messages.length === 0 && !store.aiChat.loading}>
+              <p class="ai-chat-hint">
+                Ask anything about the changes, the diff, or why something was done.
+              </p>
+            </Show>
             <For each={store.aiChat.messages}>
               {(message) => (
                 <div class={`ai-chat-message ai-chat-message-${message.role}`}>
@@ -47,17 +69,22 @@ export default function AiChat(props: AiChatProps) {
           </div>
 
           <form class="ai-chat-form" onSubmit={submit}>
-            <label class="ai-chat-input-label" for="ai-chat-input">Ask about this PR</label>
             <div class="ai-chat-input-row">
               <input
                 id="ai-chat-input"
                 class="ai-chat-input"
+                placeholder="Ask about this PR"
                 value={input()}
                 onInput={(event) => setInput(event.currentTarget.value)}
                 disabled={store.aiChat.loading}
               />
-              <button type="submit" class="ai-chat-submit" disabled={store.aiChat.loading || !input().trim()}>
-                Send
+              <button
+                type="submit"
+                class="ai-chat-submit"
+                disabled={store.aiChat.loading || !input().trim()}
+                aria-label="Send message"
+              >
+                <Icon name="send" size={16} />
               </button>
             </div>
           </form>

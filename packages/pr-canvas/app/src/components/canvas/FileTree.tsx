@@ -64,10 +64,10 @@ export default function FileTree(props: FileTreeProps) {
 
   return (
     <section id="section-file-tree" class="canvas-section">
-      <h2 class="section-title">
-        📁 File Tree
+      <div class="section-header">
+        <h2 class="section-title">Files Changed</h2>
         <span class="section-count">{fileCount()} file{fileCount() !== 1 ? 's' : ''}</span>
-      </h2>
+      </div>
       <div
         ref={containerRef}
         class="pierre-tree-container"

@@ -1,10 +1,14 @@
 import { A } from '@solidjs/router';
-import { For, createSignal, onCleanup, onMount } from 'solid-js';
+import { For, Show, createSignal, onCleanup, onMount } from 'solid-js';
+import Icon, { type IconName } from '~/components/Icon';
+
+export type BadgeTone = 'default' | 'success' | 'danger' | 'warning';
 
 export interface SidebarSection {
   id: string;
   label: string;
-  icon: string;
+  icon: IconName;
+  badge?: { text: string; tone: BadgeTone };
 }
 
 interface SidebarProps {
@@ -25,7 +29,7 @@ export default function Sidebar(props: SidebarProps) {
           setActiveSection(visible.target.id);
         }
       },
-      { rootMargin: '-20% 0px -65% 0px', threshold: [0.1, 0.25, 0.5] },
+      { rootMargin: '-25% 0px -65% 0px', threshold: [0.1, 0.25, 0.5] },
     );
 
     for (const section of props.sections) {
@@ -42,9 +46,11 @@ export default function Sidebar(props: SidebarProps) {
 
   return (
     <aside class="canvas-sidebar">
-      <A href="/" class="sidebar-dashboard-link">
-        ← Dashboard
+      <A href="/" class="sidebar-back">
+        <Icon name="back" size={16} />
+        <span>All pull requests</span>
       </A>
+
       <nav class="sidebar-nav" aria-label="Pull request sections">
         <For each={props.sections}>
           {(section) => (
@@ -52,10 +58,20 @@ export default function Sidebar(props: SidebarProps) {
               type="button"
               class="sidebar-nav-link"
               classList={{ 'sidebar-nav-link-active': activeSection() === section.id }}
+              aria-current={activeSection() === section.id ? 'true' : undefined}
               onClick={() => scrollToSection(section.id)}
             >
-              <span class="sidebar-nav-icon" aria-hidden="true">{section.icon}</span>
+              <span class="sidebar-nav-icon">
+                <Icon name={section.icon} size={18} />
+              </span>
               <span class="sidebar-nav-label">{section.label}</span>
+              <Show when={section.badge}>
+                {(badge) => (
+                  <span class="sidebar-badge" data-tone={badge().tone}>
+                    {badge().text}
+                  </span>
+                )}
+              </Show>
             </button>
           )}
         </For>

@@ -1,5 +1,11 @@
 # @dreki-gg/pi-pr-canvas
 
+## 1.1.0
+
+### Minor Changes
+
+- UI refactor for usability: fix wasted layout column (chat no longer reserves 300px of grid space), add a sticky context bar that keeps PR title/state/stats/branch visible while scrolling, upgrade the sidebar with a consistent SVG icon set + at-a-glance triage badges (file count, failing-check count, comment count, AI concern count), prioritize failing CI checks at the top of the list, replace all emoji with a unified line-icon family, color PR labels by their GitHub hex, and add a reduced-motion fallback.
+
 ## 1.0.4
 
 ### Patch Changes
