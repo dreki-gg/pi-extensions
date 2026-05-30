@@ -67,7 +67,38 @@ describe('createMessageHandlers', () => {
     expect(response.rawDiff).toBeDefined();
     expect(response.mindMap).toBeDefined();
     expect(response.aiSummary).toBeDefined();
+    expect(response.aiSummary.generatedBy).toBe('heuristic');
     expect(response.data.files.length).toBeGreaterThan(0);
+  });
+
+  it('uses AI review output for pr:data when AI service returns valid JSON', async () => {
+    const ai = async () => JSON.stringify({
+      summary: {
+        purpose: 'AI purpose',
+        impact: 'AI impact',
+        concerns: [],
+        highlights: [],
+        tldr: 'AI TLDR',
+      },
+      mindMap: [
+        {
+          label: 'AI group',
+          description: 'AI-generated grouping',
+          files: ['src/index.ts'],
+          changeType: 'feature',
+        },
+      ],
+    });
+    const handlerWithAi = createMessageHandlers(mockExec, ai);
+
+    let response: any = null;
+    await handlerWithAi({ type: 'pr:data', number: 142 } as any, (data) => {
+      response = data;
+    });
+
+    expect(response.aiSummary.generatedBy).toBe('ai');
+    expect(response.aiSummary.tldr).toBe('AI TLDR');
+    expect(response.mindMap[0].label).toBe('AI group');
   });
 
   it('handles pr:subscribe with ack', async () => {
@@ -92,8 +123,14 @@ describe('createMessageHandlers', () => {
     expect(response.message).toContain('not available');
   });
 
-  it('handles ai:chat with AI service', async () => {
-    const mockAiChat = async (message: string, _context: string) => `Answer to: ${message}`;
+  it('handles ai:chat with AI service and passes full PR context', async () => {
+    let capturedMessage = '';
+    let capturedContext = '';
+    const mockAiChat = async (message: string, context: string) => {
+      capturedMessage = message;
+      capturedContext = context;
+      return `Answer to: ${message}`;
+    };
     const handlerWithAi = createMessageHandlers(mockExec, mockAiChat);
 
     let response: any = null;
@@ -106,7 +143,11 @@ describe('createMessageHandlers', () => {
 
     expect(response).not.toBeNull();
     expect(response.type).toBe('ai:chat:response');
-    expect(response.message).toBe('Answer to: Why was this deleted?');
+    expect(response.message).toContain('Answer to:');
+    expect(capturedMessage).toContain('Why was this deleted?');
+    expect(capturedContext).toContain('Add authentication middleware');
+    expect(capturedContext).toContain('Unified diff');
+    expect(capturedContext).not.toBe('PR #42');
   });
 
   it('catches handler errors and returns error message', async () => {

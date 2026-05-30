@@ -1,5 +1,11 @@
 # @dreki-gg/pi-pr-canvas
 
+## Unreleased
+
+### Patch Changes
+
+- Wire PR Canvas review summaries, mind maps, and Ask AI to Pi's active model through an isolated in-memory SDK session, while preserving deterministic fallback when AI is unavailable or returns invalid output.
+
 ## 1.5.4
 
 ### Patch Changes

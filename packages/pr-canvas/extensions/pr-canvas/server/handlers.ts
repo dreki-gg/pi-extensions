@@ -1,18 +1,11 @@
 import { Effect, Layer } from 'effect';
 import { ExecService } from '../effect/services';
 import { GhCliError } from '../effect/errors';
-import type { AiChatError } from '../effect/errors';
-import {
-  fetchOverview,
-  fetchDiff,
-  fetchChecks,
-  fetchCommentsAndReviews,
-  fetchPrList,
-} from '../github/client';
-import { parseDiff } from '../github/parser';
+import { fetchPrList } from '../github/client';
+import { buildChatContext, buildChatPrompt, type PrIntelligenceSnapshot } from '../ai/context';
 import { generateReviewIntelligence } from '../ai/review-intelligence';
 import type { WsMessageToServer } from '../effect/schemas';
-import type { PrCheck, PrComment, PrReview } from '../github/types';
+import { loadPrPayload } from './pr-loader';
 
 export type ExecFn = (
   command: string,
@@ -36,6 +29,18 @@ export function createMessageHandlers(exec: ExecFn, aiChat?: AiChatFn) {
       }) as Effect.Effect<{ stdout: string; stderr: string; code: number }, GhCliError>,
   });
 
+  const prCache = new Map<number, PrIntelligenceSnapshot>();
+
+  async function loadSnapshot(prNumber: number): Promise<PrIntelligenceSnapshot> {
+    const cached = prCache.get(prNumber);
+    if (cached) return cached;
+
+    const { prData, rawDiff } = await loadPrPayload(String(prNumber), execLayer);
+    const snapshot: PrIntelligenceSnapshot = { prData, rawDiff };
+    prCache.set(prNumber, snapshot);
+    return snapshot;
+  }
+
   return async (msg: typeof WsMessageToServer.Type, reply: (data: object) => void) => {
     try {
       switch (msg.type) {
@@ -46,33 +51,15 @@ export function createMessageHandlers(exec: ExecFn, aiChat?: AiChatFn) {
         }
 
         case 'pr:data': {
-          const prRef = String(msg.number);
-          const [overview, rawDiff, checks, commentsData] = await Promise.all([
-            Effect.runPromise(fetchOverview(prRef).pipe(Effect.provide(execLayer))),
-            Effect.runPromise(fetchDiff(prRef).pipe(Effect.provide(execLayer))),
-            Effect.runPromise(
-              fetchChecks(prRef).pipe(
-                Effect.provide(execLayer),
-                Effect.catchAll(() => Effect.succeed([])),
-              ),
-            ),
-            Effect.runPromise(fetchCommentsAndReviews(prRef).pipe(Effect.provide(execLayer))),
-          ]);
-
-          const files = parseDiff(rawDiff);
-          const prData = {
-            overview,
-            files,
-            checks: checks as PrCheck[],
-            comments: commentsData.comments as PrComment[],
-            reviews: commentsData.reviews as PrReview[],
-          };
+          const { prData, rawDiff } = await loadPrPayload(String(msg.number), execLayer);
 
           const { mindMap, summary: aiSummary } = await generateReviewIntelligence(
             prData,
             rawDiff,
             aiChat,
           );
+
+          prCache.set(msg.number, { prData, rawDiff, mindMap, aiSummary });
 
           reply({
             type: 'pr:data:result',
@@ -98,7 +85,11 @@ export function createMessageHandlers(exec: ExecFn, aiChat?: AiChatFn) {
           }
 
           try {
-            const response = await aiChat(msg.message, `PR #${msg.prNumber}`);
+            const snapshot = await loadSnapshot(msg.prNumber);
+            const response = await aiChat(
+              buildChatPrompt(msg.message),
+              buildChatContext(snapshot),
+            );
             reply({ type: 'ai:chat:response', message: response });
           } catch (err) {
             const errMsg = err instanceof Error ? err.message : String(err);

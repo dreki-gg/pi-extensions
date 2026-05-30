@@ -19,6 +19,7 @@ export default function AiSummaryPanel(props: AiSummaryPanelProps) {
   const openQuestions = () => props.summary.openQuestions ?? [];
   const endpoints = () => props.summary.endpoints ?? [];
   const dataStructures = () => props.summary.dataStructures ?? [];
+  const generationLabel = () => props.summary.generatedBy === 'ai' ? 'AI generated' : 'Heuristic fallback';
 
   return (
     <div class="ai-summary-dock" classList={{ 'ai-summary-dock-open': open() }}>
@@ -41,7 +42,8 @@ export default function AiSummaryPanel(props: AiSummaryPanelProps) {
           <div class="ai-summary-panel-header">
             <h2 class="ai-summary-panel-title">
               <Icon name="summary" size={16} />
-              AI Summary
+              Review Summary
+              <span class="ai-summary-mode-badge">{generationLabel()}</span>
             </h2>
             <button
               type="button"

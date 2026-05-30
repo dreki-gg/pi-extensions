@@ -2,7 +2,7 @@
 
 Interactive GitHub Pull Request canvas for [pi](https://github.com/earendil-works/pi).
 
-A local web application that gives you a complete mental model of any PR — with interactive diffs, file tree, AI-powered mind map, CI checks, comments, and an AI chat assistant. Powered by SolidStart, Effect, and Pierre.
+A local web application that gives you a complete mental model of any PR — with interactive diffs, file tree, Pi-model review synthesis with heuristic fallback, CI checks, comments, and an AI chat assistant. Powered by SolidStart, Effect, and Pierre.
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ The web UI runs at `http://localhost:3000` with a WebSocket bridge on port `3001
 3. Pi fetches PR data using `gh` CLI and validates with Effect Schema
 4. Diffs render via [@pierre/diffs](https://diffs.com/) with syntax highlighting
 5. File tree renders via [@pierre/trees](https://trees.software/) with git status
-6. AI chat lets you ask questions about the PR using Pi's current model
+6. AI review synthesis and chat use Pi's current model when available, with deterministic heuristics as a fallback
 
 ## Canvas Sections
 
@@ -59,7 +59,7 @@ The web UI runs at `http://localhost:3000` with a WebSocket bridge on port `3001
 | **Diff Preview** | Syntax-highlighted diffs with split/unified toggle |
 | **CI Checks** | Status of all CI checks (pass/fail/pending) |
 | **Comments** | PR comments, reviews, and inline discussion threads |
-| **AI Summary** | Purpose, impact, highlights, and potential concerns |
+| **Review Summary** | Pi-model synthesis when available, otherwise deterministic purpose, impact, highlights, hot-spots, and open questions |
 
 ## Tech Stack
 

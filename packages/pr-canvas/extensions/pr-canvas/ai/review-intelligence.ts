@@ -1,4 +1,6 @@
+import { Schema } from 'effect';
 import type { PrData } from '../github/types';
+import { buildReviewContext, buildReviewPrompt } from './context';
 import {
   detectDataStructures,
   detectSurfaces,
@@ -9,7 +11,7 @@ import {
   hasSecretFallback,
 } from './diff-analysis';
 import { generateHeuristicMindMap } from './mind-map';
-import type { AiSummary, MindMapGroup, ReviewIntelligence } from './types';
+import type { AiSummary, ReviewIntelligence } from './types';
 
 export type AiReviewFn = (message: string, context: string) => Promise<string>;
 
@@ -320,39 +322,34 @@ function deriveHighlights(pr: PrData): string[] {
   return highlights;
 }
 
-function buildReviewPrompt(pr: PrData): string {
-  return `You are PR Canvas architecture-review synthesis. Return strict JSON only with {"summary": AiSummary, "mindMap": MindMapGroup[]}.
+const MindMapGroupSchema = Schema.Struct({
+  label: Schema.String,
+  description: Schema.String,
+  files: Schema.Array(Schema.String),
+  changeType: Schema.Literal('feature', 'refactor', 'fix', 'test', 'config', 'docs', 'other'),
+  diagram: Schema.optional(Schema.String),
+  relationships: Schema.optional(Schema.Array(Schema.String)),
+});
 
-Use the arch-doc-bot style: TL;DR, what changed, system/data flow, endpoints/surfaces, data structures, review hot-spots, open questions. Keep it under 600 words. Use line refs when supplied by the diff context. Mermaid diagrams must be brief and valid: avoid semicolons in sequenceDiagram messages, quote risky labels, no HTML.
-
-PR #${pr.overview.number}: ${pr.overview.title}`;
-}
-
-function buildReviewContext(pr: PrData, rawDiff: string): string {
-  const compactFiles = pr.files
-    .map((file) => `${file.status} ${file.path} +${file.additions}/-${file.deletions}`)
-    .join('\n');
-  return [
-    `Title: ${pr.overview.title}`,
-    `Body:\n${pr.overview.body || '(empty)'}`,
-    `Files:\n${compactFiles}`,
-    `Checks:\n${pr.checks.map((check) => `${check.state} ${check.name}: ${check.description}`).join('\n') || '(none)'}`,
-    `Comments:\n${pr.comments.map((comment) => `${comment.author.login}: ${comment.body}`).join('\n') || '(none)'}`,
-    `Reviews:\n${pr.reviews.map((review) => `${review.author.login} ${review.state}: ${review.body}`).join('\n') || '(none)'}`,
-    `Unified diff:\n${rawDiff.slice(0, 60_000)}`,
-  ].join('\n\n');
-}
+const AiReviewResponseSchema = Schema.Struct({
+  summary: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+  mindMap: Schema.Array(MindMapGroupSchema),
+});
 
 function parseAiReview(raw: string): ReviewIntelligence | undefined {
   const jsonText = extractJson(raw);
   if (!jsonText) return undefined;
 
   try {
-    const value = JSON.parse(jsonText) as ReviewIntelligence;
-    if (!value.summary || !Array.isArray(value.mindMap)) return undefined;
+    const value = JSON.parse(jsonText) as unknown;
+    if (!Schema.is(AiReviewResponseSchema)(value)) return undefined;
     return {
-      summary: normalizeSummary(value.summary),
-      mindMap: value.mindMap.filter(isMindMapGroup),
+      summary: normalizeSummary(value.summary as unknown as AiSummary),
+      mindMap: value.mindMap.map((group) => ({
+        ...group,
+        files: [...group.files],
+        relationships: group.relationships ? [...group.relationships] : undefined,
+      })),
     };
   } catch {
     return undefined;
@@ -384,13 +381,4 @@ function normalizeSummary(summary: AiSummary): AiSummary {
     sourceReferences: summary.sourceReferences ?? [],
     generatedBy: 'ai',
   };
-}
-
-function isMindMapGroup(group: MindMapGroup): group is MindMapGroup {
-  return Boolean(
-    group &&
-    typeof group.label === 'string' &&
-    typeof group.description === 'string' &&
-    Array.isArray(group.files),
-  );
 }

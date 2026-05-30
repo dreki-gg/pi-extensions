@@ -1,4 +1,5 @@
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import type { ExtensionAPI, ExtensionCommandContext } from '@earendil-works/pi-coding-agent';
+import { createPiAiChatFn } from './ai/pi-ai-adapter';
 import { createWsBridge, type WsBridge } from './server/ws-bridge';
 import { createServerManager, resolveAppDir, type ServerManager } from './server/manager';
 import { createMessageHandlers } from './server/handlers';
@@ -10,7 +11,7 @@ export function registerPrCanvasCommands(pi: ExtensionAPI) {
   let bridge: WsBridge | null = null;
   let manager: ServerManager | null = null;
 
-  async function startServer(ctx: { ui: { notify: Function; setStatus: Function } }) {
+  async function startServer(ctx: ExtensionCommandContext) {
     // 1. Check gh auth
     ctx.ui.setStatus('pr-canvas', '🔍 Checking gh CLI...');
     try {
@@ -35,10 +36,14 @@ export function registerPrCanvasCommands(pi: ExtensionAPI) {
     // 2. Start WebSocket bridge
     ctx.ui.setStatus('pr-canvas', '🔌 Starting WebSocket bridge...');
     bridge = createWsBridge();
-    const handlers = createMessageHandlers(
-      (cmd, args) => pi.exec(cmd, args),
-      undefined, // AI chat — will be wired later
-    );
+    const aiChat = createPiAiChatFn(ctx, { thinkingLevel: pi.getThinkingLevel() });
+    if (!aiChat) {
+      ctx.ui.notify(
+        'PR Canvas AI unavailable: no active Pi model or credentials. Using deterministic summaries.',
+        'warning',
+      );
+    }
+    const handlers = createMessageHandlers((cmd, args) => pi.exec(cmd, args), aiChat);
     bridge.onMessage(handlers);
 
     try {
@@ -81,7 +86,7 @@ export function registerPrCanvasCommands(pi: ExtensionAPI) {
     ctx.ui.notify(`PR Canvas running at http://localhost:${APP_PORT}`, 'info');
   }
 
-  async function stopServer(ctx: { ui: { notify: Function; setStatus: Function } }) {
+  async function stopServer(ctx: ExtensionCommandContext) {
     ctx.ui.setStatus('pr-canvas', '⏹ Stopping...');
 
     if (manager) {

@@ -140,6 +140,30 @@ describe('generateReviewIntelligence', () => {
     expect(result.summary.generatedBy).toBe('heuristic');
     expect(result.summary.tldr).toContain('JWT');
   });
+
+  it('falls back deterministically when AI output has an invalid mind map shape', async () => {
+    const ai = async () => JSON.stringify({
+      summary: {
+        purpose: 'AI purpose',
+        impact: 'AI impact',
+        concerns: [],
+        highlights: [],
+      },
+      mindMap: [
+        {
+          label: 'Bad group',
+          description: 'Bad change type should be rejected',
+          files: ['src/index.ts'],
+          changeType: 'dangerous',
+        },
+      ],
+    });
+
+    const result = await generateReviewIntelligence(pr, rawDiff, ai);
+
+    expect(result.summary.generatedBy).toBe('heuristic');
+    expect(result.summary.tldr).toContain('JWT');
+  });
 });
 
 describe('generateHeuristicMindMap compatibility', () => {
