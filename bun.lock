@@ -89,7 +89,7 @@
     },
     "packages/command-sandbox": {
       "name": "@dreki-gg/pi-command-sandbox",
-      "version": "0.3.0",
+      "version": "0.3.2",
       "dependencies": {
         "shell-quote": "^1.8.3",
       },
@@ -163,7 +163,7 @@
     },
     "packages/firestore": {
       "name": "@dreki-gg/pi-firestore",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "dependencies": {
         "effect": "^3.21.2",
         "firebase-admin": "^13.4.0",
@@ -223,9 +223,34 @@
         "@earendil-works/pi-coding-agent",
       ],
     },
+    "packages/past-chats": {
+      "name": "@dreki-gg/pi-past-chats",
+      "version": "0.1.2",
+      "dependencies": {
+        "effect": "^3.21.2",
+      },
+      "devDependencies": {
+        "@types/node": "24",
+        "oxfmt": "^0.43.0",
+        "oxlint": "^1.58.0",
+        "typescript": "^6.0.0",
+      },
+      "peerDependencies": {
+        "@earendil-works/pi-ai": "*",
+        "@earendil-works/pi-coding-agent": "*",
+        "@earendil-works/pi-tui": "*",
+        "typebox": "*",
+      },
+      "optionalPeers": [
+        "@earendil-works/pi-ai",
+        "@earendil-works/pi-coding-agent",
+        "@earendil-works/pi-tui",
+        "typebox",
+      ],
+    },
     "packages/plan-mode": {
       "name": "@dreki-gg/pi-plan-mode",
-      "version": "0.15.0",
+      "version": "0.16.0",
       "bin": {
         "pi-plan-mode": "./bin/clean-plans.js",
       },
@@ -251,7 +276,7 @@
     },
     "packages/pr-canvas": {
       "name": "@dreki-gg/pi-pr-canvas",
-      "version": "1.5.4",
+      "version": "1.6.0",
       "dependencies": {
         "effect": "^3.12.0",
         "ws": "^8.18.0",
@@ -276,7 +301,7 @@
     },
     "packages/questionnaire": {
       "name": "@dreki-gg/pi-questionnaire",
-      "version": "0.2.5",
+      "version": "0.2.6",
       "devDependencies": {
         "@types/node": "24",
         "oxfmt": "^0.43.0",
@@ -528,6 +553,8 @@
     "@dreki-gg/pi-lsp": ["@dreki-gg/pi-lsp@workspace:packages/lsp"],
 
     "@dreki-gg/pi-modes": ["@dreki-gg/pi-modes@workspace:packages/modes"],
+
+    "@dreki-gg/pi-past-chats": ["@dreki-gg/pi-past-chats@workspace:packages/past-chats"],
 
     "@dreki-gg/pi-plan-mode": ["@dreki-gg/pi-plan-mode@workspace:packages/plan-mode"],
 
