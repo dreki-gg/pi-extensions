@@ -21,28 +21,28 @@ export default function Overview(props: OverviewProps) {
   const hasBody = () => props.pr.body.trim().length > 0;
 
   return (
-    <section id="section-overview" class="canvas-section">
-      <div class="pr-card overview-card">
-        <dl class="overview-facts">
-          <div class="overview-fact">
-            <dt>Author</dt>
-            <dd class="overview-author">
+    <section id="section-overview" class="mb-8 scroll-mt-[72px]">
+      <div class="card mb-3.5 p-[18px]">
+        <dl class="m-0 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <dt class="mb-1 text-xs text-text-muted">Author</dt>
+            <dd class="m-0 inline-flex items-center gap-1.5 text-text-primary">
               <Icon name="user" size={15} />
               {props.pr.author.login}
             </dd>
           </div>
-          <div class="overview-fact">
-            <dt>Created</dt>
-            <dd>{formatDate(props.pr.createdAt)}</dd>
+          <div>
+            <dt class="mb-1 text-xs text-text-muted">Created</dt>
+            <dd class="m-0 text-text-primary">{formatDate(props.pr.createdAt)}</dd>
           </div>
-          <div class="overview-fact">
-            <dt>Updated</dt>
-            <dd>{formatDate(props.pr.updatedAt)}</dd>
+          <div>
+            <dt class="mb-1 text-xs text-text-muted">Updated</dt>
+            <dd class="m-0 text-text-primary">{formatDate(props.pr.updatedAt)}</dd>
           </div>
         </dl>
 
         <Show when={props.pr.labels.length > 0}>
-          <div class="pr-labels">
+          <div class="mt-4 flex flex-wrap gap-2">
             <For each={props.pr.labels}>
               {(label) => (
                 <span class="pr-label" style={labelStyle(label.color)}>
@@ -54,8 +54,8 @@ export default function Overview(props: OverviewProps) {
         </Show>
       </div>
 
-      <div class="pr-card pr-body-card">
-        <h2 class="section-subtitle">Description</h2>
+      <div class="card p-[18px]">
+        <h2 class="m-0 mb-2.5 text-[13px] font-semibold text-text-primary">Description</h2>
         <Show when={hasBody()} fallback={<p class="empty-copy">No description provided.</p>}>
           <Markdown source={props.pr.body} />
         </Show>

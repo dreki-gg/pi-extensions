@@ -14,8 +14,10 @@ export default function MindMapTab() {
   return (
     <Show when={pr()}>
       {(data) => (
-        <div class="tab-content">
-          <MindMap groups={data().mindMap} />
+        <div class="flex-1 overflow-y-auto w-full px-4 pt-5 pb-20 lg:px-7 lg:pt-6 lg:pb-24">
+          <div class="mx-auto w-full max-w-[1080px]">
+            <MindMap groups={data().mindMap} />
+          </div>
         </div>
       )}
     </Show>

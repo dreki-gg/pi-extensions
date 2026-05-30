@@ -14,8 +14,10 @@ export default function ChecksTab() {
   return (
     <Show when={pr()}>
       {(data) => (
-        <div class="tab-content">
-          <Checks checks={data().data.checks} />
+        <div class="flex-1 overflow-y-auto w-full px-4 pt-5 pb-20 lg:px-7 lg:pt-6 lg:pb-24">
+          <div class="mx-auto w-full max-w-[1080px]">
+            <Checks checks={data().data.checks} />
+          </div>
         </div>
       )}
     </Show>

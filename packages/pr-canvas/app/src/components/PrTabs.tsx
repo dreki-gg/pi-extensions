@@ -4,6 +4,9 @@ import Icon, { type IconName } from '~/components/Icon';
 
 export type BadgeTone = 'default' | 'success' | 'danger' | 'warning';
 
+const badgeToneClass = (tone: BadgeTone) =>
+  tone === 'success' ? 'badge-success' : tone === 'danger' ? 'badge-danger' : tone === 'warning' ? 'badge-warning' : '';
+
 interface PrTabsProps {
   prNumber: number;
   fileCount: number;
@@ -64,22 +67,22 @@ export default function PrTabs(props: PrTabsProps) {
   };
 
   return (
-    <nav class="pr-tabs" aria-label="Pull request views">
+    <nav class="flex shrink-0 items-stretch gap-1 overflow-x-auto bg-bg-secondary px-2 lg:px-4 border-b border-border" aria-label="Pull request views">
       <For each={tabs()}>
         {(tab) => (
           <A
             href={tab.href}
-            class="pr-tab"
-            classList={{ 'pr-tab-active': isActive(tab.href, tab.end) }}
+            class="relative inline-flex flex-shrink-0 items-center gap-2 px-3.5 py-[11px] font-semibold text-text-secondary border-b-2 border-transparent hover:text-text-primary hover:no-underline"
+            classList={{ 'text-text-primary border-accent': isActive(tab.href, tab.end) }}
             aria-current={isActive(tab.href, tab.end) ? 'page' : undefined}
           >
-            <span class="pr-tab-icon">
+            <span class="inline-flex shrink-0">
               <Icon name={tab.icon} size={16} />
             </span>
-            <span class="pr-tab-label">{tab.label}</span>
+            <span class="hidden sm:inline">{tab.label}</span>
             <Show when={tab.badge}>
               {(badge) => (
-                <span class="sidebar-badge" data-tone={badge().tone}>
+                <span class={`badge badge-compact ${badgeToneClass(badge().tone)}`}>
                   {badge().text}
                 </span>
               )}

@@ -57,14 +57,14 @@ export default function FilesChangedTab() {
   return (
     <Show when={pr()}>
       {(data) => (
-        <div class="files-page">
-          <aside class="files-rail">
-            <div class="files-rail-header">
-              <h2 class="files-rail-title">Files changed</h2>
-              <span class="files-rail-count">{data().data.files.length}</span>
-              <span class="files-rail-kbd" title="j/k or [ ] to move between files">
-                <kbd>j</kbd>
-                <kbd>k</kbd>
+        <div class="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,38%)_minmax(0,1fr)] lg:grid-cols-[300px_minmax(0,1fr)] lg:grid-rows-none">
+          <aside class="flex min-h-0 flex-col overflow-y-auto border-b border-border bg-bg-secondary px-2.5 py-3.5 lg:border-b-0 lg:border-r">
+            <div class="flex items-center gap-2 px-2 pb-2.5 pt-2">
+              <h2 class="m-0 flex-1 text-[13px] font-semibold text-text-secondary">Files changed</h2>
+              <span class="badge badge-compact">{data().data.files.length}</span>
+              <span class="inline-flex gap-[3px]" title="j/k or [ ] to move between files">
+                <kbd class="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-[5px] border border-b-2 border-border bg-bg-primary px-[3px] font-mono text-[10px] leading-none text-text-muted">j</kbd>
+                <kbd class="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-[5px] border border-b-2 border-border bg-bg-primary px-[3px] font-mono text-[10px] leading-none text-text-muted">k</kbd>
               </span>
             </div>
             <FileTreeRail
@@ -74,10 +74,10 @@ export default function FilesChangedTab() {
             />
           </aside>
 
-          <div class="files-main">
+          <div class="flex min-h-0 min-w-0 flex-col overflow-y-auto">
             <Show
               when={data().data.files.length > 0}
-              fallback={<div class="files-empty">This pull request has no file changes.</div>}
+              fallback={<div class="px-6 py-12 text-center text-text-secondary">This pull request has no file changes.</div>}
             >
               <FileDiffPanel rawDiff={data().rawDiff} path={selected()} />
             </Show>

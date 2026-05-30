@@ -31,7 +31,7 @@ export default function PrLayout(props: { children?: JSX.Element }) {
   });
 
   return (
-    <div class="pr-layout">
+    <div class="flex h-screen flex-col bg-bg-primary">
       <Title>PR #{params.number} · PR Canvas</Title>
 
       <Show when={activePr()} fallback={<LoadingState status={connectionStatus()} error={store.error} />}>
@@ -51,7 +51,7 @@ export default function PrLayout(props: { children?: JSX.Element }) {
                 failingChecks={failing()}
                 passingChecks={passing()}
               />
-              <main class="pr-layout-content">{props.children}</main>
+              <main class="flex min-h-0 flex-1 flex-col">{props.children}</main>
 
               <AiSummaryPanel summary={pr().aiSummary} />
               <AiChat prNumber={pr().number} />
@@ -65,18 +65,18 @@ export default function PrLayout(props: { children?: JSX.Element }) {
 
 function LoadingState(props: { status: 'connecting' | 'open' | 'closed'; error: string | null }) {
   return (
-    <div class="loading-state">
+    <div class="grid min-h-[60vh] place-items-center gap-3 text-center text-text-secondary [&_p]:m-0">
       <Show
         when={props.status === 'closed'}
         fallback={
-          <Show when={!props.error} fallback={<p class="loading-hint">{props.error}</p>}>
-            <div class="spinner" />
+          <Show when={!props.error} fallback={<p class="text-[13px] text-text-muted">{props.error}</p>}>
+            <div class="h-7 w-7 animate-spin rounded-full border-2 border-border border-t-accent" />
             <p>Loading pull request...</p>
           </Show>
         }
       >
         <p>Can't reach the PR Canvas server.</p>
-        <p class="loading-hint">
+        <p class="text-[13px] text-text-muted [&_code]:rounded-md [&_code]:border [&_code]:border-border [&_code]:bg-bg-tertiary [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs [&_code]:text-text-primary">
           Make sure <code>/pr-canvas start</code> is running, then reload this page.
         </p>
       </Show>

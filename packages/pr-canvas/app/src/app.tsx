@@ -3,7 +3,7 @@ import { Router } from '@solidjs/router';
 import { FileRoutes } from '@solidjs/start/router';
 import { MetaProvider } from '@solidjs/meta';
 import { PrStoreProvider } from '~/lib/context';
-import './styles/global.css';
+import './styles/main.css';
 
 export default function App() {
   return (

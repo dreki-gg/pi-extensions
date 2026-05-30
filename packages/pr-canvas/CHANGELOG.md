@@ -1,5 +1,11 @@
 # @dreki-gg/pi-pr-canvas
 
+## 1.6.0
+
+### Minor Changes
+
+- Adopt TailwindCSS v4 in the SolidStart PR Canvas app. Styling is now utility-first via the `@tailwindcss/vite` plugin with CSS-first `@theme` tokens, while content-driven styles (markdown prose, Mermaid diagrams, `@pierre/trees`/`@pierre/diffs` shadow-DOM host containers, keyframes, and reduced-motion overrides) remain in a dedicated `prose.css`. The monolithic `global.css` was removed with no intended visual changes; the shipped CSS bundle shrank thanks to Tailwind tree-shaking.
+
 ## Unreleased
 
 ### Patch Changes

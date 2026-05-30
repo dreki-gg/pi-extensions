@@ -71,20 +71,20 @@ export default function FileDiffPanel(props: FileDiffPanelProps) {
   createEffect(on(() => [props.path, ready(), style()] as const, renderSelected));
 
   return (
-    <div class="file-diff-panel">
-      <div class="file-diff-toolbar">
-        <span class="file-diff-current" title={props.path}>
+    <div class="flex min-h-0 flex-col">
+      <div class="sticky top-0 z-[9] flex items-center justify-between gap-4 border-b border-border bg-bg-primary/[0.86] px-6 py-2.5 backdrop-blur-[10px]">
+        <span class="min-w-0 truncate font-mono text-[13px] text-text-primary" title={props.path}>
           {props.path || 'Select a file'}
         </span>
         <button
           type="button"
-          class="pierre-control-btn"
+          class="inline-flex cursor-pointer items-center rounded-sm border border-border bg-bg-tertiary px-3 py-1.5 font-semibold text-text-primary transition-colors duration-[120ms] hover:border-border-light hover:bg-[#222831]"
           onClick={() => setStyle((s) => (s === 'unified' ? 'split' : 'unified'))}
         >
           {style() === 'unified' ? 'Split view' : 'Unified view'}
         </button>
       </div>
-      <div ref={containerRef} class="file-diff-surface" />
+      <div ref={containerRef} class="px-6 pb-20 pt-4" />
     </div>
   );
 }
