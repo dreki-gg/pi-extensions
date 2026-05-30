@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-past-chats",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Reference previous pi sessions inline with @chat: and @session: autocomplete",
   "keywords": [
     "pi-package"

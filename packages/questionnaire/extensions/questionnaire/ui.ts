@@ -1,5 +1,13 @@
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent';
-import { Editor, type EditorTheme, Key, matchesKey, truncateToWidth } from '@earendil-works/pi-tui';
+import {
+  Editor,
+  type EditorTheme,
+  Key,
+  matchesKey,
+  truncateToWidth,
+  visibleWidth,
+  wrapTextWithAnsi,
+} from '@earendil-works/pi-tui';
 import {
   areAllAnswersValid,
   createInitialQuestionStateById,
@@ -48,6 +56,35 @@ function getRenderOptions(question: NormalizedQuestion): RenderOption[] {
 
   listed.push({ kind: 'other', value: '__other__', label: 'Other' });
   return listed;
+}
+
+function pushWrappedText(lines: string[], text: string, width: number) {
+  lines.push(...wrapTextWithAnsi(text, Math.max(1, width)));
+}
+
+function pushWrappedWithPrefix(
+  lines: string[],
+  prefix: string,
+  text: string,
+  width: number,
+  continuationPrefix = ' '.repeat(visibleWidth(prefix)),
+) {
+  const availableWidth = Math.max(1, width - visibleWidth(prefix));
+  const wrapped = wrapTextWithAnsi(text, availableWidth);
+
+  if (wrapped.length === 0) {
+    lines.push(truncateToWidth(prefix, width));
+    return;
+  }
+
+  lines.push(truncateToWidth(`${prefix}${wrapped[0]}`, width));
+
+  for (const line of wrapped.slice(1)) {
+    const continuationWidth = Math.max(1, width - visibleWidth(continuationPrefix));
+    for (const continuationLine of wrapTextWithAnsi(line, continuationWidth)) {
+      lines.push(truncateToWidth(`${continuationPrefix}${continuationLine}`, width));
+    }
+  }
 }
 
 function ensureQuestionState(
@@ -357,7 +394,7 @@ export async function runQuestionnaireUI(
         options.length - 1,
       );
 
-      lines.push(truncateToWidth(theme.fg('text', question.prompt), width));
+      pushWrappedText(lines, theme.fg('text', question.prompt), width);
       lines.push('');
 
       for (const [index, option] of options.entries()) {
@@ -373,19 +410,17 @@ export async function runQuestionnaireUI(
               : 'Other';
           const marker = selection.wasOtherSelected ? '[x]' : '[ ]';
           const color = selection.wasOtherSelected ? 'accent' : 'text';
-          lines.push(truncateToWidth(`${prefix}${theme.fg(color, `${marker} ${label}`)}`, width));
+          pushWrappedWithPrefix(lines, prefix, theme.fg(color, `${marker} ${label}`), width);
           continue;
         }
 
         const selected = selection.listedSelectedValues.includes(option.value);
         const marker = selected ? '[x]' : '[ ]';
         const color = selected ? 'accent' : 'text';
-        lines.push(
-          truncateToWidth(`${prefix}${theme.fg(color, `${marker} ${option.label}`)}`, width),
-        );
+        pushWrappedWithPrefix(lines, prefix, theme.fg(color, `${marker} ${option.label}`), width);
 
         if (option.description) {
-          lines.push(truncateToWidth(`    ${theme.fg('muted', option.description)}`, width));
+          pushWrappedWithPrefix(lines, '    ', theme.fg('muted', option.description), width);
         }
       }
 
@@ -402,7 +437,7 @@ export async function runQuestionnaireUI(
       const ready = areAllAnswersValid(questions, uiState.questionStateById);
       const normalizedAnswers = normalizeAnswers(questions, uiState.questionStateById);
 
-      lines.push(truncateToWidth(theme.fg('accent', theme.bold('Review answers')), width));
+      pushWrappedText(lines, theme.fg('accent', theme.bold('Review answers')), width);
       lines.push('');
 
       for (const [index, question] of questions.entries()) {
@@ -415,22 +450,21 @@ export async function runQuestionnaireUI(
         const marker = valid ? theme.fg('success', '■') : theme.fg('warning', '□');
         const value = formatAnswerValue(answer);
         const color = valid ? 'text' : 'muted';
-        lines.push(
-          truncateToWidth(
-            `${cursor}${marker} ${theme.fg('accent', `${question.label}:`)} ${theme.fg(color, value)}`,
-            width,
-          ),
+        pushWrappedWithPrefix(
+          lines,
+          cursor,
+          `${marker} ${theme.fg('accent', `${question.label}:`)} ${theme.fg(color, value)}`,
+          width,
         );
       }
 
       lines.push('');
-      lines.push(
-        truncateToWidth(
-          ready
-            ? theme.fg('success', 'Press Enter to submit')
-            : theme.fg('warning', 'Complete all questions before submitting.'),
-          width,
-        ),
+      pushWrappedText(
+        lines,
+        ready
+          ? theme.fg('success', 'Press Enter to submit')
+          : theme.fg('warning', 'Complete all questions before submitting.'),
+        width,
       );
     }
 
@@ -448,7 +482,7 @@ export async function runQuestionnaireUI(
       }
 
       lines.push('');
-      lines.push(truncateToWidth(theme.fg('dim', hint), width));
+      pushWrappedText(lines, theme.fg('dim', hint), width);
     }
 
     function render(width: number): string[] {

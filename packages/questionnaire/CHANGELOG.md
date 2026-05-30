@@ -1,5 +1,11 @@
 # @dreki-gg/pi-questionnaire
 
+## 0.2.6
+
+### Patch Changes
+
+- Wrap long questionnaire prompts, options, descriptions, and review rows instead of truncating them at the terminal edge.
+
 ## 0.2.5
 
 ### Patch Changes
