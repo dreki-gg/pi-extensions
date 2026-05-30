@@ -18,6 +18,9 @@
     "deploy:local": "./scripts/deploy-local.sh",
     "deploy:local:force": "./scripts/deploy-local.sh --force",
     "deploy:local:dry": "./scripts/deploy-local.sh --dry-run",
+    "deploy:public": "./scripts/deploy-public.sh",
+    "deploy:public:force": "./scripts/deploy-public.sh --force",
+    "deploy:public:dry": "./scripts/deploy-public.sh --dry-run",
     "prepare": "husky"
   },
   "devDependencies": {
