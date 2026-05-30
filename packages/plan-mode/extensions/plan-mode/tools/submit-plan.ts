@@ -5,8 +5,7 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { renderPlanHtml } from '../html/render.js';
+import { mkdir } from 'node:fs/promises';
 import { saveHandoff } from '../storage/plan-storage.js';
 import { writeTasksJsonl } from '../storage/task-storage.js';
 import { upsertPlanEntry } from '../storage/plans-manifest.js';
@@ -22,15 +21,16 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
     name: 'submit_plan',
     label: 'Submit Plan',
     description:
-      'Finalize a conversational plan with task IDs, JSONL storage, HANDOFF.md, and generated plan.html.',
+      'Finalize a conversational plan with task IDs, JSONL storage, and HANDOFF.md.',
     promptSnippet:
-      'Finalize the plan with title, handoff, tasks, dependencies, and optional prototype Pug',
+      'Finalize the plan with title, handoff, tasks, and dependencies',
     promptGuidelines: [
       'Only call submit_plan after shared understanding has been reached with the user.',
       'Each task needs an id like t-001, a short description, and optional depends_on task IDs.',
       "When a different agent or human will execute the plan, include detailed implementation instructions in each task's details field.",
       'When you are planning and executing yourself (same session), use lightweight checklist-style tasks: just id + description, omit details. Put the real context in the handoff document instead.',
       'The handoff must be thorough enough that both a human reviewer and executor agent with zero prior context can understand the plan.',
+      'For visual/UI work, preview a prototype with preview_prototype during planning — before submit_plan, not as part of it.',
     ],
     parameters: Type.Object({
       name: Type.String({
@@ -53,9 +53,6 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
           depends_on: Type.Optional(Type.Array(Type.String({ description: 'Dependency task ID' }))),
         }),
         { minItems: 1 },
-      ),
-      prototype: Type.Optional(
-        Type.String({ description: 'Optional Pug markup for the prototype section in plan.html' }),
       ),
     }),
 
@@ -84,7 +81,6 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
       await mkdir(planDir, { recursive: true });
       await writeTasksJsonl(planDir, meta, tasks);
       await saveHandoff(planDir, params.handoff);
-      await writeFile(`${planDir}/plan.html`, renderPlanHtml(plan, params.prototype), 'utf-8');
       await upsertPlanEntry(planName, { status: 'in-progress', title: params.title });
 
       callbacks.onPlanSubmitted(planDir, plan);
@@ -93,7 +89,7 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
         content: [
           {
             type: 'text' as const,
-            text: `Plan "${params.title}" saved with ${tasks.length} tasks. Review ${planDir}/plan.html, then execute when ready.`,
+            text: `Plan "${params.title}" saved with ${tasks.length} tasks in ${planDir}. Execute when ready.`,
           },
         ],
         details: { planDir, plan },

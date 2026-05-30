@@ -10,6 +10,7 @@ export const PLAN_TOOLS = [
   'find',
   'ls',
   'submit_plan',
+  'preview_prototype',
   'write',
   'questionnaire',
   'search_skills',

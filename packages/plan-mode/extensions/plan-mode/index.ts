@@ -37,6 +37,7 @@ import { filterExecutionMessages, filterStalePlanMessages } from './context-filt
 import { enterPlanMode, exitPlanMode, switchModel } from './phase-transitions.js';
 import { resumePlan, executeInNewSession } from './resume.js';
 import { registerSubmitPlanTool } from './tools/submit-plan.js';
+import { registerPreviewPrototypeTool } from './tools/preview-prototype.js';
 import { registerUpdateTaskTool } from './tools/update-task.js';
 import { isSafeCommand, isPlanPath } from './utils.js';
 
@@ -58,6 +59,8 @@ export default function planMode(pi: ExtensionAPI): void {
       state.persist(pi);
     },
   });
+
+  registerPreviewPrototypeTool(pi);
 
   registerUpdateTaskTool(pi, {
     getPlan: () => state.plan,
@@ -335,8 +338,8 @@ export default function planMode(pi: ExtensionAPI): void {
       return;
     }
 
-    // Plan submitted — user can review plan.html then /plan-exec or type naturally.
-    // No menu needed: plan.jsonl + plan.html are the source of truth.
+    // Plan submitted — user can /plan-exec or type naturally.
+    // No menu needed: plan.jsonl + HANDOFF.md are the source of truth.
   });
 
   // ── Event: session restore ────────────────────────────────────────────────

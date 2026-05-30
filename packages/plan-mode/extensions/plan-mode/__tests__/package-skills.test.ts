@@ -45,3 +45,54 @@ describe('bundled technical-options skill', () => {
     expect(content).toMatch(/challenge.*framing|framing.*challenge/i);
   });
 });
+
+describe('bundled visual-prototype skill', () => {
+  const skillDir = join(PKG_ROOT, 'skills', 'visual-prototype');
+  const skillFile = join(skillDir, 'SKILL.md');
+
+  test('SKILL.md exists', () => {
+    expect(existsSync(skillFile)).toBe(true);
+  });
+
+  test('has valid frontmatter with name and description', () => {
+    const content = readFileSync(skillFile, 'utf-8');
+    expect(content).toMatch(/^---\n/);
+    expect(content).toMatch(/name:\s*visual-prototype/);
+    expect(content).toMatch(/description:/);
+  });
+
+  test('routes on visual work, not backend-only', () => {
+    const content = readFileSync(skillFile, 'utf-8');
+    expect(content).toMatch(/description:.*\b(UI|component|layout|style)\b/i);
+    expect(content).toMatch(/not for.*backend|backend-only/i);
+  });
+
+  test('directs use of preview_prototype before submit_plan', () => {
+    const content = readFileSync(skillFile, 'utf-8');
+    expect(content).toContain('preview_prototype');
+    expect(content).toContain('submit_plan');
+  });
+});
+
+describe('bundled planning-context skill', () => {
+  const skillDir = join(PKG_ROOT, 'skills', 'planning-context');
+  const skillFile = join(skillDir, 'SKILL.md');
+
+  test('SKILL.md exists', () => {
+    expect(existsSync(skillFile)).toBe(true);
+  });
+
+  test('has valid frontmatter with name and description', () => {
+    const content = readFileSync(skillFile, 'utf-8');
+    expect(content).toMatch(/^---\n/);
+    expect(content).toMatch(/name:\s*planning-context/);
+    expect(content).toMatch(/description:/);
+  });
+
+  test('covers context.md deliberation sections', () => {
+    const content = readFileSync(skillFile, 'utf-8');
+    expect(content).toContain('context.md');
+    expect(content).toMatch(/discarded options/i);
+    expect(content).toMatch(/open questions/i);
+  });
+});
