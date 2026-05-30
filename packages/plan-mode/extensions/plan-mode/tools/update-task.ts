@@ -79,7 +79,12 @@ export function registerUpdateTaskTool(pi: ExtensionAPI, callbacks: UpdateTaskCa
       if (params.notes) text += ` — ${params.notes}`;
       text += next ? `\n\nNext task ${next.id}: ${next.description}` : '\n\nAll tasks resolved!';
 
-      return { content: [{ type: 'text' as const, text }], details, terminate: !next };
+      // Do not terminate the turn just because the queue is empty: that would cut off
+      // the agent's final pass (closing summary, validation, follow-up) after the last
+      // task is marked done. Completion is handled out-of-band by the `agent_end`
+      // handler in index.ts. Only the `blocked` branch above terminates, to pause for
+      // user input.
+      return { content: [{ type: 'text' as const, text }], details };
     },
 
     renderCall(args, theme) {

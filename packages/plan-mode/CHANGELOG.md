@@ -1,5 +1,11 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.15.1
+
+### Patch Changes
+
+- Fix execution stopping after the final task is marked done. `update_task` no longer terminates the turn merely because the task queue is empty, so the agent can run its closing summary / validation pass before the `agent_end` completion handler takes over. The `blocked` branch still terminates to pause for user input.
+
 ## 0.15.0
 
 ### Minor Changes
