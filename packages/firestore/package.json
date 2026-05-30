@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-firestore",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Firestore debugging tools for pi — query collections, inspect documents, and map data relationships",
   "keywords": [
     "pi-package",

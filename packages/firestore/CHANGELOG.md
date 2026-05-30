@@ -1,5 +1,11 @@
 # @dreki-gg/pi-firestore
 
+## 0.3.1
+
+### Patch Changes
+
+- Refactor Firestore extension internals to use Effect service boundaries for config loading, Firebase initialization, environment resolution, and tool execution.
+
 ## 0.3.0
 
 ### Minor Changes
