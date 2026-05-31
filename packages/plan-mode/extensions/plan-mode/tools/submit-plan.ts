@@ -99,7 +99,6 @@ export function registerSubmitPlanTool(
           },
         ],
         details: { planDir, plan },
-        terminate: true,
       };
     },
 

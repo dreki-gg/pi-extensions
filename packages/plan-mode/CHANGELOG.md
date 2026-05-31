@@ -1,5 +1,11 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.17.1
+
+### Patch Changes
+
+- submit_plan no longer terminates the agent turn. After a plan is saved the agent can continue in the same turn (e.g. summarize or proceed) instead of cutting off.
+
 ## 0.17.0
 
 ### Minor Changes
