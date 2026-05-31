@@ -1,5 +1,23 @@
 import { describe, expect, test } from 'bun:test';
-import { isSafeCommand, isPlanPath } from '../utils.js';
+import { isSafeCommand, isPlanPath, nextTaskId } from '../utils.js';
+
+describe('nextTaskId', () => {
+  test('increments the max numeric suffix', () => {
+    expect(nextTaskId(['t-001', 't-002', 't-003'])).toBe('t-004');
+  });
+
+  test('uses the max even when ids are unordered or sparse', () => {
+    expect(nextTaskId(['t-003', 't-001', 't-010'])).toBe('t-011');
+  });
+
+  test('starts at t-001 for an empty plan', () => {
+    expect(nextTaskId([])).toBe('t-001');
+  });
+
+  test('falls back to count+1 when no ids match the pattern', () => {
+    expect(nextTaskId(['setup', 'cleanup'])).toBe('t-003');
+  });
+});
 
 describe('isSafeCommand', () => {
   // ── Commands that SHOULD be allowed ──────────────────────────────────────

@@ -9,9 +9,11 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { Effect } from 'effect';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
+import { FileSystem } from '../effects/filesystem.js';
+import type { RunPlanIO } from '../effects/runtime.js';
 import { renderPrototypeHtml } from '../html/render.js';
 import { toKebabCase } from '../utils.js';
 
@@ -34,7 +36,7 @@ function openInBrowser(filePath: string): void {
   }
 }
 
-export function registerPreviewPrototypeTool(pi: ExtensionAPI): void {
+export function registerPreviewPrototypeTool(pi: ExtensionAPI, runPlanIO: RunPlanIO): void {
   pi.registerTool({
     name: 'preview_prototype',
     label: 'Preview Prototype',
@@ -59,8 +61,13 @@ export function registerPreviewPrototypeTool(pi: ExtensionAPI): void {
       const filePath = join(PREVIEW_DIR, `${slug}.html`);
       const html = renderPrototypeHtml(params.title, params.intent, params.pug);
 
-      await mkdir(PREVIEW_DIR, { recursive: true });
-      await writeFile(filePath, html, 'utf-8');
+      await runPlanIO(
+        Effect.gen(function* () {
+          const fs = yield* FileSystem;
+          yield* fs.makeDir(PREVIEW_DIR);
+          yield* fs.writeFileString(filePath, html);
+        }),
+      );
       openInBrowser(filePath);
       ctx?.ui?.notify(`Prototype written to ${filePath} — opening for review.`, 'info');
 

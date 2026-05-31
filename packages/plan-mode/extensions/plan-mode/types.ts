@@ -2,7 +2,10 @@
  * Shared types for plan mode.
  */
 
-export type TaskStatus = 'pending' | 'done' | 'skipped' | 'blocked';
+export type TaskStatus = 'pending' | 'done' | 'skipped' | 'blocked' | 'deferred';
+
+/** Where a task came from: the original submitted plan, or discovered during execution. */
+export type TaskOrigin = 'plan' | 'discovered';
 
 export interface TaskRecord {
   _type: 'task';
@@ -10,6 +13,8 @@ export interface TaskRecord {
   description: string;
   details?: string;
   status: TaskStatus;
+  /** Defaults to 'plan' when absent (back-compat with older tasks.jsonl files). */
+  origin?: TaskOrigin;
   depends_on?: string[];
   notes?: string;
   created_at: string;
@@ -45,40 +50,5 @@ export interface PersistedState {
   executionStartIdx: number | undefined;
 }
 
-const TASK_STATUSES = new Set<TaskStatus>(['pending', 'done', 'skipped', 'blocked']);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === 'string');
-}
-
-export function isTaskRecord(value: unknown): value is TaskRecord {
-  if (!isRecord(value)) return false;
-
-  return (
-    value._type === 'task' &&
-    typeof value.id === 'string' &&
-    typeof value.description === 'string' &&
-    (value.details === undefined || typeof value.details === 'string') &&
-    typeof value.status === 'string' &&
-    TASK_STATUSES.has(value.status as TaskStatus) &&
-    (value.depends_on === undefined || isStringArray(value.depends_on)) &&
-    (value.notes === undefined || typeof value.notes === 'string') &&
-    typeof value.created_at === 'string' &&
-    typeof value.updated_at === 'string'
-  );
-}
-
-export function isTaskMeta(value: unknown): value is TaskMeta {
-  if (!isRecord(value)) return false;
-
-  return (
-    value._type === 'meta' &&
-    typeof value.title === 'string' &&
-    typeof value.plan_name === 'string' &&
-    typeof value.created_at === 'string'
-  );
-}
+// Record validation lives in `schema.ts` (Effect Schema). The interfaces above
+// remain the mutable shapes used by the imperative orchestration code.

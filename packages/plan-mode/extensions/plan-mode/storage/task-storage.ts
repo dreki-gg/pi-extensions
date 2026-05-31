@@ -1,7 +1,16 @@
-import { mkdir, readFile } from 'node:fs/promises';
+import { Effect, Either, Option } from 'effect';
 import { join } from 'node:path';
-import { isTaskMeta, isTaskRecord, type TaskMeta, type TaskRecord } from '../types.js';
-import { writeFileAtomic } from './atomic-write.js';
+import { FileSystem } from '../effects/filesystem.js';
+import {
+  JsonlParseError,
+  JsonlValidationError,
+  MissingMetaRecord,
+  PlanWriteError,
+  TaskNotFound,
+  TasksFileNotFound,
+} from '../errors.js';
+import { decodeTasksLine } from '../schema.js';
+import type { TaskMeta, TaskRecord } from '../types.js';
 
 const TASKS_FILE = 'tasks.jsonl';
 
@@ -10,58 +19,87 @@ export interface TasksSnapshot {
   tasks: TaskRecord[];
 }
 
-export async function readTasksJsonl(planDir: string): Promise<TasksSnapshot | undefined> {
-  let text: string;
-  try {
-    text = await readFile(join(planDir, TASKS_FILE), 'utf8');
-  } catch {
-    return undefined;
-  }
-  if (!text.trim()) throw new Error('tasks.jsonl is missing meta record');
+type ReadError = JsonlParseError | JsonlValidationError | MissingMetaRecord;
 
-  let meta: TaskMeta | undefined;
-  const tasks: TaskRecord[] = [];
-  for (const [index, raw] of text.split(/\r?\n/).entries()) {
-    if (!raw.trim()) continue;
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch (error) {
-      throw new Error(`Invalid JSONL at line ${index + 1}: ${(error as Error).message}`);
+export function readTasksJsonl(
+  planDir: string,
+): Effect.Effect<TasksSnapshot | undefined, ReadError, FileSystem> {
+  const path = join(planDir, TASKS_FILE);
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    // A read failure (missing or unreadable file) is treated as "no snapshot".
+    const maybeText = yield* Effect.option(fs.readFileString(path));
+    if (Option.isNone(maybeText)) return undefined;
+
+    const text = maybeText.value;
+    if (!text.trim()) return yield* Effect.fail(new MissingMetaRecord({ path }));
+
+    let meta: TaskMeta | undefined;
+    const tasks: TaskRecord[] = [];
+    for (const [index, raw] of text.split(/\r?\n/).entries()) {
+      if (!raw.trim()) continue;
+      const line = index + 1;
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (cause) {
+        return yield* Effect.fail(new JsonlParseError({ path, line, cause }));
+      }
+
+      const decoded = decodeTasksLine(parsed);
+      if (Either.isLeft(decoded)) {
+        return yield* Effect.fail(
+          new JsonlValidationError({ path, line, reason: decoded.left.message }),
+        );
+      }
+
+      const record = decoded.right;
+      if (record._type === 'meta') meta = record;
+      else tasks.push(record);
     }
-    if (isTaskMeta(parsed)) meta = parsed;
-    else if (isTaskRecord(parsed)) tasks.push(parsed);
-    else throw new Error(`Invalid tasks.jsonl record at line ${index + 1}`);
-  }
-  if (!meta) throw new Error('tasks.jsonl is missing meta record');
-  return { meta, tasks };
+
+    if (!meta) return yield* Effect.fail(new MissingMetaRecord({ path }));
+    return { meta, tasks };
+  });
 }
 
-export async function writeTasksJsonl(
+export function writeTasksJsonl(
   planDir: string,
   meta: TaskMeta,
   tasks: TaskRecord[],
-): Promise<void> {
-  await mkdir(planDir, { recursive: true });
-  const content = [meta, ...tasks].map((record) => JSON.stringify(record)).join('\n') + '\n';
-  await writeFileAtomic(join(planDir, TASKS_FILE), content);
+): Effect.Effect<void, PlanWriteError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    yield* fs.makeDir(planDir);
+    const content = [meta, ...tasks].map((record) => JSON.stringify(record)).join('\n') + '\n';
+    yield* fs.writeFileAtomic(join(planDir, TASKS_FILE), content);
+  });
 }
 
-export async function updateTask(
+export function updateTask(
   planDir: string,
   taskId: string,
   updates: Partial<Omit<TaskRecord, '_type' | 'id' | 'created_at'>>,
-): Promise<TaskRecord> {
-  const snapshot = await readTasksJsonl(planDir);
-  if (!snapshot) throw new Error(`No tasks.jsonl found in ${planDir}`);
-  const index = snapshot.tasks.findIndex((task) => task.id === taskId);
-  if (index === -1) throw new Error(`Task not found: ${taskId}`);
-  const updated: TaskRecord = {
-    ...snapshot.tasks[index],
-    ...updates,
-    updated_at: new Date().toISOString(),
-  };
-  snapshot.tasks[index] = updated;
-  await writeTasksJsonl(planDir, snapshot.meta, snapshot.tasks);
-  return updated;
+): Effect.Effect<
+  TaskRecord,
+  ReadError | PlanWriteError | TasksFileNotFound | TaskNotFound,
+  FileSystem
+> {
+  return Effect.gen(function* () {
+    const snapshot = yield* readTasksJsonl(planDir);
+    if (!snapshot) return yield* Effect.fail(new TasksFileNotFound({ planDir }));
+
+    const index = snapshot.tasks.findIndex((task) => task.id === taskId);
+    if (index === -1) return yield* Effect.fail(new TaskNotFound({ planDir, taskId }));
+
+    const updated: TaskRecord = {
+      ...snapshot.tasks[index],
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+    snapshot.tasks[index] = updated;
+    yield* writeTasksJsonl(planDir, snapshot.meta, snapshot.tasks);
+    return updated;
+  });
 }

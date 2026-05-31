@@ -5,10 +5,11 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
-import { mkdir } from 'node:fs/promises';
+import { Effect } from 'effect';
 import { saveHandoff } from '../storage/plan-storage.js';
 import { writeTasksJsonl } from '../storage/task-storage.js';
 import { upsertPlanEntry } from '../storage/plans-manifest.js';
+import type { RunPlanIO } from '../effects/runtime.js';
 import { toKebabCase } from '../utils.js';
 import type { PlanData, TaskMeta, TaskRecord } from '../types.js';
 
@@ -16,14 +17,16 @@ export interface SubmitPlanCallbacks {
   onPlanSubmitted: (planDir: string, plan: PlanData) => void;
 }
 
-export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCallbacks): void {
+export function registerSubmitPlanTool(
+  pi: ExtensionAPI,
+  runPlanIO: RunPlanIO,
+  callbacks: SubmitPlanCallbacks,
+): void {
   pi.registerTool({
     name: 'submit_plan',
     label: 'Submit Plan',
-    description:
-      'Finalize a conversational plan with task IDs, JSONL storage, and HANDOFF.md.',
-    promptSnippet:
-      'Finalize the plan with title, handoff, tasks, and dependencies',
+    description: 'Finalize a conversational plan with task IDs, JSONL storage, and HANDOFF.md.',
+    promptSnippet: 'Finalize the plan with title, handoff, tasks, and dependencies',
     promptGuidelines: [
       'Only call submit_plan after shared understanding has been reached with the user.',
       'Each task needs an id like t-001, a short description, and optional depends_on task IDs.',
@@ -78,10 +81,13 @@ export function registerSubmitPlanTool(pi: ExtensionAPI, callbacks: SubmitPlanCa
       }));
       const plan: PlanData = { title: params.title, planName, handoff: params.handoff, tasks };
 
-      await mkdir(planDir, { recursive: true });
-      await writeTasksJsonl(planDir, meta, tasks);
-      await saveHandoff(planDir, params.handoff);
-      await upsertPlanEntry(planName, { status: 'in-progress', title: params.title });
+      await runPlanIO(
+        Effect.gen(function* () {
+          yield* writeTasksJsonl(planDir, meta, tasks);
+          yield* saveHandoff(planDir, params.handoff);
+          yield* upsertPlanEntry(planName, { status: 'in-progress', title: params.title });
+        }),
+      );
 
       callbacks.onPlanSubmitted(planDir, plan);
 

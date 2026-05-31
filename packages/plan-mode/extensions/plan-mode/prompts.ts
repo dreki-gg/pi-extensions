@@ -63,6 +63,7 @@ Rules:
 - Do NOT run diagnostics, linters, test suites, or skills unless a task explicitly asks for it
 - Do NOT explore the codebase beyond what the current task requires
 - Do NOT deviate from the plan — if something seems wrong, call update_task with status "blocked"
+- If you notice worthwhile work OUTSIDE the current plan, call add_task to capture it as a deferred follow-up, then keep going. Do NOT implement discovered work in this run — the user reviews follow-ups later via /plan resume.
 
 ## Current task
 ${currentTask.id}: ${currentTask.description}${currentDetails}

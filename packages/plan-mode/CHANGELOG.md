@@ -1,5 +1,13 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.17.0
+
+### Minor Changes
+
+- Refactor storage/domain layer to Effect (tagged errors, Schema-based JSONL validation, a FileSystem service + runtime layer) and add beads-style discovered follow-up tasks.
+
+  During execution the agent can now call `add_task` to capture worthwhile out-of-plan work as a `deferred` follow-up (with a reason), without implementing it. Discovered follow-ups are surfaced at checkpoints (blocked pause and when planned work finishes), keep the plan in-progress, and are picked up when you choose "Continue execution" via `/plan resume`.
+
 ## 0.16.0
 
 ### Minor Changes

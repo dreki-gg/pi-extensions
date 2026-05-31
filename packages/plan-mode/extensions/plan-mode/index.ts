@@ -28,21 +28,26 @@ import {
 } from './constants.js';
 import type { ThinkingLevel } from './types.js';
 import { PlanModeState } from './state.js';
+import { makePlanRuntime } from './effects/runtime.js';
 import { loadHandoff, readAndClearExecPending } from './storage/plan-storage.js';
 import { readTasksJsonl, writeTasksJsonl } from './storage/task-storage.js';
 import { upsertPlanEntry } from './storage/plans-manifest.js';
 import { updateUI } from './ui.js';
 import { buildPlanModePrompt, buildExecutionPrompt } from './prompts.js';
 import { filterExecutionMessages, filterStalePlanMessages } from './context-filter.js';
+import { activeTasksResolved, deferredTasks } from './task-status.js';
 import { enterPlanMode, exitPlanMode, switchModel } from './phase-transitions.js';
 import { resumePlan, executeInNewSession } from './resume.js';
 import { registerSubmitPlanTool } from './tools/submit-plan.js';
 import { registerPreviewPrototypeTool } from './tools/preview-prototype.js';
 import { registerUpdateTaskTool } from './tools/update-task.js';
+import { registerAddTaskTool } from './tools/add-task.js';
 import { isSafeCommand, isPlanPath } from './utils.js';
 
 export default function planMode(pi: ExtensionAPI): void {
   const state = new PlanModeState();
+  // Build the live Effect runtime once; all storage I/O runs through this bridge.
+  const runPlanIO = makePlanRuntime();
 
   // ── Flag ──────────────────────────────────────────────────────────────────
   pi.registerFlag('plan', {
@@ -52,7 +57,7 @@ export default function planMode(pi: ExtensionAPI): void {
   });
 
   // ── Tools ─────────────────────────────────────────────────────────────────
-  registerSubmitPlanTool(pi, {
+  registerSubmitPlanTool(pi, runPlanIO, {
     onPlanSubmitted: (dir, submittedPlan) => {
       state.planDir = dir;
       state.plan = submittedPlan;
@@ -60,7 +65,7 @@ export default function planMode(pi: ExtensionAPI): void {
     },
   });
 
-  registerPreviewPrototypeTool(pi);
+  registerPreviewPrototypeTool(pi, runPlanIO);
 
   registerUpdateTaskTool(pi, {
     getPlan: () => state.plan,
@@ -71,15 +76,38 @@ export default function planMode(pi: ExtensionAPI): void {
       task.status = status;
       task.updated_at = new Date().toISOString();
       if (notes) task.notes = notes;
-      await writeTasksJsonl(
-        state.planDir,
-        {
-          _type: 'meta',
-          title: state.plan.title,
-          plan_name: state.plan.planName,
-          created_at: state.plan.tasks[0]?.created_at ?? task.updated_at,
-        },
-        state.plan.tasks,
+      await runPlanIO(
+        writeTasksJsonl(
+          state.planDir,
+          {
+            _type: 'meta',
+            title: state.plan.title,
+            plan_name: state.plan.planName,
+            created_at: state.plan.tasks[0]?.created_at ?? task.updated_at,
+          },
+          state.plan.tasks,
+        ),
+      );
+      state.persist(pi);
+    },
+  });
+
+  registerAddTaskTool(pi, {
+    getPlan: () => state.plan,
+    onTaskAdded: async (task) => {
+      if (!state.plan || !state.planDir) return;
+      state.plan.tasks.push(task);
+      await runPlanIO(
+        writeTasksJsonl(
+          state.planDir,
+          {
+            _type: 'meta',
+            title: state.plan.title,
+            plan_name: state.plan.planName,
+            created_at: state.plan.tasks[0]?.created_at ?? task.created_at,
+          },
+          state.plan.tasks,
+        ),
       );
       state.persist(pi);
     },
@@ -92,7 +120,7 @@ export default function planMode(pi: ExtensionAPI): void {
     handler: async (args, ctx) => {
       const trimmed = args?.trim();
       if (trimmed === 'resume') {
-        await resumePlan(state, pi, ctx);
+        await resumePlan(state, pi, ctx, runPlanIO);
         return;
       }
       if (state.planEnabled || state.executing) {
@@ -115,7 +143,7 @@ export default function planMode(pi: ExtensionAPI): void {
       const first =
         state.plan.tasks.find((task) => task.status === 'pending')?.id ?? state.plan.tasks[0]?.id;
       const kickoff = `Execute the following plan: "${state.plan.title}"\n\nTasks:\n${taskList}\n\nStart with ${first}. Call update_task after completing each task.`;
-      await executeInNewSession(ctx, state.planDir, state.plan, kickoff);
+      await executeInNewSession(ctx, runPlanIO, state.planDir, state.plan, kickoff);
     },
   });
 
@@ -126,9 +154,18 @@ export default function planMode(pi: ExtensionAPI): void {
         ctx.ui.notify('No plan yet. Use /plan to start planning.', 'info');
         return;
       }
-      const statusIcon = { pending: '○', done: '✓', skipped: '⊘', blocked: '✗' } as const;
+      const statusIcon = {
+        pending: '○',
+        done: '✓',
+        skipped: '⊘',
+        blocked: '✗',
+        deferred: '⏸',
+      } as const;
       const list = state.plan.tasks
-        .map((s) => `${s.id}. ${statusIcon[s.status]} ${s.description}`)
+        .map((s) => {
+          const marker = s.origin === 'discovered' ? ' (discovered)' : '';
+          return `${s.id}. ${statusIcon[s.status]} ${s.description}${marker}`;
+        })
         .join('\n');
       ctx.ui.notify(`Plan Progress:\n${list}`, 'info');
     },
@@ -210,9 +247,14 @@ export default function planMode(pi: ExtensionAPI): void {
 
       if (blocked.length > 0) {
         const bs = blocked[0];
-        const info = bs.notes
+        let info = bs.notes
           ? `Task ${bs.id}: ${bs.description}\nReason: ${bs.notes}`
           : `Task ${bs.id}: ${bs.description}`;
+
+        const pausedFollowups = deferredTasks(state.plan.tasks);
+        if (pausedFollowups.length > 0) {
+          info += `\n\nNote: ${pausedFollowups.length} follow-up(s) captured for later review (/plan resume).`;
+        }
 
         const choice = await ctx.ui.select(`Task blocked — ${info}\n\nWhat next?`, [
           'Skip this task',
@@ -224,15 +266,17 @@ export default function planMode(pi: ExtensionAPI): void {
         if (choice === 'Skip this task') {
           bs.status = 'skipped';
           bs.updated_at = new Date().toISOString();
-          await writeTasksJsonl(
-            state.planDir!,
-            {
-              _type: 'meta',
-              title: state.plan.title,
-              plan_name: state.plan.planName,
-              created_at: state.plan.tasks[0]?.created_at ?? bs.updated_at,
-            },
-            state.plan.tasks,
+          await runPlanIO(
+            writeTasksJsonl(
+              state.planDir!,
+              {
+                _type: 'meta',
+                title: state.plan.title,
+                plan_name: state.plan.planName,
+                created_at: state.plan.tasks[0]?.created_at ?? bs.updated_at,
+              },
+              state.plan.tasks,
+            ),
           );
           updateUI(state, ctx);
           state.persist(pi);
@@ -247,15 +291,17 @@ export default function planMode(pi: ExtensionAPI): void {
             bs.status = 'pending';
             bs.notes = undefined;
             bs.updated_at = new Date().toISOString();
-            await writeTasksJsonl(
-              state.planDir!,
-              {
-                _type: 'meta',
-                title: state.plan.title,
-                plan_name: state.plan.planName,
-                created_at: state.plan.tasks[0]?.created_at ?? bs.updated_at,
-              },
-              state.plan.tasks,
+            await runPlanIO(
+              writeTasksJsonl(
+                state.planDir!,
+                {
+                  _type: 'meta',
+                  title: state.plan.title,
+                  plan_name: state.plan.planName,
+                  created_at: state.plan.tasks[0]?.created_at ?? bs.updated_at,
+                },
+                state.plan.tasks,
+              ),
             );
             updateUI(state, ctx);
             state.persist(pi);
@@ -278,22 +324,76 @@ export default function planMode(pi: ExtensionAPI): void {
         }
       }
 
+      // ── Discovered follow-ups checkpoint ──
+      // Active work is done but the agent captured deferred follow-ups: keep the
+      // plan in-progress and inform the user, who decides via /plan resume.
+      const deferred = deferredTasks(state.plan.tasks);
+      if (activeTasksResolved(state.plan.tasks) && deferred.length > 0) {
+        if (state.planDir) {
+          await runPlanIO(
+            writeTasksJsonl(
+              state.planDir,
+              {
+                _type: 'meta',
+                title: state.plan.title,
+                plan_name: state.plan.planName,
+                created_at: state.plan.tasks[0]?.created_at ?? new Date().toISOString(),
+              },
+              state.plan.tasks,
+            ),
+          );
+        }
+
+        const followups = deferred
+          .map((s) => {
+            const label = `${s.id}. ⏸ ${s.description}`;
+            return s.notes ? `${label}\n   ${s.notes}` : label;
+          })
+          .join('\n');
+        const followSummary = [
+          `**Plan tasks complete — ${deferred.length} follow-up(s) discovered (kept for later)**`,
+          '',
+          'Run `/plan resume` to review and decide whether to implement them.',
+          '',
+          '## Discovered follow-ups',
+          '',
+          followups,
+        ].join('\n');
+        pi.sendMessage(
+          { customType: 'plan-followups', content: followSummary, display: true },
+          { triggerTurn: false },
+        );
+
+        const { previousModel: dpm, previousThinking: dpt } = state;
+        state.exitPreservingPlan();
+        pi.setActiveTools(EXEC_TOOLS);
+        if (dpm) await switchModel(pi, ctx, dpm);
+        if (dpt) pi.setThinkingLevel(dpt);
+        updateUI(state, ctx);
+        state.persist(pi);
+        return;
+      }
+
       // Check completion
       const allResolved = state.plan.tasks.every(
         (s) => s.status === 'done' || s.status === 'skipped',
       );
       if (allResolved) {
         if (state.planDir) {
-          await upsertPlanEntry(state.plan.planName, { status: 'done', title: state.plan.title });
-          await writeTasksJsonl(
-            state.planDir,
-            {
-              _type: 'meta',
-              title: state.plan.title,
-              plan_name: state.plan.planName,
-              created_at: state.plan.tasks[0]?.created_at ?? new Date().toISOString(),
-            },
-            state.plan.tasks,
+          await runPlanIO(
+            upsertPlanEntry(state.plan.planName, { status: 'done', title: state.plan.title }),
+          );
+          await runPlanIO(
+            writeTasksJsonl(
+              state.planDir,
+              {
+                _type: 'meta',
+                title: state.plan.title,
+                plan_name: state.plan.planName,
+                created_at: state.plan.tasks[0]?.created_at ?? new Date().toISOString(),
+              },
+              state.plan.tasks,
+            ),
           );
         }
         const done = state.plan.tasks.filter((s) => s.status === 'done').length;
@@ -351,16 +451,16 @@ export default function planMode(pi: ExtensionAPI): void {
     );
 
     // Check for exec-pending handoff from planning session
-    const pending = await readAndClearExecPending();
+    const pending = await runPlanIO(readAndClearExecPending());
     if (pending) {
       state.planDir = pending.planDir;
       {
-        const snapshot = await readTasksJsonl(pending.planDir);
+        const snapshot = await runPlanIO(readTasksJsonl(pending.planDir));
         state.plan = snapshot
           ? {
               title: snapshot.meta.title,
               planName: snapshot.meta.plan_name,
-              handoff: (await loadHandoff(pending.planDir)) ?? '',
+              handoff: (await runPlanIO(loadHandoff(pending.planDir))) ?? '',
               tasks: snapshot.tasks,
             }
           : undefined;

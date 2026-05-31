@@ -1,17 +1,35 @@
+import { Effect } from 'effect';
 import { createWriteStream } from 'node:fs';
 import { open, rename, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { PlanWriteError } from '../errors.js';
 
 export interface AtomicWriteOptions {
   /** Test seam: file mode for the temporary file. */
   mode?: number;
 }
 
-export async function writeFileAtomic(
+/**
+ * Atomically write `data` to `path`: write to a temp file, fsync, rename into
+ * place, then best-effort fsync the directory. Failures surface as
+ * `PlanWriteError`.
+ */
+export function writeFileAtomic(
   path: string,
   data: string | Buffer,
   options: AtomicWriteOptions = {},
+): Effect.Effect<void, PlanWriteError> {
+  return Effect.tryPromise({
+    try: () => writeFileAtomicPromise(path, data, options),
+    catch: (cause) => new PlanWriteError({ path, cause }),
+  });
+}
+
+async function writeFileAtomicPromise(
+  path: string,
+  data: string | Buffer,
+  options: AtomicWriteOptions,
 ): Promise<void> {
   const dir = dirname(path);
   const tempPath = join(dir, `.${process.pid}.${randomUUID()}.tmp`);

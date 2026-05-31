@@ -9,11 +9,13 @@ import type {
 } from '@earendil-works/pi-coding-agent';
 import type { PlanModeState } from './state.js';
 import type { PlanData } from './types.js';
+import type { RunPlanIO } from './effects/runtime.js';
 import { EXEC_THINKING, EXEC_MODEL_OPTIONS } from './constants.js';
 import { readPlansManifest } from './storage/plans-manifest.js';
 import { loadHandoff, writeExecPending } from './storage/plan-storage.js';
 import { readTasksJsonl, writeTasksJsonl } from './storage/task-storage.js';
 import { enterPlanMode } from './phase-transitions.js';
+import { reactivateForExecution } from './task-status.js';
 
 export async function pickExecutionModel(
   ctx: ExtensionContext,
@@ -26,6 +28,7 @@ export async function pickExecutionModel(
 
 export async function executeInNewSession(
   ctx: ExtensionCommandContext,
+  runPlanIO: RunPlanIO,
   dir: string,
   _planData: PlanData,
   kickoff: string,
@@ -33,7 +36,7 @@ export async function executeInNewSession(
   const selectedModel = await pickExecutionModel(ctx);
   if (!selectedModel) return;
 
-  await writeExecPending(dir, { model: selectedModel, thinking: EXEC_THINKING });
+  await runPlanIO(writeExecPending(dir, { model: selectedModel, thinking: EXEC_THINKING }));
   const parentSession = ctx.sessionManager.getSessionFile();
 
   await ctx.newSession({
@@ -48,8 +51,9 @@ export async function resumePlan(
   state: PlanModeState,
   pi: ExtensionAPI,
   ctx: ExtensionCommandContext,
+  runPlanIO: RunPlanIO,
 ): Promise<void> {
-  const manifest = await readPlansManifest();
+  const manifest = await runPlanIO(readPlansManifest());
   const inProgress = manifest.filter((entry) => entry.status === 'in-progress');
 
   if (inProgress.length === 0) {
@@ -65,7 +69,7 @@ export async function resumePlan(
 
   const planName = choice.split(' — ')[0];
   const dir = `.plans/${planName}`;
-  const snapshot = await readTasksJsonl(dir);
+  const snapshot = await runPlanIO(readTasksJsonl(dir));
 
   if (!snapshot) {
     ctx.ui.notify(`Could not load ${dir}/tasks.jsonl`, 'error');
@@ -76,7 +80,7 @@ export async function resumePlan(
   state.plan = {
     title: snapshot.meta.title,
     planName: snapshot.meta.plan_name,
-    handoff: (await loadHandoff(dir)) ?? '',
+    handoff: (await runPlanIO(loadHandoff(dir))) ?? '',
     tasks: snapshot.tasks,
   };
 
@@ -85,8 +89,9 @@ export async function resumePlan(
   ).length;
   const pendingCount = state.plan.tasks.filter((task) => task.status === 'pending').length;
   const blockedCount = state.plan.tasks.filter((task) => task.status === 'blocked').length;
+  const deferredCount = state.plan.tasks.filter((task) => task.status === 'deferred').length;
 
-  if (pendingCount === 0 && blockedCount === 0) {
+  if (pendingCount === 0 && blockedCount === 0 && deferredCount === 0) {
     ctx.ui.notify(
       `Plan "${state.plan.title}" is already complete (${doneCount}/${state.plan.tasks.length} done).`,
       'info',
@@ -96,7 +101,10 @@ export async function resumePlan(
     return;
   }
 
-  const summary = `${doneCount}/${state.plan.tasks.length} done, ${pendingCount} pending${blockedCount ? `, ${blockedCount} blocked` : ''}`;
+  const summary =
+    `${doneCount}/${state.plan.tasks.length} done, ${pendingCount} pending` +
+    (blockedCount ? `, ${blockedCount} blocked` : '') +
+    (deferredCount ? `, ${deferredCount} follow-up` : '');
   const action = await ctx.ui.select(`Resume "${state.plan.title}" (${summary}) — what next?`, [
     'Continue execution',
     'Re-plan from scratch',
@@ -119,19 +127,15 @@ export async function resumePlan(
     return;
   }
 
-  if (blockedCount > 0) {
-    for (const task of state.plan.tasks) {
-      if (task.status === 'blocked') {
-        task.status = 'pending';
-        task.updated_at = new Date().toISOString();
-      }
-    }
-    await writeTasksJsonl(dir, snapshot.meta, state.plan.tasks);
+  // Reactivate blocked tasks and discovered follow-ups so "Continue execution"
+  // picks them up — this is the moment the user decides to go ahead.
+  if (reactivateForExecution(state.plan.tasks, new Date().toISOString())) {
+    await runPlanIO(writeTasksJsonl(dir, snapshot.meta, state.plan.tasks));
   }
 
   const remaining = state.plan.tasks.filter((task) => task.status === 'pending');
   const taskList = remaining.map((task) => `${task.id}. ${task.description}`).join('\n');
   const kickoff = `Resuming plan: "${state.plan.title}"\n\nCompleted: ${doneCount}/${state.plan.tasks.length} tasks\n\nRemaining tasks:\n${taskList}\n\nContinue from ${remaining[0]?.id}. Call update_task after completing each task.`;
 
-  await executeInNewSession(ctx, dir, state.plan, kickoff);
+  await executeInNewSession(ctx, runPlanIO, dir, state.plan, kickoff);
 }

@@ -17,7 +17,7 @@ export const PLAN_TOOLS = [
   'subagent',
 ];
 
-export const EXEC_TOOLS = ['read', 'bash', 'edit', 'write', 'update_task'];
+export const EXEC_TOOLS = ['read', 'bash', 'edit', 'write', 'update_task', 'add_task'];
 
 // ── Model + thinking presets ─────────────────────────────────────────────────
 export const PLAN_MODEL = { provider: 'anthropic', id: 'claude-opus-4-6' } as const;

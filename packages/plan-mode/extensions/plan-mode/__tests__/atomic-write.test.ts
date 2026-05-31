@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { Effect, Exit } from 'effect';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -18,7 +19,7 @@ describe('writeFileAtomic', () => {
   test('writes complete content to the target path', async () => {
     const target = join(dir, 'data.txt');
 
-    await writeFileAtomic(target, 'hello world');
+    await Effect.runPromise(writeFileAtomic(target, 'hello world'));
 
     expect(await readFile(target, 'utf8')).toBe('hello world');
   });
@@ -27,17 +28,18 @@ describe('writeFileAtomic', () => {
     const target = join(dir, 'data.txt');
     await writeFile(target, 'old');
 
-    await writeFileAtomic(target, 'new');
+    await Effect.runPromise(writeFileAtomic(target, 'new'));
 
     expect(await readFile(target, 'utf8')).toBe('new');
   });
 
-  test('leaves target untouched when writing fails before rename', async () => {
+  test('fails with PlanWriteError and leaves target untouched when the write fails', async () => {
     const target = join(dir, 'data.txt');
     await writeFile(target, 'original');
 
-    await expect(writeFileAtomic(target, 'next', { mode: 0o400 })).rejects.toThrow();
+    const exit = await Effect.runPromiseExit(writeFileAtomic(target, 'next', { mode: 0o400 }));
 
+    expect(Exit.isFailure(exit)).toBe(true);
     expect(await readFile(target, 'utf8')).toBe('original');
   });
 });
