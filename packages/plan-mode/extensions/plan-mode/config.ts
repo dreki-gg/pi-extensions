@@ -165,3 +165,45 @@ export async function loadConfig(projectDir?: string): Promise<PlanModeConfig> {
   const merged = mergeConfig(projectConfig ?? {}, mergeConfig(globalConfig ?? {}, defaults));
   return merged;
 }
+
+/**
+ * Save configuration to a file.
+ * Merges with existing config if file exists.
+ */
+export async function saveConfig(
+  updates: Partial<PlanModeConfig>,
+  scope: 'project' | 'global',
+  projectDir?: string,
+): Promise<void> {
+  const fs = await import('fs/promises');
+  const path = require('path');
+
+  let filePath: string;
+  if (scope === 'project' && projectDir) {
+    filePath = path.join(projectDir, '.plans', 'plan-mode-config.json');
+  } else {
+    filePath = getGlobalConfigPath();
+  }
+
+  // Load existing config if file exists
+  let existing: Partial<PlanModeConfig> = {};
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    const raw = JSON.parse(content);
+    if (typeof raw === 'object' && raw !== null) {
+      existing = parseConfig(raw as Record<string, unknown>);
+    }
+  } catch {
+    // File doesn't exist, start fresh
+  }
+
+  // Merge updates with existing
+  const merged = { ...existing, ...updates };
+
+  // Ensure directory exists
+  const dir = path.dirname(filePath);
+  await fs.mkdir(dir, { recursive: true });
+
+  // Write config
+  await fs.writeFile(filePath, JSON.stringify(merged, null, 2) + '\n', 'utf-8');
+}

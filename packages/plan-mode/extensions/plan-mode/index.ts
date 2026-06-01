@@ -9,6 +9,7 @@
  *   /plan [prompt]  — enter plan mode
  *   /plan resume    — resume an in-progress plan from disk
  *   /plan-exec      — execute the current plan in a clean session
+ *   /plan-config    — configure plan mode models interactively
  *   /todos          — show current plan progress
  *   Ctrl+Alt+P      — toggle plan mode
  *
@@ -21,7 +22,7 @@ import { Key } from '@earendil-works/pi-tui';
 import { PLAN_TOOLS, EXEC_TOOLS } from './constants.js';
 import type { ThinkingLevel } from './types.js';
 import type { PlanModeConfig } from './config.js';
-import { loadConfig } from './config.js';
+import { loadConfig, saveConfig } from './config.js';
 import { PlanModeState } from './state.js';
 import { makePlanRuntime } from './effects/runtime.js';
 import { loadHandoff, readAndClearExecPending } from './storage/plan-storage.js';
@@ -37,6 +38,7 @@ import { registerSubmitPlanTool } from './tools/submit-plan.js';
 import { registerPreviewPrototypeTool } from './tools/preview-prototype.js';
 import { registerUpdateTaskTool } from './tools/update-task.js';
 import { registerAddTaskTool } from './tools/add-task.js';
+import { registerPlanConfigCommand } from './commands/plan-config.js';
 import { isSafeCommand, isPlanPath } from './utils.js';
 
 export default function planMode(pi: ExtensionAPI): void {
@@ -161,6 +163,14 @@ export default function planMode(pi: ExtensionAPI): void {
       const kickoff = `Execute the following plan: "${state.plan.title}"\n\nTasks:\n${taskList}\n\nStart with ${first}. Call update_task after completing each task.`;
       await executeInNewSession(ctx, runPlanIO, state.planDir, state.plan, kickoff, cfg);
     },
+  });
+
+  // ── Plan Config Command ────────────────────────────────────────────────────
+  registerPlanConfigCommand(pi, getConfig, async (updates, scope) => {
+    await saveConfig(updates, scope, process.cwd());
+    // Invalidate cached config so next load picks up changes
+    config = undefined;
+    configLoadPromise = undefined;
   });
 
   pi.registerCommand('todos', {

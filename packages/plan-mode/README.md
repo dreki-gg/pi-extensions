@@ -22,6 +22,7 @@ pi install npm:@dreki-gg/pi-questionnaire
 | -------- | -------------- | ---------------------------------------------- |
 | Flag     | `--plan`       | Start pi in plan mode                          |
 | Command  | `/plan [prompt]` | Enter plan mode, optionally with a starting prompt |
+| Command  | `/plan-config [action]` | Configure plan mode models interactively |
 | Command  | `/todos`       | Show current plan progress                     |
 | Shortcut | `Ctrl+Alt+P`   | Toggle plan mode                               |
 
@@ -160,7 +161,20 @@ By default, the extension uses these models:
 - **Planning**: `claude-opus-4-6:medium`
 - **Execution**: `gpt-5.5:low`
 
-You can customize these via a configuration file.
+You can customize these via a configuration file or the interactive `/plan-config` command.
+
+### Interactive Configuration
+
+Use the `/plan-config` command for an interactive setup:
+
+```bash
+/plan-config                    # Show current configuration
+/plan-config plan-model         # Set planning model
+/plan-config exec-model         # Set execution model
+/plan-config thinking           # Configure thinking levels
+/plan-config options            # Manage execution model picker options
+/plan-config save               # Save config to file
+```
 
 ### Config file locations
 
