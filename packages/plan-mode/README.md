@@ -154,6 +154,83 @@ jobs:
 
 In plan mode, bash is restricted to read-only commands (ls, grep, git status, cat, rg, etc.). Destructive commands (rm, mv, git commit, etc.) are blocked.
 
+## Model Configuration
+
+By default, the extension uses these models:
+- **Planning**: `claude-opus-4-6:medium`
+- **Execution**: `gpt-5.5:low`
+
+You can customize these via a configuration file.
+
+### Config file locations
+
+| Scope | Path | Priority |
+|-------|------|----------|
+| Project | `.plans/plan-mode-config.json` | Highest |
+| Global | `~/.pi/agent/plan-mode-config.json` | Lower |
+
+Project config is merged with global config, which is merged with built-in defaults.
+
+### Config options
+
+```jsonc
+{
+  // Model for the planning phase
+  "planModel": {
+    "provider": "anthropic",
+    "id": "claude-opus-4-6"
+  },
+  // Thinking level for planning (off/minimal/low/medium/high/xhigh)
+  "planThinking": "medium",
+  
+  // Default model for execution phase
+  "execModel": {
+    "provider": "openai",
+    "id": "gpt-5.5"
+  },
+  // Thinking level for execution
+  "execThinking": "low",
+  
+  // Available models in the execution model picker
+  "execModelOptions": [
+    {
+      "label": "gpt-5.5",
+      "model": { "provider": "openai", "id": "gpt-5.5" }
+    },
+    {
+      "label": "claude-opus-4-6",
+      "model": { "provider": "anthropic", "id": "claude-opus-4-6" }
+    }
+  ]
+}
+```
+
+All fields are optional — omitted fields use the built-in defaults.
+
+### Example: Use Sonnet for planning
+
+```json
+{
+  "planModel": {
+    "provider": "anthropic",
+    "id": "claude-sonnet-4-6"
+  }
+}
+```
+
+### Example: Add more execution model options
+
+```json
+{
+  "execModelOptions": [
+    { "label": "gpt-5.5", "model": { "provider": "openai", "id": "gpt-5.5" } },
+    { "label": "claude-opus-4-6", "model": { "provider": "anthropic", "id": "claude-opus-4-6" } },
+    { "label": "claude-sonnet-4-6", "model": { "provider": "anthropic", "id": "claude-sonnet-4-6" } },
+    { "label": "gemini-2.5-pro", "model": { "provider": "google", "id": "gemini-2.5-pro" } }
+  ]
+}
+```
+
 ## CLI reference
 
 ```

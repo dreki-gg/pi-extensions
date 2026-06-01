@@ -10,7 +10,7 @@ import type {
 import type { PlanModeState } from './state.js';
 import type { PlanData } from './types.js';
 import type { RunPlanIO } from './effects/runtime.js';
-import { EXEC_THINKING, EXEC_MODEL_OPTIONS } from './constants.js';
+import type { PlanModeConfig } from './config.js';
 import { readPlansManifest } from './storage/plans-manifest.js';
 import { loadHandoff, writeExecPending } from './storage/plan-storage.js';
 import { readTasksJsonl, writeTasksJsonl } from './storage/task-storage.js';
@@ -19,11 +19,12 @@ import { reactivateForExecution } from './task-status.js';
 
 export async function pickExecutionModel(
   ctx: ExtensionContext,
+  config: PlanModeConfig,
 ): Promise<{ provider: string; id: string } | undefined> {
-  const labels = EXEC_MODEL_OPTIONS.map((o) => o.label);
+  const labels = config.execModelOptions.map((o) => o.label);
   const choice = await ctx.ui.select('Execute with:', labels);
   if (!choice) return undefined;
-  return EXEC_MODEL_OPTIONS.find((o) => o.label === choice)?.model;
+  return config.execModelOptions.find((o) => o.label === choice)?.model;
 }
 
 export async function executeInNewSession(
@@ -32,11 +33,12 @@ export async function executeInNewSession(
   dir: string,
   _planData: PlanData,
   kickoff: string,
+  config: PlanModeConfig,
 ): Promise<void> {
-  const selectedModel = await pickExecutionModel(ctx);
+  const selectedModel = await pickExecutionModel(ctx, config);
   if (!selectedModel) return;
 
-  await runPlanIO(writeExecPending(dir, { model: selectedModel, thinking: EXEC_THINKING }));
+  await runPlanIO(writeExecPending(dir, { model: selectedModel, thinking: config.execThinking }));
   const parentSession = ctx.sessionManager.getSessionFile();
 
   await ctx.newSession({
@@ -52,6 +54,7 @@ export async function resumePlan(
   pi: ExtensionAPI,
   ctx: ExtensionCommandContext,
   runPlanIO: RunPlanIO,
+  config: PlanModeConfig,
 ): Promise<void> {
   const manifest = await runPlanIO(readPlansManifest());
   const inProgress = manifest.filter((entry) => entry.status === 'in-progress');
@@ -120,7 +123,7 @@ export async function resumePlan(
   if (action === 'Re-plan from scratch') {
     const planTitle = state.plan.title;
     const planDirPath = state.planDir;
-    await enterPlanMode(state, pi, ctx);
+    await enterPlanMode(state, pi, ctx, config);
     pi.sendUserMessage(
       `There is an existing plan "${planTitle}" at ${planDirPath}/tasks.jsonl. Review it and create a revised plan using submit_plan. Keep the same plan name ("${planName}").`,
     );
@@ -137,5 +140,5 @@ export async function resumePlan(
   const taskList = remaining.map((task) => `${task.id}. ${task.description}`).join('\n');
   const kickoff = `Resuming plan: "${state.plan.title}"\n\nCompleted: ${doneCount}/${state.plan.tasks.length} tasks\n\nRemaining tasks:\n${taskList}\n\nContinue from ${remaining[0]?.id}. Call update_task after completing each task.`;
 
-  await executeInNewSession(ctx, runPlanIO, dir, state.plan, kickoff);
+  await executeInNewSession(ctx, runPlanIO, dir, state.plan, kickoff, config);
 }

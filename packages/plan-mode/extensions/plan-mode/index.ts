@@ -18,15 +18,10 @@
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Key } from '@earendil-works/pi-tui';
-import {
-  PLAN_TOOLS,
-  EXEC_TOOLS,
-  PLAN_MODEL,
-  PLAN_THINKING,
-  EXEC_MODEL,
-  EXEC_THINKING,
-} from './constants.js';
+import { PLAN_TOOLS, EXEC_TOOLS } from './constants.js';
 import type { ThinkingLevel } from './types.js';
+import type { PlanModeConfig } from './config.js';
+import { loadConfig } from './config.js';
 import { PlanModeState } from './state.js';
 import { makePlanRuntime } from './effects/runtime.js';
 import { loadHandoff, readAndClearExecPending } from './storage/plan-storage.js';
@@ -48,6 +43,25 @@ export default function planMode(pi: ExtensionAPI): void {
   const state = new PlanModeState();
   // Build the live Effect runtime once; all storage I/O runs through this bridge.
   const runPlanIO = makePlanRuntime();
+
+  // Config will be loaded asynchronously on first use
+  let config: PlanModeConfig | undefined;
+  let configLoadPromise: Promise<PlanModeConfig> | undefined;
+
+  /**
+   * Get or load the configuration.
+   * Uses lazy loading with caching.
+   */
+  async function getConfig(): Promise<PlanModeConfig> {
+    if (config) return config;
+    if (!configLoadPromise) {
+      configLoadPromise = loadConfig(process.cwd()).then((c) => {
+        config = c;
+        return c;
+      });
+    }
+    return configLoadPromise;
+  }
 
   // ── Flag ──────────────────────────────────────────────────────────────────
   pi.registerFlag('plan', {
@@ -119,15 +133,16 @@ export default function planMode(pi: ExtensionAPI): void {
       'Enter plan mode, optionally with a starting prompt. Use "/plan resume" to pick up an existing plan.',
     handler: async (args, ctx) => {
       const trimmed = args?.trim();
+      const cfg = await getConfig();
       if (trimmed === 'resume') {
-        await resumePlan(state, pi, ctx, runPlanIO);
+        await resumePlan(state, pi, ctx, runPlanIO, cfg);
         return;
       }
       if (state.planEnabled || state.executing) {
         await exitPlanMode(state, pi, ctx);
         return;
       }
-      await enterPlanMode(state, pi, ctx);
+      await enterPlanMode(state, pi, ctx, cfg);
       if (trimmed) pi.sendUserMessage(trimmed);
     },
   });
@@ -139,11 +154,12 @@ export default function planMode(pi: ExtensionAPI): void {
         ctx.ui.notify('No plan to execute.', 'error');
         return;
       }
+      const cfg = await getConfig();
       const taskList = state.plan.tasks.map((task) => `${task.id}. ${task.description}`).join('\n');
       const first =
         state.plan.tasks.find((task) => task.status === 'pending')?.id ?? state.plan.tasks[0]?.id;
       const kickoff = `Execute the following plan: "${state.plan.title}"\n\nTasks:\n${taskList}\n\nStart with ${first}. Call update_task after completing each task.`;
-      await executeInNewSession(ctx, runPlanIO, state.planDir, state.plan, kickoff);
+      await executeInNewSession(ctx, runPlanIO, state.planDir, state.plan, kickoff, cfg);
     },
   });
 
@@ -174,10 +190,11 @@ export default function planMode(pi: ExtensionAPI): void {
   pi.registerShortcut(Key.ctrlAlt('p'), {
     description: 'Toggle plan mode',
     handler: async (ctx) => {
+      const cfg = await getConfig();
       if (state.planEnabled || state.executing) {
         await exitPlanMode(state, pi, ctx);
       } else {
-        await enterPlanMode(state, pi, ctx);
+        await enterPlanMode(state, pi, ctx, cfg);
       }
     },
   });
@@ -312,7 +329,8 @@ export default function planMode(pi: ExtensionAPI): void {
           }
           return;
         } else if (choice === 'Re-plan') {
-          await enterPlanMode(state, pi, ctx);
+          const cfg = await getConfig();
+          await enterPlanMode(state, pi, ctx, cfg);
           pi.sendUserMessage(
             `Task ${bs.id} was blocked: ${bs.notes ?? 'no details'}. Re-analyze and create a revised plan.`,
             { deliverAs: 'followUp' },
@@ -450,6 +468,9 @@ export default function planMode(pi: ExtensionAPI): void {
       ctx.sessionManager.getEntries() as Array<{ type: string; customType?: string; data?: any }>,
     );
 
+    // Load config for this session
+    const cfg = await getConfig();
+
     // Check for exec-pending handoff from planning session
     const pending = await runPlanIO(readAndClearExecPending());
     if (pending) {
@@ -480,12 +501,12 @@ export default function planMode(pi: ExtensionAPI): void {
     // Apply tool restrictions, model, and thinking level
     if (state.planEnabled) {
       pi.setActiveTools(PLAN_TOOLS);
-      await switchModel(pi, ctx, PLAN_MODEL);
-      pi.setThinkingLevel(PLAN_THINKING);
+      await switchModel(pi, ctx, cfg.planModel);
+      pi.setThinkingLevel(cfg.planThinking);
     } else if (state.executing) {
       pi.setActiveTools(EXEC_TOOLS);
-      await switchModel(pi, ctx, EXEC_MODEL);
-      pi.setThinkingLevel(EXEC_THINKING);
+      await switchModel(pi, ctx, cfg.execModel);
+      pi.setThinkingLevel(cfg.execThinking);
     }
 
     updateUI(state, ctx);

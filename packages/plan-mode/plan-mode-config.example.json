@@ -1,0 +1,28 @@
+{
+  "planModel": {
+    "provider": "anthropic",
+    "id": "claude-opus-4-6"
+  },
+  "planThinking": "medium",
+  "execModel": {
+    "provider": "openai",
+    "id": "gpt-5.5"
+  },
+  "execThinking": "low",
+  "execModelOptions": [
+    {
+      "label": "gpt-5.5",
+      "model": {
+        "provider": "openai",
+        "id": "gpt-5.5"
+      }
+    },
+    {
+      "label": "claude-opus-4-6",
+      "model": {
+        "provider": "anthropic",
+        "id": "claude-opus-4-6"
+      }
+    }
+  ]
+}
