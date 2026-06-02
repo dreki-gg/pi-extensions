@@ -1,3 +1,6 @@
+import { writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Type } from 'typebox';
 
@@ -7,15 +10,33 @@ import { discoverLenses, getLensContent } from '../lenses';
 import { resolveModelPlan } from '../model-plan';
 import { runPipeline } from '../passes';
 import {
-  buildDiffSection,
   buildLensResult,
+  buildPipelineResult,
   buildReviewBasePrompt,
+  buildSinglePassResult,
   pickLensToolOutputs,
-  renderPipelineReport,
   runTools,
 } from '../reviewer';
-import type { DiffSource } from '../diff';
+import type { ReviewPointer } from '../reviewer';
 import type { LensResult, ReviewConfig } from '../types';
+
+/**
+ * Spill the full review context to a temp Markdown file and return a pointer
+ * (path + byte size + line count). Both pi's tool-output and `read` caps are
+ * ~50KB / 2000 lines, so large reviews would otherwise be truncated and lost
+ * on compaction. The on-disk file survives compaction and can be paged.
+ *
+ * Node-only IO (no Bun) per the extension runtime constraint.
+ */
+async function writeReviewTempFile(content: string): Promise<ReviewPointer> {
+  const path = join(tmpdir(), `pi-code-review-${Date.now()}.md`);
+  await writeFile(path, content, 'utf8');
+  return {
+    path,
+    bytes: Buffer.byteLength(content, 'utf8'),
+    lines: content.split('\n').length,
+  };
+}
 
 export function registerReviewTool(pi: ExtensionAPI) {
   pi.registerTool({
@@ -155,17 +176,18 @@ export function registerReviewTool(pi: ExtensionAPI) {
           const allPassesFailed =
             config.review.passes > 0 && pipeline.telemetry.failedPasses >= config.review.passes;
           if (!allPassesFailed) {
-            return {
-              content: [{ type: 'text', text: renderPipelineReport(pipeline, diff) }],
-              details: {
-                mode: 'pipeline',
-                lensCount: lensNames.length,
+            return buildPipelineResult(
+              {
+                pipeline,
+                diff,
+                basePrompt,
+                lensNames,
                 availableLenses: [...available.keys()],
                 changedFiles,
-                findings: pipeline.findings,
-                telemetry: pipeline.telemetry,
               },
-            };
+              writeReviewTempFile,
+              onUpdate,
+            );
           }
           onUpdate?.({
             content: [{ type: 'text', text: 'all review passes failed — single-pass fallback' }],
@@ -187,20 +209,25 @@ export function registerReviewTool(pi: ExtensionAPI) {
 
       ctx.ui.setStatus('code-review', undefined);
 
-      // Fallback: return the review task for a single downstream pass (the
-      // agent produces findings in its follow-up message). Used when no model
-      // is available (e.g. print mode) or passes are disabled in config.
-      const text = buildToolContext(results, diff);
-
-      return {
-        content: [{ type: 'text', text }],
-        details: {
-          mode: 'single-pass',
-          lensCount: lensNames.length,
+      // Fallback: spill the full single-pass review context to a temp file and
+      // return a compact summary + pointer (degrades gracefully on empty
+      // context or a write failure). Used when no model is available (e.g.
+      // print mode) or passes are disabled in config.
+      //
+      // This is the PRIMARY truncation culprit: the full context embeds the
+      // diff (up to 50KB) plus every lens's tool outputs (20KB each), which
+      // easily blows past pi's 50KB tool-output cap.
+      return buildSinglePassResult(
+        {
+          results,
+          diff,
+          lensNames,
           availableLenses: [...available.keys()],
           changedFiles,
         },
-      };
+        writeReviewTempFile,
+        onUpdate,
+      );
     },
   });
 }
@@ -219,42 +246,3 @@ function resolveLensNames(
   return [...available.keys()];
 }
 
-/**
- * Build the agent-facing review instructions appended to the report. The diff
- * is embedded ONCE (not per lens) followed by each lens's section — large
- * diffs would otherwise be repeated for every lens, bloating the tool output.
- */
-function buildToolContext(results: LensResult[], diff: DiffSource): string {
-  const sections = results.map((r) => r._lensSection).filter(Boolean) as string[];
-  if (sections.length === 0) return '';
-
-  return [
-    `# Code Review — ${new Date().toISOString().slice(0, 10)}`,
-    '',
-    '## Changes',
-    '```',
-    diff.stat.trim() || '(no diffstat)',
-    '```',
-    '',
-    'Evaluate the diff through each lens below; the tool outputs are automated analysis.',
-    '',
-    buildDiffSection(diff),
-    '',
-    '## Lenses',
-    '',
-    ...sections,
-    '',
-    '## Instructions',
-    '',
-    'For each lens above, review the diff against its criteria and output a JSON array of findings:',
-    '',
-    '```json',
-    '[',
-    '  { "file": "path/to/file.ts", "line": 42, "severity": "warning", "message": "Description" }',
-    ']',
-    '```',
-    '',
-    'After each lens JSON array, write a 2-3 sentence summary.',
-    'If a lens has no findings, return an empty array `[]` and note the code looks good.',
-  ].join('\n');
-}

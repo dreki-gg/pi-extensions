@@ -1,5 +1,52 @@
 # @dreki-gg/pi-code-reviewer
 
+## 0.6.2
+
+### Patch Changes
+
+- fix(code-reviewer): degrade gracefully when the review temp-file write fails
+
+  The temp-file spill added in 0.6.1 introduced filesystem IO on the tool's
+  output path, which could throw (read-only `TMPDIR`, full disk, sandbox) and
+  sink an otherwise-successful review. The write is now best-effort:
+
+  - **Pipeline mode** still returns its validated findings if the spill write
+    fails — only the diff pointer is dropped (the findings are the valuable
+    output, not the convenience file).
+  - **Single-pass fallback** degrades to returning the inline context
+    (truncation-prone, but a real review beats a hard tool error) instead of
+    throwing out of `execute`.
+  - A review with **no applicable lenses** now reports that explicitly instead of
+    writing an empty temp file and pointing the agent at it.
+
+  Internals: the two output-assembly branches were extracted into pure,
+  injectable functions (`buildSinglePassResult`, `buildPipelineResult`) with the
+  temp-file writer passed in, so the empty-context and write-failure paths are
+  covered by unit tests.
+
+## 0.6.1
+
+### Patch Changes
+
+- fix(code-reviewer): spill full review context to a temp file to avoid truncation
+
+  The `code_review` tool output was being truncated by pi's built-in ~50KB /
+  2000-line tool-output cap (and further serialized to ~2000 chars on
+  compaction), so the reviewing agent often worked with incomplete review data.
+
+  - **Single-pass fallback (the primary culprit) now writes the full context to
+    a temp file.** It embedded the whole diff (up to 50KB) plus every lens's tool
+    outputs (20KB each), which easily exceeded the cap. The tool now writes the
+    full context (diff, lens definitions, tool outputs, instructions) to
+    `os.tmpdir()/pi-code-review-{ts}.md` and returns a compact inline summary
+    (lenses + diff scope) plus a pointer telling the agent to `read` the file —
+    paging large content with `read` offset/limit (the `read` tool shares the
+    same cap).
+  - **Pipeline mode keeps findings inline** (already compact) but also spills the
+    diff + lens context to the same temp file and appends a pointer, so the agent
+    can drill into the diff behind a finding without truncation.
+  - Both paths expose the temp file path via `details.contextFile`.
+
 ## 0.6.0
 
 ### Minor Changes

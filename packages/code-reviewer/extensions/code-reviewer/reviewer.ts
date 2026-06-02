@@ -1,5 +1,9 @@
 import { platform } from 'node:os';
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import type {
+  AgentToolResult,
+  AgentToolUpdateCallback,
+  ExtensionAPI,
+} from '@earendil-works/pi-coding-agent';
 import { Effect } from 'effect';
 
 import type { DiffSource } from './diff';
@@ -115,6 +119,71 @@ export function buildReviewBasePrompt(lensSections: string[], diff: DiffSource):
     '## Review lenses (project invariants to check)',
     '',
     ...lensSections,
+  ].join('\n');
+}
+
+/** Pointer to the temp file holding the full review context. */
+export type ReviewPointer = { path: string; bytes: number; lines: number };
+
+/** Round bytes to whole KB for a human-readable size (min 1KB). */
+function toKb(bytes: number): number {
+  return Math.max(1, Math.round(bytes / 1024));
+}
+
+/**
+ * Condense a git `--stat` block into a one-line "N files, +ins -del" summary.
+ * Returns '' when the diffstat has no recognizable summary line.
+ */
+function summarizeDiffStat(stat: string): string {
+  const lastLine = stat.trim().split('\n').pop()?.trim() ?? '';
+  const files = lastLine.match(/(\d+) files? changed/)?.[1];
+  if (!files) return '';
+  const insertions = lastLine.match(/(\d+) insertions?\(\+\)/)?.[1];
+  const deletions = lastLine.match(/(\d+) deletions?\(-\)/)?.[1];
+  const parts = [`${files} file${files === '1' ? '' : 's'}`];
+  if (insertions) parts.push(`+${insertions}`);
+  if (deletions) parts.push(`-${deletions}`);
+  return parts.join(', ');
+}
+
+/**
+ * Compact inline header for the single-pass fallback. The full review context
+ * (diff, lenses, instructions) lives in a temp file — see {@link buildPointer} —
+ * so this only names the lenses and the diff scope. Pure (no IO).
+ */
+export function buildInlineSummary(lensNames: string[], diff: DiffSource): string {
+  const stat = summarizeDiffStat(diff.stat);
+  const diffLine = stat ? `${diff.label} (${stat})` : diff.label;
+  return [
+    '# Code Review Summary',
+    `- **Lenses**: ${lensNames.join(', ') || '(none)'}`,
+    `- **Diff**: ${diffLine}`,
+  ].join('\n');
+}
+
+/**
+ * Inline pointer to the temp file holding the full review context. pi's tool
+ * output / `read` caps are both ~50KB / 2000 lines, so the directive tells the
+ * agent to page large content with `read` offset/limit. Pure (no IO).
+ *
+ * `mode` switches the action sentence: single-pass needs the agent to perform
+ * the whole review from the file; pipeline only needs it to drill into the diff
+ * behind an already-rendered finding.
+ */
+export function buildPointer(pointer: ReviewPointer, mode: 'single-pass' | 'pipeline'): string {
+  const size = `(${pointer.lines} lines, ${toKb(pointer.bytes)}KB)`;
+  if (mode === 'single-pass') {
+    return [
+      '📄 Full review context (diff, lens definitions, tool outputs, instructions)',
+      `saved to: \`${pointer.path}\``,
+      `${size}. **Read that file** to perform the review — page large content with`,
+      '`read` offset/limit.',
+    ].join('\n');
+  }
+  return [
+    '---',
+    `📄 Full diff + lens context saved to: \`${pointer.path}\``,
+    `${size}. Use \`read\` (offset/limit) to inspect the diff behind a finding.`,
   ].join('\n');
 }
 
@@ -260,6 +329,158 @@ export function buildLensResult(
     summary: '',
     toolOutputs,
     _lensSection: buildLensSection(lens, lensContent, toolOutputs),
+  };
+}
+
+/**
+ * Build the agent-facing review instructions for the single-pass fallback. The
+ * diff is embedded ONCE (not per lens) followed by each lens's section — large
+ * diffs would otherwise be repeated for every lens, bloating the tool output.
+ * Returns '' when no lens produced a section (nothing to review).
+ */
+export function buildToolContext(results: LensResult[], diff: DiffSource): string {
+  const sections = results.map((r) => r._lensSection).filter(Boolean) as string[];
+  if (sections.length === 0) return '';
+
+  return [
+    `# Code Review — ${new Date().toISOString().slice(0, 10)}`,
+    '',
+    '## Changes',
+    '```',
+    diff.stat.trim() || '(no diffstat)',
+    '```',
+    '',
+    'Evaluate the diff through each lens below; the tool outputs are automated analysis.',
+    '',
+    buildDiffSection(diff),
+    '',
+    '## Lenses',
+    '',
+    ...sections,
+    '',
+    '## Instructions',
+    '',
+    'For each lens above, review the diff against its criteria and output a JSON array of findings:',
+    '',
+    '```json',
+    '[',
+    '  { "file": "path/to/file.ts", "line": 42, "severity": "warning", "message": "Description" }',
+    ']',
+    '```',
+    '',
+    'After each lens JSON array, write a 2-3 sentence summary.',
+    'If a lens has no findings, return an empty array `[]` and note the code looks good.',
+  ].join('\n');
+}
+
+/** Persist the full review context somewhere durable, returning a pointer. */
+export type ReviewTempWriter = (content: string) => Promise<ReviewPointer>;
+
+type ReviewToolResult = AgentToolResult<Record<string, unknown>>;
+
+/**
+ * Assemble the single-pass fallback result. The full review context is spilled
+ * to a temp file (via the injected {@link ReviewTempWriter}) so it survives
+ * pi's tool-output cap; the inline payload is just a summary + pointer.
+ * Degrades gracefully: an empty context yields a "no applicable lenses" notice,
+ * and a temp-write failure falls back to the (truncation-prone) inline context
+ * rather than throwing out of the tool.
+ */
+export async function buildSinglePassResult(
+  args: {
+    results: LensResult[];
+    diff: DiffSource;
+    lensNames: string[];
+    availableLenses: string[];
+    changedFiles: string[];
+  },
+  writeTemp: ReviewTempWriter,
+  onUpdate?: AgentToolUpdateCallback,
+): Promise<ReviewToolResult> {
+  const fullContext = buildToolContext(args.results, args.diff);
+  const baseDetails: Record<string, unknown> = {
+    mode: 'single-pass',
+    lensCount: args.lensNames.length,
+    availableLenses: args.availableLenses,
+    changedFiles: args.changedFiles,
+  };
+
+  // No lens produced any context (e.g. the requested lenses matched none of the
+  // available ones) — there is nothing to review, so don't point the agent at
+  // an empty temp file.
+  if (!fullContext.trim()) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `No applicable lenses for this review. Available: ${args.availableLenses.join(', ') || '(none)'}.`,
+        },
+      ],
+      details: baseDetails,
+    };
+  }
+
+  try {
+    const pointer = await writeTemp(fullContext);
+    const summary = `${buildInlineSummary(args.lensNames, args.diff)}\n\n${buildPointer(pointer, 'single-pass')}`;
+    return {
+      content: [{ type: 'text', text: summary }],
+      details: { ...baseDetails, contextFile: pointer.path },
+    };
+  } catch (cause) {
+    onUpdate?.({
+      content: [{ type: 'text', text: 'temp-file write failed — returning inline context' }],
+      details: { writeError: cause instanceof Error ? cause.message : String(cause) },
+    });
+    return { content: [{ type: 'text', text: fullContext }], details: baseDetails };
+  }
+}
+
+/**
+ * Assemble the pipeline result. The validated findings are the valuable output
+ * and stay inline; the diff + lens context is spilled to a temp file (via the
+ * injected {@link ReviewTempWriter}) purely so the agent can drill into the
+ * diff behind a finding. A write failure must NOT discard a completed pipeline,
+ * so on failure the findings are returned WITHOUT a pointer.
+ */
+export async function buildPipelineResult(
+  args: {
+    pipeline: PipelineResult;
+    diff: DiffSource;
+    basePrompt: string;
+    lensNames: string[];
+    availableLenses: string[];
+    changedFiles: string[];
+  },
+  writeTemp: ReviewTempWriter,
+  onUpdate?: AgentToolUpdateCallback,
+): Promise<ReviewToolResult> {
+  const report = renderPipelineReport(args.pipeline, args.diff);
+  let text = report;
+  let contextFile: string | undefined;
+  try {
+    const pointer = await writeTemp(args.basePrompt);
+    text = `${report}\n\n${buildPointer(pointer, 'pipeline')}`;
+    contextFile = pointer.path;
+  } catch (cause) {
+    onUpdate?.({
+      content: [
+        { type: 'text', text: 'temp-file write failed — findings returned without diff pointer' },
+      ],
+      details: { writeError: cause instanceof Error ? cause.message : String(cause) },
+    });
+  }
+  return {
+    content: [{ type: 'text', text }],
+    details: {
+      mode: 'pipeline',
+      lensCount: args.lensNames.length,
+      availableLenses: args.availableLenses,
+      changedFiles: args.changedFiles,
+      findings: args.pipeline.findings,
+      telemetry: args.pipeline.telemetry,
+      ...(contextFile ? { contextFile } : {}),
+    },
   };
 }
 

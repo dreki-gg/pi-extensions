@@ -1,13 +1,10 @@
 {
   "lensDir": ".code-review/lenses",
   "defaultLenses": ["code-quality", "maintainability"],
-  "toolTimeoutMs": 120000,
-  "toolConcurrency": 4,
   "review": {
-    "passes": 5,
+    "passes": 3,
     "validate": true,
-    "minVotes": 2,
-    "temperature": 0.4,
-    "maxFindings": 50
+    "passModels": [{ "model": "anthropic/claude-opus-4-8", "reasoning": "low" }],
+    "validateModel": { "model": "anthropic/claude-opus-4-8", "reasoning": "medium" }
   }
 }
