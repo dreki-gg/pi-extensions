@@ -159,9 +159,37 @@ export function renderPipelineReport(result: PipelineResult, diff: DiffSource): 
     '',
   ];
 
+  // A pass fails when its model call errors; failures are swallowed into 0
+  // findings, so an all-failed run must NOT masquerade as a clean review.
+  const someFailed = telemetry.failedPasses > 0;
+  const allFailed = telemetry.passes > 0 && telemetry.failedPasses >= telemetry.passes;
+  const errSuffix = telemetry.passErrorSample ? ` — e.g. ${telemetry.passErrorSample}` : '';
+
   if (findings.length === 0) {
+    if (allFailed) {
+      return [
+        ...header,
+        `> ⚠️ **Inconclusive — all ${telemetry.passes} review pass(es) failed${errSuffix}.**`,
+        '> No analysis actually ran; this is NOT a clean result. Re-run the review',
+        '> (check that the review model / pi-ai is available) before trusting it.',
+      ].join('\n');
+    }
+    if (someFailed) {
+      return [
+        ...header,
+        `> ⚠️ **Partial review — ${telemetry.failedPasses}/${telemetry.passes} pass(es) failed${errSuffix}.**`,
+        `> The ${telemetry.passes - telemetry.failedPasses} surviving pass(es) found nothing, but coverage was reduced.`,
+      ].join('\n');
+    }
     return [...header, 'No bugs found that survived validation. ✅'].join('\n');
   }
+
+  const partialWarning = someFailed
+    ? [
+        `> ⚠️ **Partial review — ${telemetry.failedPasses}/${telemetry.passes} pass(es) failed${errSuffix}; findings below may be incomplete.**`,
+        '',
+      ]
+    : [];
 
   // Only attribute models per finding when more than one distinct model ran
   // (a bake-off); with a single model it's noise.
@@ -180,7 +208,7 @@ export function renderPipelineReport(result: PipelineResult, diff: DiffSource): 
     return `- ${SEVERITY_EMOJI[finding.severity]} **${finding.severity}** ${where} — ${finding.message} _(${meta})_${justification}`;
   });
 
-  return [...header, '## Findings', '', ...lines].join('\n');
+  return [...header, ...partialWarning, '## Findings', '', ...lines].join('\n');
 }
 
 /** Build the lens-specific section of the review prompt (no diff duplication). */

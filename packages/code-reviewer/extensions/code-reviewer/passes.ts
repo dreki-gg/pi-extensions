@@ -16,6 +16,7 @@
 
 import { Effect } from 'effect';
 
+import { causeMessage } from './errors';
 import { type ModelResolution, Reviewer, makeReviewerService } from './effects/model';
 import type {
   CandidateFinding,
@@ -355,7 +356,11 @@ export function runPassesEffect(
   config: ReviewPipelineConfig,
   plan: ModelPlan,
   signal?: AbortSignal,
-): Effect.Effect<{ perPass: RawFinding[][]; failedPasses: number }, never, Reviewer> {
+): Effect.Effect<
+  { perPass: RawFinding[][]; failedPasses: number; passErrorSample?: string },
+  never,
+  Reviewer
+> {
   return Effect.gen(function* () {
     const reviewer = yield* Reviewer;
     const indices = Array.from({ length: config.passes }, (_unused, index) => index);
@@ -380,17 +385,27 @@ export function runPassesEffect(
             })
             .pipe(Effect.either);
           return result._tag === 'Right'
-            ? { findings: parseFindings(result.right), failed: false }
-            : { findings: [] as RawFinding[], failed: true };
+            ? { findings: parseFindings(result.right), failed: false, error: undefined }
+            : { findings: [] as RawFinding[], failed: true, error: describePassError(result.left) };
         }),
       { concurrency: Math.max(1, config.concurrency) },
     );
 
+    const failures = outcomes.filter((outcome) => outcome.failed);
     return {
       perPass: outcomes.map((outcome) => outcome.findings),
-      failedPasses: outcomes.filter((outcome) => outcome.failed).length,
+      failedPasses: failures.length,
+      passErrorSample: failures[0]?.error,
     };
   });
+}
+
+/** Best-effort human message for a failed pass: the ModelError's own message
+ *  when present, else its underlying cause. */
+function describePassError(error: unknown): string {
+  const message = (error as { message?: unknown }).message;
+  if (typeof message === 'string' && message.trim()) return message;
+  return causeMessage((error as { cause?: unknown }).cause);
 }
 
 function buildValidatorUser(basePrompt: string, candidates: CandidateFinding[]): string {
@@ -514,7 +529,12 @@ export function runPipelineEffect(
 ): Effect.Effect<PipelineResult, never, Reviewer> {
   return Effect.gen(function* () {
     hooks.onStage?.(`running ${config.passes} passes`);
-    const { perPass, failedPasses } = yield* runPassesEffect(basePrompt, config, plan, signal);
+    const { perPass, failedPasses, passErrorSample } = yield* runPassesEffect(
+      basePrompt,
+      config,
+      plan,
+      signal,
+    );
 
     const buckets = bucketFindings(perPass);
     const { kept, droppedLowSignal } = selectCandidates(buckets, config);
@@ -547,6 +567,7 @@ export function runPipelineEffect(
       droppedFalsePositives,
       droppedLowSignal,
       failedPasses,
+      passErrorSample,
       passModels: plan.passes.map((assignment) => assignment.label),
       validatorModel: plan.validator.label,
     };

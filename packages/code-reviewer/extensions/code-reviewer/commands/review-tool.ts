@@ -148,17 +148,32 @@ export function registerReviewTool(pi: ExtensionAPI) {
             signal,
           );
           ctx.ui.setStatus('code-review', undefined);
-          return {
-            content: [{ type: 'text', text: renderPipelineReport(pipeline, diff) }],
+          // Every pass failed (e.g. the review model/pi-ai was unavailable for
+          // each call). The swallowed failures would render as a misleading
+          // "0 findings" report — instead, degrade to the single-pass prompt so
+          // the reviewing agent still produces a real review.
+          const allPassesFailed =
+            config.review.passes > 0 && pipeline.telemetry.failedPasses >= config.review.passes;
+          if (!allPassesFailed) {
+            return {
+              content: [{ type: 'text', text: renderPipelineReport(pipeline, diff) }],
+              details: {
+                mode: 'pipeline',
+                lensCount: lensNames.length,
+                availableLenses: [...available.keys()],
+                changedFiles,
+                findings: pipeline.findings,
+                telemetry: pipeline.telemetry,
+              },
+            };
+          }
+          onUpdate?.({
+            content: [{ type: 'text', text: 'all review passes failed — single-pass fallback' }],
             details: {
-              mode: 'pipeline',
-              lensCount: lensNames.length,
-              availableLenses: [...available.keys()],
-              changedFiles,
-              findings: pipeline.findings,
-              telemetry: pipeline.telemetry,
+              failedPasses: pipeline.telemetry.failedPasses,
+              passError: pipeline.telemetry.passErrorSample,
             },
-          };
+          });
         } catch (cause) {
           // Pipeline failed hard (e.g. model/pi-ai unavailable at runtime) —
           // degrade to the single-pass prompt instead of failing the review.

@@ -95,6 +95,9 @@ export type PipelineTelemetry = {
   droppedFalsePositives: number;
   droppedLowSignal: number;
   failedPasses: number;
+  /** A representative error message from the first failed pass, surfaced so a
+   *  fully-failed run reports WHY instead of a misleading "0 findings". */
+  passErrorSample?: string;
   /** Model key used for each pass (parallel to pass index). */
   passModels: string[];
   /** Model key used for the validator stage. */

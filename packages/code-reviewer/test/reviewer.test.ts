@@ -4,9 +4,15 @@ import { Effect } from 'effect';
 import {
   buildLensResult,
   pickLensToolOutputs,
+  renderPipelineReport,
   runToolsEffect,
 } from '../extensions/code-reviewer/reviewer';
-import type { LensConfig } from '../extensions/code-reviewer/types';
+import type {
+  LensConfig,
+  PipelineTelemetry,
+  ValidatedFinding,
+} from '../extensions/code-reviewer/types';
+import type { DiffSource } from '../extensions/code-reviewer/diff';
 import { fakeExecutor } from './helpers';
 
 const lens: LensConfig = {
@@ -18,6 +24,79 @@ const lens: LensConfig = {
 };
 
 const opts = { timeoutMs: 60_000, concurrency: 4 };
+
+const diffSource: DiffSource = { diff: 'x', stat: 's', label: 'all uncommitted changes' };
+
+function telemetry(over: Partial<PipelineTelemetry> = {}): PipelineTelemetry {
+  return {
+    passes: 5,
+    passFindingCounts: [],
+    buckets: 0,
+    candidates: 0,
+    validated: 0,
+    droppedFalsePositives: 0,
+    droppedLowSignal: 0,
+    failedPasses: 0,
+    passModels: ['default', 'default', 'default', 'default', 'default'],
+    validatorModel: 'default',
+    ...over,
+  };
+}
+
+describe('renderPipelineReport', () => {
+  test('clean run (no failures, no findings) shows the green check', () => {
+    const report = renderPipelineReport({ findings: [], telemetry: telemetry() }, diffSource);
+    expect(report).toContain('✅');
+    expect(report).not.toContain('Inconclusive');
+  });
+
+  test('all passes failed with no findings is inconclusive, never a clean check', () => {
+    const report = renderPipelineReport(
+      {
+        findings: [],
+        telemetry: telemetry({ failedPasses: 5, passErrorSample: 'model x unavailable' }),
+      },
+      diffSource,
+    );
+    expect(report).not.toContain('✅');
+    expect(report).toContain('Inconclusive');
+    expect(report).toContain('model x unavailable');
+  });
+
+  test('partial failure with no findings is flagged as partial, not clean', () => {
+    const report = renderPipelineReport(
+      { findings: [], telemetry: telemetry({ failedPasses: 2, passErrorSample: 'timeout' }) },
+      diffSource,
+    );
+    expect(report).not.toContain('✅');
+    expect(report).toContain('Partial');
+    expect(report).toContain('2/5');
+  });
+
+  test('findings present with some failed passes carry a partial-coverage warning', () => {
+    const finding: ValidatedFinding = {
+      file: 'a.ts',
+      line: 1,
+      severity: 'warning',
+      message: 'bug',
+      category: 'x',
+      votes: 2,
+      passIndices: [0, 1],
+      verdict: 'real',
+      confidence: 0.8,
+      models: ['default'],
+    };
+    const report = renderPipelineReport(
+      {
+        findings: [finding],
+        telemetry: telemetry({ failedPasses: 1, buckets: 1, candidates: 1, validated: 1 }),
+      },
+      diffSource,
+    );
+    expect(report).toContain('## Findings');
+    expect(report).toContain('Partial');
+  });
+});
 
 describe('runToolsEffect', () => {
   test('captures stdout, and degrades a failed/timed-out tool gracefully', async () => {

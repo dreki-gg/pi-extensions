@@ -268,6 +268,20 @@ describe('runPipelineEffect (end to end with a fake model)', () => {
     expect(result.findings).toHaveLength(1);
   });
 
+  test('captures a sample error message when passes fail (telemetry, not silent 0)', async () => {
+    const layer = fakeReviewer({
+      onPass: () => findingsJson([NAN_BUG]),
+      onValidate: () => JSON.stringify([{ id: 0, verdict: 'real', confidence: 0.9 }]),
+      failPasses: new Set([0, 1, 2, 3]),
+    });
+    const result = await Effect.runPromise(
+      runPipelineEffect('base', PIPELINE, PLAN, {}, undefined).pipe(Effect.provide(layer)),
+    );
+    expect(result.telemetry.failedPasses).toBe(4);
+    expect(result.telemetry.passErrorSample).toContain('boom');
+    expect(result.findings).toHaveLength(0);
+  });
+
   test('validate:false ranks by votes without a validator call', async () => {
     const layer = fakeReviewer({ onPass: () => findingsJson([NAN_BUG]) });
     const result = await Effect.runPromise(
