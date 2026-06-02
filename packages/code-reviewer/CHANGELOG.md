@@ -1,5 +1,50 @@
 # @dreki-gg/pi-code-reviewer
 
+## 0.5.0
+
+### Minor Changes
+
+- feat(code-reviewer): self-driving Bugbot-style review pipeline
+
+  The `code_review` tool can now run the review itself instead of only
+  returning a prompt for a single downstream pass. When a session model is
+  available it drives a multi-stage pipeline modeled on Cursor's Bugbot:
+
+  1. **N parallel adversarial passes** over the diff (default 5), each given a
+     different focus (trust boundaries, control flow, async, types, state,
+     security, resources, contracts) and a temperature jitter so they reason
+     down different paths.
+  2. **Bucket + majority vote** — near-duplicate findings are fused (same file +
+     line proximity + message similarity) and tracked by distinct-pass votes;
+     low-signal single-pass notes are dropped (blockers/warnings are never
+     dropped for low votes).
+  3. **Validator stage** — one batched call falsifies or confirms each surviving
+     candidate, dropping false positives. It **fails open**: a validator error
+     surfaces candidates unvalidated rather than losing a real bug.
+
+  The tool returns finished, validated findings as a Markdown report (with vote
+  counts, confidence, and validator justification) plus structured `details`.
+  When no model is available (e.g. print mode) or `review.passes` is `0`, it
+  falls back to the previous single-pass prompt behavior.
+
+  New `.code-review.json` `review` block: `passes` (default 5, `0` disables),
+  `validate` (default true), `minVotes` (default 2), `concurrency` (default =
+  passes), `temperature` (default 0.4), `maxFindings` (default 50).
+
+  **Per-step model + reasoning selection (model bake-off).** `review.passModel` /
+  `review.passModels` (rotated round-robin across passes) / `review.validateModel`
+  let each step run on a different model AND reasoning level so you can A/B which
+  models / efforts review best / fastest / cheapest in a single run. Each step is
+  a spec string (`provider/id`, a bare `id`, or a display `name`) or
+  `{ "model", "reasoning" }` where reasoning is `minimal|low|medium|high|xhigh`.
+  Unknown specs fall back to the session model with a warning. Findings are
+  annotated with the contributing model(s) and the report shows a per-model
+  breakdown.
+
+  The scaffolded `code-quality` lens gains an **adversarial-inputs** criterion
+  (edge-value enumeration + claim-vs-code audit) — the class of check that
+  catches bugs like `typeof NaN === "number"` defeating a version guard.
+
 ## 0.4.0
 
 ### Minor Changes

@@ -13,11 +13,21 @@ function run(opts: Parameters<typeof fileSystemLayer>[0]) {
 }
 
 describe('loadConfigEffect', () => {
+  const DEFAULT_PIPELINE = {
+    passes: 5,
+    validate: true,
+    minVotes: 2,
+    concurrency: 5,
+    temperature: 0.4,
+    maxFindings: 50,
+  };
+
   const DEFAULTS = {
     lensDir: '.code-review/lenses',
     defaultLenses: [],
     toolTimeoutMs: 60_000,
     toolConcurrency: 4,
+    review: DEFAULT_PIPELINE,
   };
 
   test('returns defaults when no config file exists', async () => {
@@ -41,6 +51,62 @@ describe('loadConfigEffect', () => {
       lensDir: 'review/lenses',
       defaultLenses: ['code-quality'],
     });
+  });
+
+  test('reads review pipeline overrides and tracks concurrency to pass count', async () => {
+    const config = await run({
+      files: {
+        [configPath]: JSON.stringify({ review: { passes: 3, validate: false, minVotes: 1 } }),
+      },
+    });
+    expect(config.review.passes).toBe(3);
+    expect(config.review.validate).toBe(false);
+    expect(config.review.minVotes).toBe(1);
+    // concurrency defaults to the pass count when not set
+    expect(config.review.concurrency).toBe(3);
+    expect(config.review.temperature).toBe(0.4);
+  });
+
+  test('parses per-step model overrides (string + { model, reasoning })', async () => {
+    const config = await run({
+      files: {
+        [configPath]: JSON.stringify({
+          review: {
+            passModels: [{ model: 'anthropic/claude-opus-4-8', reasoning: 'low' }],
+            validateModel: { model: 'anthropic/claude-opus-4-8', reasoning: 'medium' },
+          },
+        }),
+      },
+    });
+    expect(config.review.passModels).toEqual([
+      { model: 'anthropic/claude-opus-4-8', reasoning: 'low' },
+    ]);
+    expect(config.review.validateModel).toEqual({
+      model: 'anthropic/claude-opus-4-8',
+      reasoning: 'medium',
+    });
+  });
+
+  test('drops an invalid reasoning level but keeps the model', async () => {
+    const config = await run({
+      files: {
+        [configPath]: JSON.stringify({
+          review: { validateModel: { model: 'openai/gpt-5.5', reasoning: 'ultra' } },
+        }),
+      },
+    });
+    expect(config.review.validateModel).toEqual({ model: 'openai/gpt-5.5' });
+  });
+
+  test('allows passes: 0 to disable the pipeline, ignores invalid knobs', async () => {
+    const config = await run({
+      files: {
+        [configPath]: JSON.stringify({ review: { passes: 0, minVotes: -2, temperature: 9 } }),
+      },
+    });
+    expect(config.review.passes).toBe(0);
+    expect(config.review.minVotes).toBe(2); // invalid → default
+    expect(config.review.temperature).toBe(2); // clamped to max
   });
 
   test('fills missing fields with defaults', async () => {

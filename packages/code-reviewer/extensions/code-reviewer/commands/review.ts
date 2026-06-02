@@ -3,7 +3,16 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { loadConfig, getLensDir } from '../config';
 import { collectDiff } from '../diff';
 import { discoverLenses, getLensContent } from '../lenses';
-import { buildDiffSection, buildLensResult, pickLensToolOutputs, runTools } from '../reviewer';
+import { resolveModelPlan } from '../model-plan';
+import { runPipeline } from '../passes';
+import {
+  buildDiffSection,
+  buildLensResult,
+  buildReviewBasePrompt,
+  pickLensToolOutputs,
+  renderPipelineReport,
+  runTools,
+} from '../reviewer';
 import { parseReviewArgs } from '../parse-args';
 
 export function registerReviewCommand(pi: ExtensionAPI) {
@@ -70,6 +79,32 @@ export function registerReviewCommand(pi: ExtensionAPI) {
       }
 
       ctx.ui.setStatus('code-review', undefined);
+
+      // Self-driving path: run the Bugbot-style pipeline in-command and deliver
+      // the validated report in-session for discussion. Mirrors the tool.
+      if (ctx.model && config.review.passes > 0 && lensSections.length > 0) {
+        try {
+          const { resolution, plan, warnings } = resolveModelPlan(
+            config.review,
+            ctx.model,
+            ctx.modelRegistry,
+          );
+          for (const warning of warnings) ctx.ui.notify(warning, 'warning');
+          const basePrompt = buildReviewBasePrompt(lensSections, diff);
+          const pipeline = await runPipeline(resolution, plan, basePrompt, config.review, {
+            onStage: (stage) => ctx.ui.setStatus('code-review', `🔍 ${stage}...`),
+          });
+          ctx.ui.setStatus('code-review', undefined);
+          pi.sendUserMessage(renderPipelineReport(pipeline, diff), { deliverAs: 'followUp' });
+          return;
+        } catch (cause) {
+          ctx.ui.setStatus('code-review', undefined);
+          ctx.ui.notify(
+            `Pipeline unavailable (${cause instanceof Error ? cause.message : String(cause)}) — single-pass fallback`,
+            'warning',
+          );
+        }
+      }
 
       const combinedPrompt = [
         `Review the following changes through ${lensNames.length} lens(es): ${lensNames.join(', ')}.`,

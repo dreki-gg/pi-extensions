@@ -28,7 +28,16 @@ export class ExecError extends Data.TaggedError('ExecError')<{
   }
 }
 
-export type CodeReviewerError = FileReadError | ExecError;
+export class ModelError extends Data.TaggedError('ModelError')<{
+  readonly stage: string;
+  readonly cause: unknown;
+}> {
+  get message(): string {
+    return `Model call failed during ${this.stage}: ${causeMessage(this.cause)}`;
+  }
+}
+
+export type CodeReviewerError = FileReadError | ExecError | ModelError;
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 

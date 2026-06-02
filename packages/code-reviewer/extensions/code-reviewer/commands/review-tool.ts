@@ -4,7 +4,16 @@ import { Type } from 'typebox';
 import { loadConfig, getLensDir } from '../config';
 import { collectDiff, getChangedFiles } from '../diff';
 import { discoverLenses, getLensContent } from '../lenses';
-import { buildDiffSection, buildLensResult, pickLensToolOutputs, runTools } from '../reviewer';
+import { resolveModelPlan } from '../model-plan';
+import { runPipeline } from '../passes';
+import {
+  buildDiffSection,
+  buildLensResult,
+  buildReviewBasePrompt,
+  pickLensToolOutputs,
+  renderPipelineReport,
+  runTools,
+} from '../reviewer';
 import type { DiffSource } from '../diff';
 import type { LensResult, ReviewConfig } from '../types';
 
@@ -106,23 +115,75 @@ export function registerReviewTool(pi: ExtensionAPI) {
         results.push(buildLensResult(lens, content, pickLensToolOutputs(lens, toolOutputs)));
       }
 
+      const changedFiles = await getChangedFiles(pi, cwd, {
+        base: params.base,
+        staged: params.staged,
+      });
+
+      // Self-driving path: when a model is available and passes are enabled,
+      // the tool runs the Bugbot-style pipeline itself (parallel adversarial
+      // passes → bucket → majority vote → validate) and returns FINISHED,
+      // validated findings — not a prompt for a single downstream pass.
+      const lensSections = results.map((result) => result._lensSection).filter(Boolean) as string[];
+      if (ctx.model && config.review.passes > 0 && lensSections.length > 0 && !signal?.aborted) {
+        try {
+          const { resolution, plan, warnings } = resolveModelPlan(
+            config.review,
+            ctx.model,
+            ctx.modelRegistry,
+          );
+          for (const warning of warnings) ctx.ui.notify(warning, 'warning');
+          const basePrompt = buildReviewBasePrompt(lensSections, diff);
+          const pipeline = await runPipeline(
+            resolution,
+            plan,
+            basePrompt,
+            config.review,
+            {
+              onStage: (stage) => {
+                ctx.ui.setStatus('code-review', `🔍 ${stage}...`);
+                onUpdate?.({ content: [{ type: 'text', text: stage }], details: { stage } });
+              },
+            },
+            signal,
+          );
+          ctx.ui.setStatus('code-review', undefined);
+          return {
+            content: [{ type: 'text', text: renderPipelineReport(pipeline, diff) }],
+            details: {
+              mode: 'pipeline',
+              lensCount: lensNames.length,
+              availableLenses: [...available.keys()],
+              changedFiles,
+              findings: pipeline.findings,
+              telemetry: pipeline.telemetry,
+            },
+          };
+        } catch (cause) {
+          // Pipeline failed hard (e.g. model/pi-ai unavailable at runtime) —
+          // degrade to the single-pass prompt instead of failing the review.
+          ctx.ui.setStatus('code-review', undefined);
+          onUpdate?.({
+            content: [{ type: 'text', text: 'pipeline unavailable — single-pass fallback' }],
+            details: { pipelineError: cause instanceof Error ? cause.message : String(cause) },
+          });
+        }
+      }
+
       ctx.ui.setStatus('code-review', undefined);
 
-      // The tool returns a pre-review skeleton + the review task. Findings are
-      // produced by the agent in its follow-up message (per the instructions
-      // below), NOT parsed back here — so we deliberately do not render a
-      // findings scoreboard that would always read "0".
+      // Fallback: return the review task for a single downstream pass (the
+      // agent produces findings in its follow-up message). Used when no model
+      // is available (e.g. print mode) or passes are disabled in config.
       const text = buildToolContext(results, diff);
 
       return {
         content: [{ type: 'text', text }],
         details: {
+          mode: 'single-pass',
           lensCount: lensNames.length,
           availableLenses: [...available.keys()],
-          changedFiles: await getChangedFiles(pi, cwd, {
-            base: params.base,
-            staged: params.staged,
-          }),
+          changedFiles,
         },
       };
     },

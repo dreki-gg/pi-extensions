@@ -4,7 +4,7 @@ import { Effect } from 'effect';
 
 import type { DiffSource } from './diff';
 import { Executor, makeExecutorService } from './effects/exec';
-import type { LensConfig, LensResult } from './types';
+import type { LensConfig, LensResult, PipelineResult, ValidatedFinding } from './types';
 
 const isWindows = platform() === 'win32';
 
@@ -95,6 +95,92 @@ export function buildDiffSection(diff: DiffSource): string {
   parts.push('```');
 
   return parts.join('\n');
+}
+
+/**
+ * Build the shared review body fed to every pipeline pass: the diff (once) plus
+ * each lens definition + its tool outputs, WITHOUT the legacy per-lens output
+ * instructions (the pipeline supplies its own adversarial instructions). The
+ * legacy single-pass fallback appends its instructions separately.
+ */
+export function buildReviewBasePrompt(lensSections: string[], diff: DiffSource): string {
+  return [
+    '## Changes',
+    '```',
+    diff.stat.trim() || '(no diffstat)',
+    '```',
+    '',
+    buildDiffSection(diff),
+    '',
+    '## Review lenses (project invariants to check)',
+    '',
+    ...lensSections,
+  ].join('\n');
+}
+
+const SEVERITY_EMOJI: Record<ValidatedFinding['severity'], string> = {
+  blocker: '🔴',
+  warning: '🟡',
+  note: '🔵',
+};
+
+/** A one-line model summary, shown only when a non-default model is in play. */
+function renderModelLine(telemetry: PipelineResult['telemetry']): string[] {
+  const passKeys = new Set(telemetry.passModels);
+  const allDefault =
+    passKeys.size === 1 && passKeys.has('default') && telemetry.validatorModel === 'default';
+  if (allDefault) return [];
+
+  const passCounts = new Map<string, number>();
+  for (const key of telemetry.passModels) passCounts.set(key, (passCounts.get(key) ?? 0) + 1);
+  const passSummary = [...passCounts.entries()].map(([key, count]) => `${key}×${count}`).join(', ');
+  return [`Models — passes: ${passSummary}; validator: ${telemetry.validatorModel}.`];
+}
+
+/** Render the validated pipeline findings into a Markdown review report. */
+export function renderPipelineReport(result: PipelineResult, diff: DiffSource): string {
+  const { findings, telemetry } = result;
+  const counts = {
+    blocker: findings.filter((finding) => finding.severity === 'blocker').length,
+    warning: findings.filter((finding) => finding.severity === 'warning').length,
+    note: findings.filter((finding) => finding.severity === 'note').length,
+  };
+
+  const header = [
+    `# Code Review — ${new Date().toISOString().slice(0, 10)}`,
+    '',
+    `Reviewed ${diff.label} across ${telemetry.passes} adversarial pass(es)` +
+      `${telemetry.failedPasses ? ` (${telemetry.failedPasses} failed)` : ''}.`,
+    '',
+    `**${findings.length} finding(s)** — ${counts.blocker} blocker, ${counts.warning} warning, ${counts.note} note.`,
+    `Pipeline: ${telemetry.buckets} buckets → ${telemetry.candidates} candidates → ${telemetry.validated} validated` +
+      ` (dropped ${telemetry.droppedFalsePositives} false-positive, ${telemetry.droppedLowSignal} low-signal).`,
+    ...renderModelLine(telemetry),
+    '',
+  ];
+
+  if (findings.length === 0) {
+    return [...header, 'No bugs found that survived validation. ✅'].join('\n');
+  }
+
+  // Only attribute models per finding when more than one distinct model ran
+  // (a bake-off); with a single model it's noise.
+  const multiModel = new Set(telemetry.passModels).size > 1;
+  const lines = findings.map((finding) => {
+    const where = finding.line ? `\`${finding.file}:${finding.line}\`` : `\`${finding.file}\``;
+    const meta = [
+      `${finding.votes}/${telemetry.passes} votes`,
+      `${Math.round(finding.confidence * 100)}% conf`,
+      finding.category,
+      multiModel && finding.models.length > 0 ? `models: ${finding.models.join(', ')}` : undefined,
+    ]
+      .filter(Boolean)
+      .join(', ');
+    const justification = finding.justification ? `\n  ↳ ${finding.justification}` : '';
+    return `- ${SEVERITY_EMOJI[finding.severity]} **${finding.severity}** ${where} — ${finding.message} _(${meta})_${justification}`;
+  });
+
+  return [...header, '## Findings', '', ...lines].join('\n');
 }
 
 /** Build the lens-specific section of the review prompt (no diff duplication). */
