@@ -1,5 +1,17 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.18.0
+
+### Minor Changes
+
+- Make `update_task` / `add_task` usable across sessions and resilient for autonomous agents.
+
+  The active plan was session-scoped: `update_task` / `add_task` only worked when a plan was submitted in the same session, restored from its entries, or handed off via the one-shot exec-pending marker. An agent executing an existing `.plans/<name>/` in a fresh session (the common plan-here / execute-there flow) hit a hard `No active plan` throw.
+
+  - **Disk-backed resolution** (`resolveActivePlan`): when nothing is attached in memory, the active plan is resolved from `.plans/plans.jsonl` — the sole in-progress plan auto-attaches (data only; does NOT enter execution mode / change tools / model). Wired into `session_start` and both tracking tools.
+  - **No hard throws on tracking calls**: `update_task` / `add_task` now return soft, non-terminating results (no active plan, unknown task id, already-resolved task) so a tracking miss never derails the real work. `update_task` is idempotent — re-marking the same status is a no-op success.
+  - **`plan` parameter**: both tools accept an optional `plan` (name or `.plans/<name>`) to disambiguate without the interactive `/plan resume` when multiple plans are in-progress.
+
 ## 0.17.1
 
 ### Patch Changes

@@ -38,6 +38,7 @@ import { filterExecutionMessages, filterStalePlanMessages } from './context-filt
 import { activeTasksResolved, deferredTasks } from './task-status.js';
 import { enterPlanMode, exitPlanMode, switchModel } from './phase-transitions.js';
 import { resumePlan, executeInNewSession } from './resume.js';
+import { resolveActivePlan } from './resolve-plan.js';
 import { registerSubmitPlanTool } from './tools/submit-plan.js';
 import { registerPreviewPrototypeTool } from './tools/preview-prototype.js';
 import { registerUpdateTaskTool } from './tools/update-task.js';
@@ -68,7 +69,7 @@ export default function planMode(pi: ExtensionAPI): void {
   registerPreviewPrototypeTool(pi, runPlanIO);
 
   registerUpdateTaskTool(pi, {
-    getPlan: () => state.plan,
+    resolvePlan: (opts) => resolveActivePlan(state, pi, runPlanIO, opts),
     onTaskUpdated: async (taskId, status, notes) => {
       if (!state.plan || !state.planDir) return;
       const task = state.plan.tasks.find((candidate) => candidate.id === taskId);
@@ -93,7 +94,7 @@ export default function planMode(pi: ExtensionAPI): void {
   });
 
   registerAddTaskTool(pi, {
-    getPlan: () => state.plan,
+    resolvePlan: (opts) => resolveActivePlan(state, pi, runPlanIO, opts),
     onTaskAdded: async (task) => {
       if (!state.plan || !state.planDir) return;
       state.plan.tasks.push(task);
@@ -475,6 +476,14 @@ export default function planMode(pi: ExtensionAPI): void {
         state.persist(pi);
         return;
       }
+    }
+
+    // No plan attached from this session's entries or the exec handoff, but a
+    // plan may exist on disk (planning happened in another session). Attach the
+    // single in-progress plan so update_task / add_task work without an
+    // interactive /plan resume. Data only — does NOT enter execution mode.
+    if (!state.plan) {
+      await resolveActivePlan(state, pi, runPlanIO);
     }
 
     // Apply tool restrictions, model, and thinking level

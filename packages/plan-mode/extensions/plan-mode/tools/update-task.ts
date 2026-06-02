@@ -6,15 +6,22 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { StringEnum } from '@earendil-works/pi-ai';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
-import type { PlanData, TaskStatus } from '../types.js';
+import type { TaskStatus } from '../types.js';
+import type { ResolvedPlan } from '../resolve-plan.js';
 
 export interface UpdateTaskCallbacks {
-  getPlan: () => PlanData | undefined;
+  /** Resolve the active plan, attaching from disk when none is in memory. */
+  resolvePlan: (opts?: { name?: string }) => Promise<ResolvedPlan>;
   onTaskUpdated: (
     taskId: string,
     status: Exclude<TaskStatus, 'pending'>,
     notes?: string,
   ) => void | Promise<void>;
+}
+
+/** A non-terminating tool result — task tracking must never derail real work. */
+function soft(text: string, details: Record<string, unknown>) {
+  return { content: [{ type: 'text' as const, text }], details };
 }
 
 export function registerUpdateTaskTool(pi: ExtensionAPI, callbacks: UpdateTaskCallbacks): void {
@@ -35,17 +42,51 @@ export function registerUpdateTaskTool(pi: ExtensionAPI, callbacks: UpdateTaskCa
       notes: Type.Optional(
         Type.String({ description: 'What was done, why skipped, or why blocked' }),
       ),
+      plan: Type.Optional(
+        Type.String({
+          description:
+            'Plan name (or .plans/<name>) to target. Only needed to disambiguate when multiple plans are in-progress; otherwise the active / sole in-progress plan is used.',
+        }),
+      ),
     }),
 
     async execute(_toolCallId, params) {
-      const plan = callbacks.getPlan();
-      if (!plan) throw new Error('No active plan. Cannot update task.');
+      const { plan, candidates } = await callbacks.resolvePlan({ name: params.plan });
+      // No active plan is a tracking miss, not an error: return a soft result
+      // (non-terminating) so the agent keeps doing the real work.
+      if (!plan) {
+        const hint =
+          candidates.length > 1
+            ? ` Multiple in-progress plans (${candidates.join(', ')}) — pass { plan: "<name>" } to choose.`
+            : ' No in-progress plan found in .plans/plans.jsonl.';
+        return soft(`Skipped task tracking — no active plan.${hint}`, {
+          skipped: true,
+          candidates,
+        });
+      }
 
       const task = plan.tasks.find((candidate) => candidate.id === params.task_id);
-      if (!task) throw new Error(`Task not found: ${params.task_id}`);
+      if (!task) {
+        const ids = plan.tasks.map((candidate) => candidate.id).join(', ');
+        return soft(`Task not found: ${params.task_id}. Valid ids: ${ids || '(none)'}`, {
+          error: 'not_found',
+          task_id: params.task_id,
+        });
+      }
+      // Idempotent: re-marking the same status is a no-op success (safe to
+      // retry). A different status on an already-resolved task is reported but
+      // not applied — the plan state machine only advances pending tasks.
+      if (task.status === params.status) {
+        return soft(`Task ${params.task_id} already ${params.status} (no-op).`, {
+          task_id: params.task_id,
+          status: params.status,
+          description: task.description,
+        });
+      }
       if (task.status !== 'pending') {
-        throw new Error(
-          `Task ${params.task_id} is already "${task.status}". Only pending tasks can be updated.`,
+        return soft(
+          `Task ${params.task_id} is already "${task.status}"; only pending tasks can change status.`,
+          { task_id: params.task_id, status: task.status, description: task.description },
         );
       }
 

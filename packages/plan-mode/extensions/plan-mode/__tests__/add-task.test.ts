@@ -7,8 +7,14 @@ const now = '2026-05-27T12:00:00.000Z';
 interface CapturedTool {
   execute: (
     id: string,
-    params: { description: string; reason: string; details?: string; depends_on?: string[] },
-  ) => Promise<{ details?: unknown }>;
+    params: {
+      description: string;
+      reason: string;
+      details?: string;
+      depends_on?: string[];
+      plan?: string;
+    },
+  ) => Promise<{ content?: Array<{ text: string }>; details?: unknown }>;
 }
 
 function setup(plan: PlanData | undefined) {
@@ -21,7 +27,8 @@ function setup(plan: PlanData | undefined) {
   } as unknown as Parameters<typeof registerAddTaskTool>[0];
 
   registerAddTaskTool(pi, {
-    getPlan: () => plan,
+    // Mirrors index.ts: in-memory plan wins; disk fallback returns candidates.
+    resolvePlan: async () => ({ plan, candidates: [] }),
     onTaskAdded: (task) => {
       added.push(task);
     },
@@ -66,10 +73,11 @@ describe('add_task tool', () => {
     expect(task.description).toBe('Extract shared helper');
   });
 
-  test('throws when there is no active plan', async () => {
-    const { tool } = setup(undefined);
-    await expect(tool.execute('call-1', { description: 'x', reason: 'y' })).rejects.toThrow(
-      /No active plan/,
-    );
+  test('soft-skips (does not throw) when there is no active plan', async () => {
+    const { tool, added } = setup(undefined);
+    const result = await tool.execute('call-1', { description: 'x', reason: 'y' });
+    expect((result.details as { skipped?: boolean }).skipped).toBe(true);
+    expect(result.content?.[0]?.text).toMatch(/no active plan/i);
+    expect(added).toHaveLength(0);
   });
 });
