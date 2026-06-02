@@ -40,9 +40,9 @@ export function registerReviewTool(pi: ExtensionAPI) {
 
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
       const cwd = ctx.cwd;
-      const config = loadConfig(cwd);
+      const config = await loadConfig(cwd);
       const lensDir = getLensDir(cwd, config);
-      const available = discoverLenses(lensDir);
+      const available = await discoverLenses(lensDir);
 
       if (available.size === 0) {
         return {
@@ -85,7 +85,7 @@ export function registerReviewTool(pi: ExtensionAPI) {
         });
 
         const lens = available.get(name)!;
-        const content = getLensContent(lensDir, name) ?? '';
+        const content = (await getLensContent(lensDir, name)) ?? '';
         const result = await reviewWithLens(pi, ctx, cwd, lens, content, diff, signal);
         results.push(result);
       }

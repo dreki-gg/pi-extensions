@@ -1,36 +1,39 @@
 import { platform } from 'node:os';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { Effect } from 'effect';
+
 import type { DiffSource } from './diff';
+import { Executor, makeExecutorService } from './effects/exec';
 import type { LensConfig, LensResult } from './types';
 
 const isWindows = platform() === 'win32';
 
 /** Run project tools specified by a lens and collect their output. */
-async function runLensTools(
-  pi: ExtensionAPI,
+function runLensToolsEffect(
   cwd: string,
   tools: string[],
   signal?: AbortSignal,
-): Promise<Record<string, string>> {
-  const outputs: Record<string, string> = {};
+): Effect.Effect<Record<string, string>, never, Executor> {
+  return Effect.gen(function* () {
+    const executor = yield* Executor;
+    const outputs: Record<string, string> = {};
 
-  for (const tool of tools) {
-    if (signal?.aborted) break;
+    for (const tool of tools) {
+      if (signal?.aborted) break;
 
-    try {
       const [shell, shellArgs] = isWindows ? ['cmd', ['/c', tool]] : ['sh', ['-c', tool]];
-      const result = await pi.exec(shell, shellArgs, {
-        cwd,
-        timeout: 60_000,
-        signal,
-      });
-      outputs[tool] = result.stdout || result.stderr || '(no output)';
-    } catch {
-      outputs[tool] = `(tool failed or timed out: ${tool})`;
-    }
-  }
+      const result = yield* executor
+        .exec(shell, shellArgs as string[], { cwd, timeout: 60_000, signal })
+        .pipe(Effect.either);
 
-  return outputs;
+      outputs[tool] =
+        result._tag === 'Right'
+          ? result.right.stdout || result.right.stderr || '(no output)'
+          : `(tool failed or timed out: ${tool})`;
+    }
+
+    return outputs;
+  });
 }
 
 /** Build the shared diff section of the review prompt (included once). */
@@ -125,9 +128,31 @@ function buildReviewPrompt(
   return parts.join('\n');
 }
 
-/** Execute a review for a single lens using the subagent tool. */
-export async function reviewWithLens(
-  pi: ExtensionAPI,
+/** Execute a review for a single lens: run its tools, then build the prompt. */
+export function reviewWithLensEffect(
+  cwd: string,
+  lens: LensConfig,
+  lensContent: string,
+  diff: DiffSource,
+  signal?: AbortSignal,
+): Effect.Effect<LensResult, never, Executor> {
+  return Effect.gen(function* () {
+    const toolOutputs = yield* runLensToolsEffect(cwd, lens.tools, signal);
+
+    return {
+      lens: lens.name,
+      findings: [],
+      summary: '',
+      toolOutputs,
+      _prompt: buildReviewPrompt(lens, lensContent, diff, toolOutputs),
+      _lensSection: buildLensSection(lens, lensContent, toolOutputs),
+    };
+  });
+}
+
+/** Promise wrapper building a live Executor from `pi`. */
+export function reviewWithLens(
+  pi: Pick<ExtensionAPI, 'exec'>,
   _ctx: unknown,
   cwd: string,
   lens: LensConfig,
@@ -135,19 +160,9 @@ export async function reviewWithLens(
   diff: DiffSource,
   signal?: AbortSignal,
 ): Promise<LensResult> {
-  // Run lens tools first
-  const toolOutputs = await runLensTools(pi, cwd, lens.tools, signal);
-
-  // Build the prompt
-  const prompt = buildReviewPrompt(lens, lensContent, diff, toolOutputs);
-  const lensSection = buildLensSection(lens, lensContent, toolOutputs);
-
-  return {
-    lens: lens.name,
-    findings: [],
-    summary: '',
-    toolOutputs,
-    _prompt: prompt,
-    _lensSection: lensSection,
-  };
+  return Effect.runPromise(
+    reviewWithLensEffect(cwd, lens, lensContent, diff, signal).pipe(
+      Effect.provideService(Executor, makeExecutorService(pi)),
+    ),
+  );
 }
