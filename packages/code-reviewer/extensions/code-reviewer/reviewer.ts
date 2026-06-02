@@ -8,32 +8,63 @@ import type { LensConfig, LensResult } from './types';
 
 const isWindows = platform() === 'win32';
 
-/** Run project tools specified by a lens and collect their output. */
-function runLensToolsEffect(
+export type ToolRunOptions = { timeoutMs: number; concurrency: number };
+
+/**
+ * Run a set of project tool commands ONCE, deduped and concurrently, and
+ * collect their output keyed by the original command string.
+ *
+ * Tools are deduped across lenses by the caller (and again here defensively),
+ * so a command shared by several lenses runs a single time — not once per
+ * lens. Each command is shelled out with a bounded timeout; a failure or
+ * timeout degrades to a sentinel string instead of failing the whole review.
+ */
+export function runToolsEffect(
   cwd: string,
   tools: string[],
+  options: ToolRunOptions,
   signal?: AbortSignal,
 ): Effect.Effect<Record<string, string>, never, Executor> {
   return Effect.gen(function* () {
+    const unique = [...new Set(tools)];
+    if (unique.length === 0 || signal?.aborted) return {};
+
     const executor = yield* Executor;
-    const outputs: Record<string, string> = {};
 
-    for (const tool of tools) {
-      if (signal?.aborted) break;
+    const entries = yield* Effect.forEach(
+      unique,
+      (tool) =>
+        Effect.gen(function* () {
+          if (signal?.aborted) return [tool, '(skipped: review aborted)'] as const;
 
-      const [shell, shellArgs] = isWindows ? ['cmd', ['/c', tool]] : ['sh', ['-c', tool]];
-      const result = yield* executor
-        .exec(shell, shellArgs as string[], { cwd, timeout: 60_000, signal })
-        .pipe(Effect.either);
+          const [shell, shellArgs] = isWindows ? ['cmd', ['/c', tool]] : ['sh', ['-c', tool]];
+          const result = yield* executor
+            .exec(shell, shellArgs as string[], { cwd, timeout: options.timeoutMs, signal })
+            .pipe(Effect.either);
 
-      outputs[tool] =
-        result._tag === 'Right'
-          ? result.right.stdout || result.right.stderr || '(no output)'
-          : `(tool failed or timed out: ${tool})`;
-    }
+          const output =
+            result._tag === 'Right'
+              ? result.right.stdout || result.right.stderr || '(no output)'
+              : `(tool failed or timed out: ${tool})`;
+          return [tool, output] as const;
+        }),
+      { concurrency: Math.max(1, options.concurrency) },
+    );
 
-    return outputs;
+    return Object.fromEntries(entries);
   });
+}
+
+/** Pick the subset of already-run tool outputs that a given lens declares. */
+export function pickLensToolOutputs(
+  lens: LensConfig,
+  allOutputs: Record<string, string>,
+): Record<string, string> {
+  const picked: Record<string, string> = {};
+  for (const tool of lens.tools) {
+    if (tool in allOutputs) picked[tool] = allOutputs[tool];
+  }
+  return picked;
 }
 
 /** Build the shared diff section of the review prompt (included once). */
@@ -61,7 +92,7 @@ export function buildDiffSection(diff: DiffSource): string {
 }
 
 /** Build the lens-specific section of the review prompt (no diff duplication). */
-function buildLensSection(
+export function buildLensSection(
   lens: LensConfig,
   lensContent: string,
   toolOutputs: Record<string, string>,
@@ -93,75 +124,35 @@ function buildLensSection(
   return parts.join('\n');
 }
 
-/** Build the full review prompt for a single lens (includes diff — used by the tool path). */
-function buildReviewPrompt(
+/**
+ * Build the lens result from PRE-COMPUTED tool outputs. Pure — no IO — so tool
+ * execution happens once up front (see {@link runToolsEffect}) and is shared
+ * across every lens that declares the same command.
+ */
+export function buildLensResult(
   lens: LensConfig,
   lensContent: string,
-  diff: DiffSource,
   toolOutputs: Record<string, string>,
-): string {
-  const parts: string[] = [];
-
-  parts.push(`You are reviewing code changes through the "${lens.name}" lens.`);
-  parts.push('');
-  parts.push(buildDiffSection(diff));
-  parts.push('');
-  parts.push(buildLensSection(lens, lensContent, toolOutputs));
-  parts.push('');
-  parts.push('## Instructions');
-  parts.push('');
-  parts.push('Review the diff above through this lens. For each finding, output a JSON array:');
-  parts.push('');
-  parts.push('```json');
-  parts.push('[');
-  parts.push(
-    '  { "file": "path/to/file.ts", "line": 42, "severity": "warning", "message": "Description" }',
-  );
-  parts.push(']');
-  parts.push('```');
-  parts.push('');
-  parts.push(
-    'After the JSON array, write a 2-3 sentence summary of your review through this lens.',
-  );
-  parts.push('If there are no findings, return an empty array `[]` and note the code looks good.');
-
-  return parts.join('\n');
+): LensResult {
+  return {
+    lens: lens.name,
+    findings: [],
+    summary: '',
+    toolOutputs,
+    _lensSection: buildLensSection(lens, lensContent, toolOutputs),
+  };
 }
 
-/** Execute a review for a single lens: run its tools, then build the prompt. */
-export function reviewWithLensEffect(
-  cwd: string,
-  lens: LensConfig,
-  lensContent: string,
-  diff: DiffSource,
-  signal?: AbortSignal,
-): Effect.Effect<LensResult, never, Executor> {
-  return Effect.gen(function* () {
-    const toolOutputs = yield* runLensToolsEffect(cwd, lens.tools, signal);
-
-    return {
-      lens: lens.name,
-      findings: [],
-      summary: '',
-      toolOutputs,
-      _prompt: buildReviewPrompt(lens, lensContent, diff, toolOutputs),
-      _lensSection: buildLensSection(lens, lensContent, toolOutputs),
-    };
-  });
-}
-
-/** Promise wrapper building a live Executor from `pi`. */
-export function reviewWithLens(
+/** Promise wrapper: run a deduped tool set once, building a live Executor from `pi`. */
+export function runTools(
   pi: Pick<ExtensionAPI, 'exec'>,
-  _ctx: unknown,
   cwd: string,
-  lens: LensConfig,
-  lensContent: string,
-  diff: DiffSource,
+  tools: string[],
+  options: ToolRunOptions,
   signal?: AbortSignal,
-): Promise<LensResult> {
+): Promise<Record<string, string>> {
   return Effect.runPromise(
-    reviewWithLensEffect(cwd, lens, lensContent, diff, signal).pipe(
+    runToolsEffect(cwd, tools, options, signal).pipe(
       Effect.provideService(Executor, makeExecutorService(pi)),
     ),
   );

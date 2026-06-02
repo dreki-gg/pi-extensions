@@ -59,6 +59,13 @@ Evaluates changes for correctness and adherence to project standards.
 - note: Style suggestions
 ```
 
+> **Tools must be fast and exit on their own** (typecheck, lint, unit tests).
+> Do **not** list dev servers, watch mode, e2e suites, or full production
+> builds — they bind ports / run for minutes and belong in CI. Tools are
+> **deduped across lenses and run concurrently**, so a command shared by
+> several lenses runs once, and a slow/hanging command stalls the whole review
+> (bounded by `toolTimeoutMs`).
+
 ### Bundled lenses
 
 The package ships with four example lenses:
@@ -79,7 +86,9 @@ Run `/review-init` to scaffold these (customized for your project's tools) into 
 ```json
 {
   "lensDir": ".code-review/lenses",
-  "defaultLenses": ["code-quality", "maintainability"]
+  "defaultLenses": ["code-quality", "maintainability"],
+  "toolTimeoutMs": 60000,
+  "toolConcurrency": 4
 }
 ```
 
@@ -87,4 +96,6 @@ Run `/review-init` to scaffold these (customized for your project's tools) into 
 | --- | --- | --- |
 | `lensDir` | `.code-review/lenses` | Directory containing lens files |
 | `defaultLenses` | `[]` (all) | Lenses to run when none specified |
+| `toolTimeoutMs` | `60000` | Per-tool wall-clock timeout (ms); an exceeding tool is killed and reported as timed-out |
+| `toolConcurrency` | `4` | Max distinct tools run in parallel (tools are deduped across lenses first) |
 

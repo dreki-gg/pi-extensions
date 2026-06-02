@@ -20,15 +20,20 @@ export type LensResult = {
   findings: LensFinding[];
   summary: string;
   toolOutputs?: Record<string, string>;
-  /** Review prompt built for this lens, used internally to delegate to the agent. */
-  _prompt?: string;
-  /** Lens-specific section (without diff), used by /review command to avoid diff duplication. */
+  /** Lens-specific prompt section (without the diff), assembled by the command
+   *  layer with a single shared diff to avoid per-lens duplication. */
   _lensSection?: string;
 };
 
 export type ReviewConfig = {
   lensDir: string;
   defaultLenses: string[];
+  /** Per-tool wall-clock timeout in ms. A lens tool that exceeds it is killed
+   *  and reported as timed-out (it must never hang the review). */
+  toolTimeoutMs: number;
+  /** Max lens tools run in parallel. Tools are deduped across lenses first,
+   *  so this bounds the distinct command set, not lens count. */
+  toolConcurrency: number;
 };
 
 export type ReviewReport = {

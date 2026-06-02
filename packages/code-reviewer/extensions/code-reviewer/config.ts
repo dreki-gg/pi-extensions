@@ -14,9 +14,23 @@ import type { ReviewConfig } from './types';
 
 const CONFIG_FILE = '.code-review.json';
 const DEFAULT_LENS_DIR = '.code-review/lenses';
+const DEFAULT_TOOL_TIMEOUT_MS = 60_000;
+const DEFAULT_TOOL_CONCURRENCY = 4;
 
 function defaultConfig(): ReviewConfig {
-  return { lensDir: DEFAULT_LENS_DIR, defaultLenses: [] };
+  return {
+    lensDir: DEFAULT_LENS_DIR,
+    defaultLenses: [],
+    toolTimeoutMs: DEFAULT_TOOL_TIMEOUT_MS,
+    toolConcurrency: DEFAULT_TOOL_CONCURRENCY,
+  };
+}
+
+/** Coerce a config value to a positive integer, falling back when absent/invalid. */
+function positiveIntOr(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.floor(value)
+    : fallback;
 }
 
 export function loadConfigEffect(cwd: string): Effect.Effect<ReviewConfig, never, FileSystem> {
@@ -30,6 +44,8 @@ export function loadConfigEffect(cwd: string): Effect.Effect<ReviewConfig, never
       return {
         lensDir: parsed.lensDir ?? DEFAULT_LENS_DIR,
         defaultLenses: parsed.defaultLenses ?? [],
+        toolTimeoutMs: positiveIntOr(parsed.toolTimeoutMs, DEFAULT_TOOL_TIMEOUT_MS),
+        toolConcurrency: positiveIntOr(parsed.toolConcurrency, DEFAULT_TOOL_CONCURRENCY),
       };
     } catch {
       // Malformed config — fall back to defaults.

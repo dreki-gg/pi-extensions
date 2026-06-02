@@ -3,7 +3,7 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { loadConfig, getLensDir } from '../config';
 import { collectDiff } from '../diff';
 import { discoverLenses, getLensContent } from '../lenses';
-import { reviewWithLens, buildDiffSection } from '../reviewer';
+import { buildDiffSection, buildLensResult, pickLensToolOutputs, runTools } from '../reviewer';
 import { parseReviewArgs } from '../parse-args';
 
 export function registerReviewCommand(pi: ExtensionAPI) {
@@ -47,20 +47,26 @@ export function registerReviewCommand(pi: ExtensionAPI) {
       }
 
       ctx.ui.notify(`Reviewing ${diff.label} through ${lensNames.length} lens(es)...`, 'info');
-      ctx.ui.setStatus('code-review', `🔍 Reviewing (0/${lensNames.length})...`);
+
+      const selected = lensNames.map((name) => available.get(name)!);
+
+      // Run the DISTINCT tool set once (deduped across lenses), concurrently.
+      const allTools = [...new Set(selected.flatMap((lens) => lens.tools))];
+      ctx.ui.setStatus('code-review', `🔍 Running ${allTools.length} tool(s)...`);
+      const toolOutputs = await runTools(pi, cwd, allTools, {
+        timeoutMs: config.toolTimeoutMs,
+        concurrency: config.toolConcurrency,
+      });
 
       const lensSections: string[] = [];
       for (let i = 0; i < lensNames.length; i++) {
         const name = lensNames[i];
         ctx.ui.setStatus('code-review', `🔍 Lens ${i + 1}/${lensNames.length}: ${name}`);
 
-        const lens = available.get(name)!;
+        const lens = selected[i];
         const content = (await getLensContent(lensDir, name)) ?? '';
-        const result = await reviewWithLens(pi, ctx, cwd, lens, content, diff);
-
-        if (result._lensSection) {
-          lensSections.push(result._lensSection);
-        }
+        const result = buildLensResult(lens, content, pickLensToolOutputs(lens, toolOutputs));
+        if (result._lensSection) lensSections.push(result._lensSection);
       }
 
       ctx.ui.setStatus('code-review', undefined);

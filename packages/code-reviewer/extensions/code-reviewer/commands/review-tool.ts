@@ -4,8 +4,9 @@ import { Type } from 'typebox';
 import { loadConfig, getLensDir } from '../config';
 import { collectDiff, getChangedFiles } from '../diff';
 import { discoverLenses, getLensContent } from '../lenses';
-import { reviewWithLens } from '../reviewer';
+import { buildDiffSection, buildLensResult, pickLensToolOutputs, runTools } from '../reviewer';
 import { buildReport } from '../report';
+import type { DiffSource } from '../diff';
 import type { LensResult, ReviewConfig, ReviewReport } from '../types';
 
 export function registerReviewTool(pi: ExtensionAPI) {
@@ -72,6 +73,23 @@ export function registerReviewTool(pi: ExtensionAPI) {
         };
       }
 
+      const selected = lensNames.map((name) => available.get(name)!);
+
+      // Run the DISTINCT tool set once (deduped across lenses), concurrently —
+      // not once per lens. A command shared by several lenses executes a single
+      // time and its output is shared.
+      const allTools = [...new Set(selected.flatMap((lens) => lens.tools))];
+      if (allTools.length > 0) {
+        ctx.ui.setStatus('code-review', `🔍 Running ${allTools.length} tool(s)...`);
+      }
+      const toolOutputs = await runTools(
+        pi,
+        cwd,
+        allTools,
+        { timeoutMs: config.toolTimeoutMs, concurrency: config.toolConcurrency },
+        signal,
+      );
+
       const results: LensResult[] = [];
       for (let i = 0; i < lensNames.length; i++) {
         if (signal?.aborted) break;
@@ -84,10 +102,9 @@ export function registerReviewTool(pi: ExtensionAPI) {
           details: { currentLens: name, lensIndex: i + 1, totalLenses: lensNames.length },
         });
 
-        const lens = available.get(name)!;
+        const lens = selected[i];
         const content = (await getLensContent(lensDir, name)) ?? '';
-        const result = await reviewWithLens(pi, ctx, cwd, lens, content, diff, signal);
-        results.push(result);
+        results.push(buildLensResult(lens, content, pickLensToolOutputs(lens, toolOutputs)));
       }
 
       ctx.ui.setStatus('code-review', undefined);
@@ -100,7 +117,7 @@ export function registerReviewTool(pi: ExtensionAPI) {
       };
 
       const markdown = buildReport(report);
-      const toolContext = buildToolContext(results);
+      const toolContext = buildToolContext(results, diff);
 
       return {
         content: [{ type: 'text', text: markdown + toolContext }],
@@ -131,17 +148,38 @@ function resolveLensNames(
   return [...available.keys()];
 }
 
-function buildToolContext(results: LensResult[]): string {
-  const prompts = results.map((r) => r._prompt).filter(Boolean);
-
-  if (prompts.length === 0) return '';
+/**
+ * Build the agent-facing review instructions appended to the report. The diff
+ * is embedded ONCE (not per lens) followed by each lens's section — large
+ * diffs would otherwise be repeated for every lens, bloating the tool output.
+ */
+function buildToolContext(results: LensResult[], diff: DiffSource): string {
+  const sections = results.map((r) => r._lensSection).filter(Boolean) as string[];
+  if (sections.length === 0) return '';
 
   return [
     '',
     '---',
     '',
-    'The tool outputs above provide automated analysis. Now evaluate the diff through each lens criteria:',
+    'The tool outputs above provide automated analysis. Now evaluate the diff through each lens below.',
     '',
-    ...prompts,
+    buildDiffSection(diff),
+    '',
+    '## Lenses',
+    '',
+    ...sections,
+    '',
+    '## Instructions',
+    '',
+    'For each lens above, review the diff against its criteria and output a JSON array of findings:',
+    '',
+    '```json',
+    '[',
+    '  { "file": "path/to/file.ts", "line": 42, "severity": "warning", "message": "Description" }',
+    ']',
+    '```',
+    '',
+    'After each lens JSON array, write a 2-3 sentence summary.',
+    'If a lens has no findings, return an empty array `[]` and note the code looks good.',
   ].join('\n');
 }
