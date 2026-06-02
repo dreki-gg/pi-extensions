@@ -72,14 +72,20 @@ export function buildDiffSection(diff: DiffSource): string {
   const parts: string[] = [];
   const maxDiffLen = 50_000;
   const diffTruncated = diff.diff.length > maxDiffLen;
+  // Cut at the last newline within budget so we never emit a half-line of
+  // diff (which reads as a corrupt hunk); fall back to a hard slice if a
+  // single line already exceeds the budget.
+  const body = diffTruncated
+    ? diff.diff.slice(0, Math.max(diff.diff.lastIndexOf('\n', maxDiffLen), 0) || maxDiffLen)
+    : diff.diff;
 
   parts.push(`## Diff (${diff.label})`);
   parts.push('```diff');
-  parts.push(diff.diff.slice(0, maxDiffLen));
+  parts.push(body);
   parts.push('```');
   if (diffTruncated) {
     parts.push(
-      `> ⚠️ Diff truncated (${diff.diff.length} chars → ${maxDiffLen}). Some files may not appear above.`,
+      `> ⚠️ Diff truncated (${diff.diff.length} chars → ~${maxDiffLen}). Some files may not appear above; re-run scoped with \`--base\` or per-area if needed.`,
     );
   }
   parts.push('');

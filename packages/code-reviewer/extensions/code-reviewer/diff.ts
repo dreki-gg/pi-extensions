@@ -19,10 +19,14 @@ export type DiffSource = {
 
 export type DiffOptions = { base?: string; staged?: boolean };
 
+/** git diffs are normally instant; cap them so a pathological repo can't hang
+ *  the whole review. */
+const GIT_TIMEOUT_MS = 30_000;
+
 function git(args: string[], cwd: string): Effect.Effect<string, ExecError, Executor> {
   return Effect.gen(function* () {
     const executor = yield* Executor;
-    const result = yield* executor.exec('git', args, { cwd });
+    const result = yield* executor.exec('git', args, { cwd, timeout: GIT_TIMEOUT_MS });
     return result.stdout;
   });
 }
@@ -46,17 +50,19 @@ export function collectDiffEffect(
     }
 
     // Default: working directory changes (unstaged + staged) relative to HEAD.
-    const diff = yield* git(['diff', 'HEAD'], cwd);
+    // `git diff HEAD` fails on a repo with no commits (HEAD is unborn), so
+    // tolerate that and fall back to the bare working-directory diff.
+    const headDiff = yield* git(['diff', 'HEAD'], cwd).pipe(Effect.either);
 
-    // If no HEAD diff, fall back to just the working directory.
-    if (!diff.trim()) {
+    // No HEAD (fresh repo) or an empty HEAD diff → fall back to the working dir.
+    if (headDiff._tag === 'Left' || !headDiff.right.trim()) {
       const wdDiff = yield* git(['diff'], cwd);
       const wdStat = yield* git(['diff', '--stat'], cwd);
       return { diff: wdDiff, stat: wdStat, label: 'working directory changes' };
     }
 
     const stat = yield* git(['diff', 'HEAD', '--stat'], cwd);
-    return { diff, stat, label: 'all uncommitted changes' };
+    return { diff: headDiff.right, stat, label: 'all uncommitted changes' };
   });
 }
 

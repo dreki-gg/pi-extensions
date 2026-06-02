@@ -25,6 +25,10 @@ export type LensResult = {
   _lensSection?: string;
 };
 
+// NOTE: findings + summary on LensResult describe what the agent produces in
+// its follow-up message; the tool/command layer emits a review *task*, it does
+// not parse findings back into a rendered report.
+
 export type ReviewConfig = {
   lensDir: string;
   defaultLenses: string[];
@@ -34,11 +38,4 @@ export type ReviewConfig = {
   /** Max lens tools run in parallel. Tools are deduped across lenses first,
    *  so this bounds the distinct command set, not lens count. */
   toolConcurrency: number;
-};
-
-export type ReviewReport = {
-  diff: string;
-  diffStat: string;
-  lenses: LensResult[];
-  generatedAt: string;
 };

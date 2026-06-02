@@ -51,6 +51,19 @@ describe('collectDiffEffect', () => {
     expect(calls.some((c) => c.args.includes('HEAD'))).toBe(true);
   });
 
+  test('falls back to the working directory when there is no HEAD (fresh repo)', async () => {
+    const { layer } = fakeExecutor((_cmd, args) => {
+      // No commits yet: `git diff HEAD` errors; bare `git diff` succeeds.
+      if (args.includes('HEAD')) return { fail: new Error("fatal: ambiguous argument 'HEAD'") };
+      return { stdout: args.includes('--stat') ? 'wdstat' : 'wddiff', stderr: '' };
+    });
+
+    const diff = await Effect.runPromise(collectDiffEffect(cwd, {}).pipe(Effect.provide(layer)));
+
+    expect(diff.label).toBe('working directory changes');
+    expect(diff.diff).toBe('wddiff');
+  });
+
   test('propagates ExecError when git fails', async () => {
     const { layer } = fakeExecutor(() => ({ fail: new Error('not a git repo') }));
 

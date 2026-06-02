@@ -5,9 +5,8 @@ import { loadConfig, getLensDir } from '../config';
 import { collectDiff, getChangedFiles } from '../diff';
 import { discoverLenses, getLensContent } from '../lenses';
 import { buildDiffSection, buildLensResult, pickLensToolOutputs, runTools } from '../reviewer';
-import { buildReport } from '../report';
 import type { DiffSource } from '../diff';
-import type { LensResult, ReviewConfig, ReviewReport } from '../types';
+import type { LensResult, ReviewConfig } from '../types';
 
 export function registerReviewTool(pi: ExtensionAPI) {
   pi.registerTool({
@@ -109,18 +108,14 @@ export function registerReviewTool(pi: ExtensionAPI) {
 
       ctx.ui.setStatus('code-review', undefined);
 
-      const report: ReviewReport = {
-        diff: diff.diff,
-        diffStat: diff.stat,
-        lenses: results,
-        generatedAt: new Date().toISOString().slice(0, 10),
-      };
-
-      const markdown = buildReport(report);
-      const toolContext = buildToolContext(results, diff);
+      // The tool returns a pre-review skeleton + the review task. Findings are
+      // produced by the agent in its follow-up message (per the instructions
+      // below), NOT parsed back here — so we deliberately do not render a
+      // findings scoreboard that would always read "0".
+      const text = buildToolContext(results, diff);
 
       return {
-        content: [{ type: 'text', text: markdown + toolContext }],
+        content: [{ type: 'text', text }],
         details: {
           lensCount: lensNames.length,
           availableLenses: [...available.keys()],
@@ -158,10 +153,14 @@ function buildToolContext(results: LensResult[], diff: DiffSource): string {
   if (sections.length === 0) return '';
 
   return [
+    `# Code Review — ${new Date().toISOString().slice(0, 10)}`,
     '',
-    '---',
+    '## Changes',
+    '```',
+    diff.stat.trim() || '(no diffstat)',
+    '```',
     '',
-    'The tool outputs above provide automated analysis. Now evaluate the diff through each lens below.',
+    'Evaluate the diff through each lens below; the tool outputs are automated analysis.',
     '',
     buildDiffSection(diff),
     '',
