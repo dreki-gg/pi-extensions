@@ -25,6 +25,9 @@
       "./extensions/lsp"
     ]
   },
+  "dependencies": {
+    "effect": "^3.21.2"
+  },
   "devDependencies": {
     "@earendil-works/pi-ai": "^0.74.0",
     "@types/node": "24",

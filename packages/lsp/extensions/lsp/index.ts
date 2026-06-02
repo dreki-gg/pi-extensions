@@ -10,16 +10,29 @@
  */
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { Effect } from 'effect';
 
 import { LspClient } from './client';
-import { loadConfig, scaffoldGlobalConfig, serversForExtension, type LoadedConfig } from './config';
-import { registerLspTool, type ServerManager } from './tools';
+import {
+  loadConfigEffect,
+  scaffoldGlobalConfigEffect,
+  serversForExtension,
+  type LoadedConfig,
+} from './config';
+import { makeRuntimeLayer, type LspServices } from './effects/runtime';
+import { errorMessage } from './errors';
+import { registerLspTool, type ServerManagerService } from './tools';
 import type { ResolvedServerConfig } from './types';
 
 export default function lspExtension(pi: ExtensionAPI) {
   let rootPath = '';
   let config: LoadedConfig | null = null;
   const clients = new Map<string, LspClient>();
+  const runtimeLayer = makeRuntimeLayer();
+
+  function runLsp<A, E>(program: Effect.Effect<A, E, LspServices>): Promise<A> {
+    return Effect.runPromise(program.pipe(Effect.provide(runtimeLayer)));
+  }
 
   // ── Client management ───────────────────────────────────────────────
 
@@ -68,7 +81,7 @@ export default function lspExtension(pi: ExtensionAPI) {
 
   // ── Server manager (passed to tool) ───────────────────────────────────
 
-  const serverManager: ServerManager = {
+  const serverManager: ServerManagerService = {
     clientsForFile(filePath: string): LspClient[] {
       if (!config) return [];
       const matching = serversForExtension(config.servers, filePath);
@@ -111,15 +124,18 @@ export default function lspExtension(pi: ExtensionAPI) {
   pi.on('session_start', async (_event, ctx) => {
     rootPath = ctx.cwd;
 
-    const scaffolded = await scaffoldGlobalConfig(rootPath);
+    const scaffolded = await runLsp(scaffoldGlobalConfigEffect(rootPath)).catch((err) => {
+      ctx.ui.notify(`LSP: could not scaffold config: ${errorMessage(err)}`, 'warning');
+      return false;
+    });
     if (scaffolded) {
       ctx.ui.notify(
-        'LSP: created starter config at ~/.pi/agent/extensions/lsp/config.json — edit it to add your servers.',
+        'LSP: created starter config at ~/.pi/agent/extensions/lsp/config.json — every server is disabled, enable the ones you need.',
         'info',
       );
     }
 
-    config = await loadConfig(rootPath);
+    config = await runLsp(loadConfigEffect(rootPath));
     refreshStatus(ctx.ui, config);
   });
 
@@ -139,7 +155,7 @@ export default function lspExtension(pi: ExtensionAPI) {
     description: 'Show LSP server status',
     handler: async (_args, ctx) => {
       rootPath = ctx.cwd;
-      const cfg = await loadConfig(ctx.cwd);
+      const cfg = await runLsp(loadConfigEffect(ctx.cwd));
       config = cfg;
       refreshStatus(ctx.ui, cfg);
       const lines: string[] = ['LSP Status:'];
@@ -173,7 +189,7 @@ export default function lspExtension(pi: ExtensionAPI) {
       await shutdownAll();
       config = null;
       rootPath = ctx.cwd;
-      config = await loadConfig(ctx.cwd);
+      config = await runLsp(loadConfigEffect(ctx.cwd));
       refreshStatus(ctx.ui, config);
       ctx.ui.notify('LSP servers stopped. Will reinitialize on next tool use.', 'info');
     },
