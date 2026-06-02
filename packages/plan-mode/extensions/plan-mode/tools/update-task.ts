@@ -74,8 +74,7 @@ export function registerUpdateTaskTool(pi: ExtensionAPI, callbacks: UpdateTaskCa
         });
       }
       // Idempotent: re-marking the same status is a no-op success (safe to
-      // retry). A different status on an already-resolved task is reported but
-      // not applied — the plan state machine only advances pending tasks.
+      // retry).
       if (task.status === params.status) {
         return soft(`Task ${params.task_id} already ${params.status} (no-op).`, {
           task_id: params.task_id,
@@ -83,12 +82,11 @@ export function registerUpdateTaskTool(pi: ExtensionAPI, callbacks: UpdateTaskCa
           description: task.description,
         });
       }
-      if (task.status !== 'pending') {
-        return soft(
-          `Task ${params.task_id} is already "${task.status}"; only pending tasks can change status.`,
-          { task_id: params.task_id, status: task.status, description: task.description },
-        );
-      }
+      // A different status on an already-resolved task is a CORRECTION — apply
+      // it (e.g. done→skipped, or blocked→done to unblock). The status is the
+      // edit; the plan queue recomputes from it.
+      const wasCorrection = task.status !== 'pending';
+      const priorStatus = task.status;
 
       await callbacks.onTaskUpdated(params.task_id, params.status, params.notes);
 
@@ -116,7 +114,8 @@ export function registerUpdateTaskTool(pi: ExtensionAPI, callbacks: UpdateTaskCa
       const resolved = done + skipped;
       const next = plan.tasks.find((candidate) => candidate.status === 'pending');
       const statusEmoji = params.status === 'done' ? '✓' : '⊘';
-      let text = `${statusEmoji} Task ${params.task_id} ${params.status}. Progress: ${resolved}/${plan.tasks.length}`;
+      const verb = wasCorrection ? `corrected (${priorStatus} → ${params.status})` : params.status;
+      let text = `${statusEmoji} Task ${params.task_id} ${verb}. Progress: ${resolved}/${plan.tasks.length}`;
       if (params.notes) text += ` — ${params.notes}`;
       text += next ? `\n\nNext task ${next.id}: ${next.description}` : '\n\nAll tasks resolved!';
 

@@ -43,6 +43,7 @@ import { registerSubmitPlanTool } from './tools/submit-plan.js';
 import { registerPreviewPrototypeTool } from './tools/preview-prototype.js';
 import { registerUpdateTaskTool } from './tools/update-task.js';
 import { registerAddTaskTool } from './tools/add-task.js';
+import { registerPlanStatusTool } from './tools/plan-status.js';
 import { isSafeCommand, isPlanPath } from './utils.js';
 
 export default function planMode(pi: ExtensionAPI): void {
@@ -91,6 +92,10 @@ export default function planMode(pi: ExtensionAPI): void {
       );
       state.persist(pi);
     },
+  });
+
+  registerPlanStatusTool(pi, {
+    resolvePlan: (opts) => resolveActivePlan(state, pi, runPlanIO, opts),
   });
 
   registerAddTaskTool(pi, {

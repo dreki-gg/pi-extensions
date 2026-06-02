@@ -90,10 +90,17 @@ describe('update_task tool', () => {
     expect(updates).toHaveLength(0);
   });
 
-  test('soft result (no throw) when changing an already-resolved task', async () => {
+  test('corrects an already-resolved task (done → skipped) and reports it', async () => {
     const { tool, updates } = setup(basePlan([planTask('t-001', 'done')]));
     const result = await tool.execute('c', { task_id: 't-001', status: 'skipped' });
-    expect(result.content?.[0]?.text).toMatch(/already "done"/);
-    expect(updates).toHaveLength(0);
+    expect(updates).toEqual([{ taskId: 't-001', status: 'skipped', notes: undefined }]);
+    expect(result.content?.[0]?.text).toMatch(/corrected \(done → skipped\)/);
+  });
+
+  test('unblocks a task (blocked → done) without terminating', async () => {
+    const { tool, updates } = setup(basePlan([planTask('t-001', 'blocked')]));
+    const result = await tool.execute('c', { task_id: 't-001', status: 'done' });
+    expect(updates).toEqual([{ taskId: 't-001', status: 'done', notes: undefined }]);
+    expect(result.terminate).toBeUndefined();
   });
 });

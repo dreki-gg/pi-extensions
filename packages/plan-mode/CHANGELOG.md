@@ -11,6 +11,8 @@
   - **Disk-backed resolution** (`resolveActivePlan`): when nothing is attached in memory, the active plan is resolved from `.plans/plans.jsonl` — the sole in-progress plan auto-attaches (data only; does NOT enter execution mode / change tools / model). Wired into `session_start` and both tracking tools.
   - **No hard throws on tracking calls**: `update_task` / `add_task` now return soft, non-terminating results (no active plan, unknown task id, already-resolved task) so a tracking miss never derails the real work. `update_task` is idempotent — re-marking the same status is a no-op success.
   - **`plan` parameter**: both tools accept an optional `plan` (name or `.plans/<name>`) to disambiguate without the interactive `/plan resume` when multiple plans are in-progress.
+  - **`update_task` corrections**: a different status on an already-resolved task now applies as a correction (e.g. `done`→`skipped`, or `blocked`→`done` to unblock) and is reported as such, instead of being refused.
+  - **New `plan_status` tool**: read-only snapshot of the active plan — progress counts + every task id/status — so an agent can check what's active and which ids are valid (disk-backed; works in a fresh execution session) instead of probing with a failing `update_task`. Added to both tool sets.
 
 ## 0.17.1
 
