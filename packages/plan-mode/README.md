@@ -22,8 +22,37 @@ pi install npm:@dreki-gg/pi-questionnaire
 | -------- | -------------- | ---------------------------------------------- |
 | Flag     | `--plan`       | Start pi in plan mode                          |
 | Command  | `/plan [prompt]` | Enter plan mode, optionally with a starting prompt |
+| Command  | `/plan resume` | Pick up an in-progress plan from disk          |
+| Command  | `/plan focus <name>` | Pin a plan so tracking calls default to it (multi-plan repos) |
 | Command  | `/todos`       | Show current plan progress                     |
 | Shortcut | `Ctrl+Alt+P`   | Toggle plan mode                               |
+| Tool     | `update_task`  | Mark a task done / skipped / blocked           |
+| Tool     | `add_task`     | Capture a discovered follow-up (deferred)      |
+| Tool     | `plan_status`  | Read-only snapshot; progress table when many plans are active |
+| Tool     | `update_plan`  | Close/reopen a plan: done, superseded, abandoned, in-progress |
+| Tool     | `reconcile_plans` | Detect & repair drift between tasks.jsonl and the registry |
+
+### Plan lifecycle status
+
+The registry (`.plans/plans.jsonl`) `status` is a **projection of task state**, not a
+hand-maintained flag. Marking every task `done`/`skipped` (via `update_task`, in any
+session or model) automatically flips the plan to `done` — completion is no longer
+coupled to a formal in-session execution run.
+
+| Status        | Meaning                                            | Active? |
+| ------------- | -------------------------------------------------- | ------- |
+| `in-progress` | Active, tracked, eligible for auto-resolution      | ✅      |
+| `done`        | All tasks resolved                                 | —       |
+| `superseded`  | Another plan absorbed the work                     | —       |
+| `abandoned`   | Won't do / rejected                                | —       |
+
+`superseded` / `abandoned` are set explicitly via `update_plan` (with a `reason`) and are
+never auto-overridden by task reconciliation. Only `in-progress` plans participate in
+active-plan resolution.
+
+In repos with **many** in-progress plans, an explicit `{ plan: "<name>" }` on
+`update_task` / `add_task` / `plan_status` **always** targets that plan — it is never
+silently overridden by whatever plan was last submitted in the session.
 
 ## Workflow
 
@@ -99,17 +128,23 @@ Plans start as `"in-progress"` when created and are marked `"done"` when all exe
 
 ## Cleaning completed plans
 
-Use the CLI to remove completed plan directories:
+Use the CLI to clean closed plans (`done` / `superseded` / `abandoned`). By default it
+**archives** plan directories to `.plans/.archive/<name>/` — keeping HANDOFF.md and
+tasks.jsonl as a record — rather than deleting them:
 
 ```bash
-# Preview what would be deleted
+# Preview what would be cleaned (no changes)
 npx @dreki-gg/pi-plan-mode clean --dry-run
 
-# Delete completed plans and update plans.json
+# Archive closed plans to .plans/.archive/ and update plans.jsonl
 npx @dreki-gg/pi-plan-mode clean
+
+# Permanently delete instead of archiving
+npx @dreki-gg/pi-plan-mode clean --purge
 ```
 
-In-flight plans (`"status": "in-progress"`) are never touched.
+In-flight plans (`"status": "in-progress"`) are never touched. Archiving is the default so
+that closing out a finished plan never silently destroys its handoff + task ledger.
 
 ### GitHub Actions
 
@@ -157,10 +192,11 @@ In plan mode, bash is restricted to read-only commands (ls, grep, git status, ca
 ## CLI reference
 
 ```
-pi-plan-mode clean [--dry-run]
+pi-plan-mode clean [--dry-run] [--purge]
 ```
 
-| Option      | Description                                      |
-| ----------- | ------------------------------------------------ |
-| `clean`     | Remove completed plan directories, update manifest |
-| `--dry-run` | Show what would be deleted without deleting      |
+| Option      | Description                                                        |
+| ----------- | ----------------------------------------------------------------- |
+| `clean`     | Archive closed plan directories to `.plans/.archive/`, update manifest |
+| `--dry-run` | Show what would be cleaned without changing anything              |
+| `--purge`   | Permanently delete instead of archiving                           |

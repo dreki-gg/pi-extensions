@@ -16,6 +16,8 @@ export const PLAN_TOOLS = [
   'search_skills',
   'subagent',
   'plan_status',
+  'update_plan',
+  'reconcile_plans',
 ];
 
 export const EXEC_TOOLS = [
@@ -26,6 +28,8 @@ export const EXEC_TOOLS = [
   'update_task',
   'add_task',
   'plan_status',
+  'update_plan',
+  'reconcile_plans',
 ];
 
 // ── Model + thinking presets ─────────────────────────────────────────────────

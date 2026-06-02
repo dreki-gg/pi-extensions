@@ -11,14 +11,21 @@ interface CapturedTool {
   ) => Promise<{ content?: Array<{ text: string }>; details?: unknown }>;
 }
 
-function setup(plan: PlanData | undefined, candidates: string[] = []) {
+function setup(
+  plan: PlanData | undefined,
+  candidates: string[] = [],
+  inProgress?: Array<{ name: string; title: string; resolved: number; total: number }>,
+) {
   let tool: CapturedTool | undefined;
   const pi = {
     registerTool: (config: CapturedTool) => {
       tool = config;
     },
   } as unknown as Parameters<typeof registerPlanStatusTool>[0];
-  registerPlanStatusTool(pi, { resolvePlan: async () => ({ plan, candidates }) });
+  registerPlanStatusTool(pi, {
+    resolvePlan: async () => ({ plan, candidates }),
+    listInProgress: inProgress ? async () => inProgress : undefined,
+  });
   return tool!;
 }
 
@@ -64,5 +71,24 @@ describe('plan_status tool', () => {
     const result = await tool.execute('c', {});
     expect((result.details as { active: boolean }).active).toBe(false);
     expect(result.content?.[0]?.text).toMatch(/alpha, beta/);
+  });
+
+  test('renders a progress table when multiple plans are in-progress (FEEDBACK #5)', async () => {
+    const tool = setup(
+      undefined,
+      ['alpha', 'beta'],
+      [
+        { name: 'alpha', title: 'Alpha', resolved: 7, total: 17 },
+        { name: 'beta', title: 'Beta', resolved: 8, total: 8 },
+      ],
+    );
+    const result = await tool.execute('c', {});
+    const text = result.content?.[0]?.text ?? '';
+    expect(text).toMatch(/2 in-progress/);
+    expect(text).toMatch(/7\/17  alpha/);
+    // A fully-resolved plan still listed in-progress is flagged as a reconcile cue.
+    expect(text).toMatch(/8\/8  beta — Beta  ⚠ done\?/);
+    const details = result.details as { in_progress?: unknown[] };
+    expect(details.in_progress).toHaveLength(2);
   });
 });

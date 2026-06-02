@@ -36,13 +36,25 @@ export const TaskMetaSchema = Schema.Struct({
 /** A single tasks.jsonl line is either the meta record or a task record. */
 export const TasksLineSchema = Schema.Union(TaskMetaSchema, TaskRecordSchema);
 
+/**
+ * Plan lifecycle statuses.
+ *   - in-progress: active, tracked, eligible for auto-resolution
+ *   - done:        completed (all tasks resolved)
+ *   - superseded:  closed because another plan absorbed the work
+ *   - abandoned:   closed without shipping (rejected / won't do)
+ * Only `in-progress` is treated as active; the rest are terminal.
+ */
+export const PlanStatusSchema = Schema.Literal('in-progress', 'done', 'superseded', 'abandoned');
+
 export const PlanManifestEntrySchema = Schema.Struct({
   _type: Schema.Literal('plan'),
   name: Schema.String,
-  status: Schema.Literal('in-progress', 'done'),
+  status: PlanStatusSchema,
   title: Schema.String,
   created_at: Schema.String,
   completed_at: Schema.NullOr(Schema.String),
+  /** Optional human-readable reason, used for terminal statuses. */
+  reason: Schema.optional(Schema.String),
 });
 
 export const ExecPendingConfigSchema = Schema.Struct({

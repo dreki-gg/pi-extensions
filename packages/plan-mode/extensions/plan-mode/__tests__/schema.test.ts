@@ -177,6 +177,25 @@ describe('plan manifest entry schema', () => {
     ).toBe(true);
   });
 
+  test('accepts terminal statuses (superseded / abandoned) with a reason', () => {
+    for (const status of ['done', 'superseded', 'abandoned'] as const) {
+      expect(
+        isOk(
+          {
+            _type: 'plan',
+            name: 'plan',
+            status,
+            title: 'Plan',
+            created_at: now,
+            completed_at: now,
+            reason: 'another plan shipped it',
+          },
+          decodePlanManifestEntry,
+        ),
+      ).toBe(true);
+    }
+  });
+
   test('rejects an invalid status', () => {
     expect(
       isOk(

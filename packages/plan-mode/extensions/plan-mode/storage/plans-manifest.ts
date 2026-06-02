@@ -2,6 +2,7 @@ import { Effect, Either, Option } from 'effect';
 import { FileSystem } from '../effects/filesystem.js';
 import { JsonlParseError, JsonlValidationError, PlanWriteError } from '../errors.js';
 import { decodePlanManifestEntry } from '../schema.js';
+import type { PlanStatus } from '../types.js';
 
 const MANIFEST_DIR = '.plans';
 const MANIFEST_PATH = '.plans/plans.jsonl';
@@ -9,10 +10,16 @@ const MANIFEST_PATH = '.plans/plans.jsonl';
 export interface PlanManifestEntry {
   _type: 'plan';
   name: string;
-  status: 'in-progress' | 'done';
+  status: PlanStatus;
   title: string;
   created_at: string;
   completed_at: string | null;
+  reason?: string;
+}
+
+/** A status is terminal (closed) when it is anything other than in-progress. */
+export function isTerminalStatus(status: PlanStatus): boolean {
+  return status !== 'in-progress';
 }
 
 type ReadError = JsonlParseError | JsonlValidationError;
@@ -62,7 +69,7 @@ export function writePlansManifest(
 
 export function upsertPlanEntry(
   name: string,
-  updates: { status: 'in-progress' | 'done'; title?: string },
+  updates: { status: PlanStatus; title?: string; reason?: string },
 ): Effect.Effect<void, ReadError | PlanWriteError, FileSystem> {
   return Effect.gen(function* () {
     const entries = yield* readPlansManifest();
@@ -75,10 +82,42 @@ export function upsertPlanEntry(
       status: updates.status,
       title: updates.title ?? existing?.title ?? 'Untitled plan',
       created_at: existing?.created_at ?? now,
-      completed_at: updates.status === 'done' ? now : null,
+      // Terminal statuses record a completion timestamp; reopening clears it.
+      completed_at: isTerminalStatus(updates.status) ? (existing?.completed_at ?? now) : null,
+      reason: updates.reason ?? existing?.reason,
     };
     if (index === -1) entries.push(entry);
     else entries[index] = entry;
     yield* writePlansManifest(entries);
+  });
+}
+
+/**
+ * Reconcile a plan's registry status from its task state.
+ *
+ * The registry `status` is a PROJECTION of task state, not a parallel flag.
+ * Call this wherever tasks are written so completion is never coupled to a
+ * formal in-session execution run (see FEEDBACK #1). `finalizable` means every
+ * active task is resolved AND no deferred follow-ups remain.
+ *
+ * Guard: a manually-set terminal status (`superseded` / `abandoned`) is never
+ * auto-overridden — only `in-progress` ⇄ `done` is derived from tasks.
+ */
+export function reconcilePlanStatus(
+  name: string,
+  finalizable: boolean,
+  title?: string,
+): Effect.Effect<void, ReadError | PlanWriteError, FileSystem> {
+  return Effect.gen(function* () {
+    const entries = yield* readPlansManifest();
+    const existing = entries.find((entry) => entry.name === name);
+    // Reconcile only reflects task state for KNOWN plans; never conjure an
+    // entry for an unregistered plan (orphans are surfaced, not auto-created).
+    if (!existing) return;
+    // Do not resurrect / clobber an explicitly closed plan.
+    if (existing.status === 'superseded' || existing.status === 'abandoned') return;
+    const status: PlanStatus = finalizable ? 'done' : 'in-progress';
+    if (existing.status === status) return; // no change
+    yield* upsertPlanEntry(name, { status, title });
   });
 }

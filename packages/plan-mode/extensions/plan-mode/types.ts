@@ -7,6 +7,12 @@ export type TaskStatus = 'pending' | 'done' | 'skipped' | 'blocked' | 'deferred'
 /** Where a task came from: the original submitted plan, or discovered during execution. */
 export type TaskOrigin = 'plan' | 'discovered';
 
+/**
+ * Plan lifecycle status. Only `in-progress` is active; `done`, `superseded`,
+ * and `abandoned` are terminal and drop out of active-plan resolution.
+ */
+export type PlanStatus = 'in-progress' | 'done' | 'superseded' | 'abandoned';
+
 export interface TaskRecord {
   _type: 'task';
   id: string;

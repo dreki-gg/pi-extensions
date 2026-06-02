@@ -13,9 +13,22 @@ import { Type } from 'typebox';
 import type { TaskStatus } from '../types.js';
 import type { ResolvedPlan } from '../resolve-plan.js';
 
+export interface InProgressSummary {
+  name: string;
+  title: string;
+  resolved: number;
+  total: number;
+}
+
 export interface PlanStatusCallbacks {
   /** Resolve the active plan, attaching from disk when none is in memory. */
   resolvePlan: (opts?: { name?: string }) => Promise<ResolvedPlan>;
+  /**
+   * List every in-progress plan with progress counts. Used to render a
+   * progress-at-a-glance table when no single plan can be resolved
+   * (multiple in-progress) — surfaces drift (e.g. a 17/17 plan still listed).
+   */
+  listInProgress?: () => Promise<InProgressSummary[]>;
 }
 
 const STATUS_GLYPH: Record<TaskStatus, string> = {
@@ -49,6 +62,25 @@ export function registerPlanStatusTool(pi: ExtensionAPI, callbacks: PlanStatusCa
     async execute(_toolCallId, params) {
       const { plan, candidates } = await callbacks.resolvePlan({ name: params.plan });
       if (!plan) {
+        // Multiple in-progress plans: show a progress-at-a-glance table rather
+        // than a bare name list (FEEDBACK #5). The counts surface drift too —
+        // a fully-resolved plan still listed in-progress is a reconcile cue.
+        if (candidates.length > 1 && callbacks.listInProgress) {
+          const summaries = await callbacks.listInProgress();
+          const rows = summaries
+            .map((s) => {
+              const flag = s.total > 0 && s.resolved === s.total ? '  ⚠ done?' : '';
+              return `  ${s.resolved}/${s.total}  ${s.name} — ${s.title}${flag}`;
+            })
+            .join('\n');
+          const text =
+            `No single active plan — ${summaries.length} in-progress. Pass { plan: "<name>" } to target one.\n` +
+            `Progress:\n${rows}`;
+          return {
+            content: [{ type: 'text' as const, text }],
+            details: { active: false, candidates, in_progress: summaries },
+          };
+        }
         const hint =
           candidates.length > 1
             ? ` In-progress plans: ${candidates.join(', ')} — pass { plan: "<name>" }.`

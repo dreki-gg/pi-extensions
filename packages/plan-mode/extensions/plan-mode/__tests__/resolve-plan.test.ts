@@ -96,6 +96,31 @@ describe('resolveActivePlan', () => {
     expect(state.plan).toBeUndefined();
   });
 
+  test('an explicit name hint wins over an attached in-memory plan (FEEDBACK #7)', async () => {
+    // Two plans on disk; a *different* plan is pinned in memory.
+    await seedPlan('alpha', 'in-progress', ['t-001']);
+    await seedPlan('beta', 'in-progress', ['t-001']);
+    const state = new PlanModeState();
+    state.plan = { title: 'alpha', planName: 'alpha', handoff: '', tasks: [task('t-001')] };
+    state.planDir = '.plans/alpha';
+    const { pi } = fakePi();
+
+    // The explicit hint must re-attach beta, not silently keep alpha.
+    const result = await resolveActivePlan(state, pi, runPlanIO, { name: 'beta' });
+
+    expect(result.plan?.planName).toBe('beta');
+    expect(state.plan?.planName).toBe('beta');
+    expect(state.planDir).toBe('.plans/beta');
+  });
+
+  test('a hint matching the in-memory plan returns it without touching disk', async () => {
+    const state = new PlanModeState();
+    state.plan = { title: 'mem', planName: 'mem', handoff: '', tasks: [task('t-001')] };
+    const { pi } = fakePi();
+    const result = await resolveActivePlan(state, pi, runPlanIO, { name: 'mem' });
+    expect(result.plan?.planName).toBe('mem');
+  });
+
   test('a name hint disambiguates among multiple in-progress plans', async () => {
     await seedPlan('alpha', 'in-progress', ['t-001']);
     await seedPlan('beta', 'in-progress', ['t-001']);

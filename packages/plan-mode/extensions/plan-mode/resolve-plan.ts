@@ -67,10 +67,17 @@ async function attach(
 /**
  * Resolve the active plan, attaching from disk when nothing is in memory.
  *
- * Order: in-memory `state.plan` → explicit `name` hint → the single
+ * Order: explicit `name` hint → in-memory `state.plan` → the single
  * in-progress plan in `.plans/plans.jsonl`. Ambiguous (multiple in-progress,
  * no hint) returns `{ plan: undefined, candidates }` so the caller can prompt
  * for a `name`.
+ *
+ * IMPORTANT (FEEDBACK #7): an explicit `name` hint ALWAYS wins over the
+ * in-memory `state.plan`. Previously `state.plan` short-circuited first, so a
+ * deliberate `{ plan: '<other>' }` was silently ignored and writes landed in
+ * whatever plan the last `submit_plan` attached — a data-corruption path. The
+ * hint is now resolved first; when it names a different plan we re-attach from
+ * disk so subsequent writes target the right `tasks.jsonl`.
  */
 export async function resolveActivePlan(
   state: PlanModeState,
@@ -78,12 +85,13 @@ export async function resolveActivePlan(
   runPlanIO: RunPlanIO,
   opts: { name?: string } = {},
 ): Promise<ResolvedPlan> {
-  if (state.plan) return { plan: state.plan, candidates: [] };
-
-  const manifest = await runPlanIO(readPlansManifest());
-
+  // ── Explicit hint wins, even over an attached in-memory plan ──────────────
   if (opts.name) {
     const hint = normalizeName(opts.name);
+    // Already the attached plan? Return the in-memory copy (freshest task state).
+    if (state.plan && state.plan.planName === hint) return { plan: state.plan, candidates: [] };
+
+    const manifest = await runPlanIO(readPlansManifest());
     const match = manifest.find((entry) => entry.name === hint);
     // A hint that names a real plan attaches regardless of status (the caller
     // asked for it explicitly); a hint that names nothing falls through to the
@@ -92,8 +100,14 @@ export async function resolveActivePlan(
       const plan = await attach(state, pi, runPlanIO, match.name);
       if (plan) return { plan, candidates: [] };
     }
+    const inProgress = manifest.filter((entry) => entry.status === 'in-progress');
+    return { plan: undefined, candidates: inProgress.map((entry) => entry.name) };
   }
 
+  // ── No hint: in-memory plan, else the single in-progress plan on disk ─────
+  if (state.plan) return { plan: state.plan, candidates: [] };
+
+  const manifest = await runPlanIO(readPlansManifest());
   const inProgress = manifest.filter((entry) => entry.status === 'in-progress');
   if (inProgress.length === 1) {
     const plan = await attach(state, pi, runPlanIO, inProgress[0]!.name);
