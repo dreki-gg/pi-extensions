@@ -1,5 +1,14 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.20.0
+
+### Minor Changes
+
+- 37d0f37: Add `update_tasks` batch tool: mark several plan tasks done/skipped in a single
+  call with one coalesced `tasks.jsonl` write (avoids the file-write contention
+  from repeated `update_task` calls). Each item is `{ task_id, status, notes? }`;
+  blocking stays single-task via `update_task`.
+
 ## 0.19.0
 
 ### Minor Changes
