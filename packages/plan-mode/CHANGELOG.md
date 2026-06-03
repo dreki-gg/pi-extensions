@@ -1,5 +1,11 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.20.1
+
+### Patch Changes
+
+- Hide the `technical-options` skill from model auto-invocation (`disable-model-invocation: true`). It carried always-on system-prompt token cost but never auto-triggered in practice. It remains available on demand via `/skill:technical-options`. `planning-context` and `visual-prototype` are unchanged.
+
 ## 0.20.0
 
 ### Minor Changes

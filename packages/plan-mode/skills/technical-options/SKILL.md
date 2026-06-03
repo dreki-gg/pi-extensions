@@ -1,6 +1,7 @@
 ---
 name: technical-options
 description: Generate and rank competing options for a technical decision using parallel evaluators. Use when the user wants a structured comparison of implementation approaches, architecture alternatives, or engineering tradeoffs before choosing one. Not for binary yes/no or pure preference decisions.
+disable-model-invocation: true
 ---
 
 # Technical Options
