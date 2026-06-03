@@ -26,7 +26,7 @@ import {
   EXEC_MODEL,
   EXEC_THINKING,
 } from './constants.js';
-import type { ThinkingLevel } from './types.js';
+import type { ThinkingLevel, TaskStatus } from './types.js';
 import { PlanModeState } from './state.js';
 import { makePlanRuntime } from './effects/runtime.js';
 import { loadHandoff, readAndClearExecPending } from './storage/plan-storage.js';
@@ -43,6 +43,7 @@ import { collectPlanDrift } from './reconcile.js';
 import { registerSubmitPlanTool } from './tools/submit-plan.js';
 import { registerPreviewPrototypeTool } from './tools/preview-prototype.js';
 import { registerUpdateTaskTool } from './tools/update-task.js';
+import { registerUpdateTasksTool } from './tools/update-tasks.js';
 import { registerAddTaskTool } from './tools/add-task.js';
 import { registerPlanStatusTool } from './tools/plan-status.js';
 import { registerUpdatePlanTool } from './tools/update-plan.js';
@@ -72,15 +73,64 @@ export default function planMode(pi: ExtensionAPI): void {
 
   registerPreviewPrototypeTool(pi, runPlanIO);
 
+  // Shared task-write closure: mutate the in-memory task, persist tasks.jsonl,
+  // and re-derive registry status. Used by both update_task and update_tasks.
+  const onTaskUpdated = async (
+    taskId: string,
+    status: Exclude<TaskStatus, 'pending'>,
+    notes?: string,
+  ) => {
+    if (!state.plan || !state.planDir) return;
+    const task = state.plan.tasks.find((candidate) => candidate.id === taskId);
+    if (!task) return;
+    task.status = status;
+    task.updated_at = new Date().toISOString();
+    if (notes) task.notes = notes;
+    await runPlanIO(
+      writeTasksJsonl(
+        state.planDir,
+        {
+          _type: 'meta',
+          title: state.plan.title,
+          plan_name: state.plan.planName,
+          created_at: state.plan.tasks[0]?.created_at ?? task.updated_at,
+        },
+        state.plan.tasks,
+      ),
+    );
+    // FEEDBACK #1: registry status is a projection of task state. Re-derive it
+    // on every task write so completion is decoupled from in-session execution
+    // — cross-session / disk-tracked task updates now close the plan too.
+    await runPlanIO(
+      reconcilePlanStatus(
+        state.plan.planName,
+        isPlanFinalizable(state.plan.tasks),
+        state.plan.title,
+      ),
+    );
+    state.persist(pi);
+  };
+
   registerUpdateTaskTool(pi, {
     resolvePlan: (opts) => resolveActivePlan(state, pi, runPlanIO, opts),
-    onTaskUpdated: async (taskId, status, notes) => {
+    onTaskUpdated,
+  });
+
+  registerUpdateTasksTool(pi, {
+    resolvePlan: (opts) => resolveActivePlan(state, pi, runPlanIO, opts),
+    // Coalesced batch write: mutate every task in memory first, then perform a
+    // SINGLE tasks.jsonl write + ONE registry reconcile. This is the whole point
+    // of update_tasks — repeated single-task writes caused file-write contention.
+    onTasksUpdated: async (updates) => {
       if (!state.plan || !state.planDir) return;
-      const task = state.plan.tasks.find((candidate) => candidate.id === taskId);
-      if (!task) return;
-      task.status = status;
-      task.updated_at = new Date().toISOString();
-      if (notes) task.notes = notes;
+      const now = new Date().toISOString();
+      for (const { taskId, status, notes } of updates) {
+        const task = state.plan.tasks.find((candidate) => candidate.id === taskId);
+        if (!task) continue;
+        task.status = status;
+        task.updated_at = now;
+        if (notes) task.notes = notes;
+      }
       await runPlanIO(
         writeTasksJsonl(
           state.planDir,
@@ -88,14 +138,11 @@ export default function planMode(pi: ExtensionAPI): void {
             _type: 'meta',
             title: state.plan.title,
             plan_name: state.plan.planName,
-            created_at: state.plan.tasks[0]?.created_at ?? task.updated_at,
+            created_at: state.plan.tasks[0]?.created_at ?? now,
           },
           state.plan.tasks,
         ),
       );
-      // FEEDBACK #1: registry status is a projection of task state. Re-derive it
-      // on every task write so completion is decoupled from in-session execution
-      // — cross-session / disk-tracked `update_task` now closes the plan too.
       await runPlanIO(
         reconcilePlanStatus(
           state.plan.planName,

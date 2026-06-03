@@ -27,6 +27,7 @@ pi install npm:@dreki-gg/pi-questionnaire
 | Command  | `/todos`       | Show current plan progress                     |
 | Shortcut | `Ctrl+Alt+P`   | Toggle plan mode                               |
 | Tool     | `update_task`  | Mark a task done / skipped / blocked           |
+| Tool     | `update_tasks` | Mark several tasks done / skipped in one call  |
 | Tool     | `add_task`     | Capture a discovered follow-up (deferred)      |
 | Tool     | `plan_status`  | Read-only snapshot; progress table when many plans are active |
 | Tool     | `update_plan`  | Close/reopen a plan: done, superseded, abandoned, in-progress |

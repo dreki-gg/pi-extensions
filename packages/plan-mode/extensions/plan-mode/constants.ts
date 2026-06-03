@@ -26,6 +26,7 @@ export const EXEC_TOOLS = [
   'edit',
   'write',
   'update_task',
+  'update_tasks',
   'add_task',
   'plan_status',
   'update_plan',
