@@ -27,18 +27,23 @@ import { PlanModeState } from './state.js';
 import { makePlanRuntime } from './effects/runtime.js';
 import { loadHandoff, readAndClearExecPending } from './storage/plan-storage.js';
 import { readTasksJsonl, writeTasksJsonl } from './storage/task-storage.js';
-import { upsertPlanEntry } from './storage/plans-manifest.js';
+import { upsertPlanEntry, reconcilePlanStatus } from './storage/plans-manifest.js';
 import { updateUI } from './ui.js';
 import { buildPlanModePrompt, buildExecutionPrompt } from './prompts.js';
 import { filterExecutionMessages, filterStalePlanMessages } from './context-filter.js';
-import { activeTasksResolved, deferredTasks } from './task-status.js';
+import { activeTasksResolved, deferredTasks, isPlanFinalizable } from './task-status.js';
 import { enterPlanMode, exitPlanMode, switchModel } from './phase-transitions.js';
 import { resumePlan, executeInNewSession } from './resume.js';
+import { resolveActivePlan } from './resolve-plan.js';
+import { collectPlanDrift } from './reconcile.js';
 import { registerSubmitPlanTool } from './tools/submit-plan.js';
 import { registerPreviewPrototypeTool } from './tools/preview-prototype.js';
 import { registerUpdateTaskTool } from './tools/update-task.js';
 import { registerAddTaskTool } from './tools/add-task.js';
 import { registerPlanConfigCommand } from './commands/plan-config.js';
+import { registerPlanStatusTool } from './tools/plan-status.js';
+import { registerUpdatePlanTool } from './tools/update-plan.js';
+import { registerReconcilePlansTool } from './tools/reconcile-plans.js';
 import { isSafeCommand, isPlanPath } from './utils.js';
 
 export default function planMode(pi: ExtensionAPI): void {
@@ -84,7 +89,7 @@ export default function planMode(pi: ExtensionAPI): void {
   registerPreviewPrototypeTool(pi, runPlanIO);
 
   registerUpdateTaskTool(pi, {
-    getPlan: () => state.plan,
+    resolvePlan: (opts) => resolveActivePlan(state, pi, runPlanIO, opts),
     onTaskUpdated: async (taskId, status, notes) => {
       if (!state.plan || !state.planDir) return;
       const task = state.plan.tasks.find((candidate) => candidate.id === taskId);
@@ -104,12 +109,40 @@ export default function planMode(pi: ExtensionAPI): void {
           state.plan.tasks,
         ),
       );
+      // FEEDBACK #1: registry status is a projection of task state. Re-derive it
+      // on every task write so completion is decoupled from in-session execution
+      // — cross-session / disk-tracked `update_task` now closes the plan too.
+      await runPlanIO(
+        reconcilePlanStatus(
+          state.plan.planName,
+          isPlanFinalizable(state.plan.tasks),
+          state.plan.title,
+        ),
+      );
       state.persist(pi);
     },
   });
 
+  registerPlanStatusTool(pi, {
+    resolvePlan: (opts) => resolveActivePlan(state, pi, runPlanIO, opts),
+    listInProgress: async () => {
+      const rows = await runPlanIO(collectPlanDrift());
+      return rows
+        .filter((row) => row.registryStatus === 'in-progress')
+        .map((row) => ({
+          name: row.name,
+          title: row.title ?? row.name,
+          resolved: row.resolved ?? 0,
+          total: row.total ?? 0,
+        }));
+    },
+  });
+
+  registerUpdatePlanTool(pi, runPlanIO);
+  registerReconcilePlansTool(pi, runPlanIO);
+
   registerAddTaskTool(pi, {
-    getPlan: () => state.plan,
+    resolvePlan: (opts) => resolveActivePlan(state, pi, runPlanIO, opts),
     onTaskAdded: async (task) => {
       if (!state.plan || !state.planDir) return;
       state.plan.tasks.push(task);
@@ -125,6 +158,15 @@ export default function planMode(pi: ExtensionAPI): void {
           state.plan.tasks,
         ),
       );
+      // A new deferred follow-up means the plan is no longer finalizable: re-open
+      // it in the registry if it had been auto-marked done.
+      await runPlanIO(
+        reconcilePlanStatus(
+          state.plan.planName,
+          isPlanFinalizable(state.plan.tasks),
+          state.plan.title,
+        ),
+      );
       state.persist(pi);
     },
   });
@@ -132,12 +174,32 @@ export default function planMode(pi: ExtensionAPI): void {
   // ── Commands ──────────────────────────────────────────────────────────────
   pi.registerCommand('plan', {
     description:
-      'Enter plan mode, optionally with a starting prompt. Use "/plan resume" to pick up an existing plan.',
+      'Enter plan mode, optionally with a starting prompt. "/plan resume" picks up an existing plan; "/plan focus <name>" pins the active plan for tracking calls.',
     handler: async (args, ctx) => {
       const trimmed = args?.trim();
       const cfg = await getConfig();
       if (trimmed === 'resume') {
         await resumePlan(state, pi, ctx, runPlanIO, cfg);
+        return;
+      }
+      // "/plan focus <name>" — pin a plan so update_task / add_task / plan_status
+      // default to it without repeating { plan: "<name>" } on every call (#5).
+      if (trimmed?.startsWith('focus')) {
+        const name = trimmed.slice('focus'.length).trim();
+        if (!name) {
+          ctx.ui.notify('Usage: /plan focus <name>', 'info');
+          return;
+        }
+        // Clear any stale in-memory plan so the hint re-attaches from disk.
+        state.plan = undefined;
+        state.planDir = undefined;
+        const { plan, candidates } = await resolveActivePlan(state, pi, runPlanIO, { name });
+        if (plan) {
+          ctx.ui.notify(`Focused plan: ${plan.title} (${plan.planName})`, 'info');
+        } else {
+          const hint = candidates.length ? ` In-progress: ${candidates.join(', ')}.` : '';
+          ctx.ui.notify(`No plan named "${name}".${hint}`, 'error');
+        }
         return;
       }
       if (state.planEnabled || state.executing) {
@@ -506,6 +568,14 @@ export default function planMode(pi: ExtensionAPI): void {
         state.persist(pi);
         return;
       }
+    }
+
+    // No plan attached from this session's entries or the exec handoff, but a
+    // plan may exist on disk (planning happened in another session). Attach the
+    // single in-progress plan so update_task / add_task work without an
+    // interactive /plan resume. Data only — does NOT enter execution mode.
+    if (!state.plan) {
+      await resolveActivePlan(state, pi, runPlanIO);
     }
 
     // Apply tool restrictions, model, and thinking level

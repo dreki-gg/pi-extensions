@@ -15,9 +15,22 @@ export const PLAN_TOOLS = [
   'questionnaire',
   'search_skills',
   'subagent',
+  'plan_status',
+  'update_plan',
+  'reconcile_plans',
 ];
 
-export const EXEC_TOOLS = ['read', 'bash', 'edit', 'write', 'update_task', 'add_task'];
+export const EXEC_TOOLS = [
+  'read',
+  'bash',
+  'edit',
+  'write',
+  'update_task',
+  'add_task',
+  'plan_status',
+  'update_plan',
+  'reconcile_plans',
+];
 
 // ── Model + thinking presets ─────────────────────────────────────────────────
 export const PLAN_MODEL = { provider: 'anthropic', id: 'claude-opus-4-6' } as const;

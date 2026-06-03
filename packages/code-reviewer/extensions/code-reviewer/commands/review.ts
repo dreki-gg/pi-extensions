@@ -3,7 +3,16 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { loadConfig, getLensDir } from '../config';
 import { collectDiff } from '../diff';
 import { discoverLenses, getLensContent } from '../lenses';
-import { reviewWithLens, buildDiffSection } from '../reviewer';
+import { resolveModelPlan } from '../model-plan';
+import { runPipeline } from '../passes';
+import {
+  buildDiffSection,
+  buildLensResult,
+  buildReviewBasePrompt,
+  pickLensToolOutputs,
+  renderPipelineReport,
+  runTools,
+} from '../reviewer';
 import { parseReviewArgs } from '../parse-args';
 
 export function registerReviewCommand(pi: ExtensionAPI) {
@@ -12,9 +21,9 @@ export function registerReviewCommand(pi: ExtensionAPI) {
       'Run a multi-lens code review on working directory changes. Usage: /review [--lens name,...] [--base ref] [--staged]',
     handler: async (args, ctx) => {
       const cwd = ctx.cwd;
-      const config = loadConfig(cwd);
+      const config = await loadConfig(cwd);
       const lensDir = getLensDir(cwd, config);
-      const available = discoverLenses(lensDir);
+      const available = await discoverLenses(lensDir);
 
       if (available.size === 0) {
         ctx.ui.notify(
@@ -47,23 +56,55 @@ export function registerReviewCommand(pi: ExtensionAPI) {
       }
 
       ctx.ui.notify(`Reviewing ${diff.label} through ${lensNames.length} lens(es)...`, 'info');
-      ctx.ui.setStatus('code-review', `🔍 Reviewing (0/${lensNames.length})...`);
+
+      const selected = lensNames.map((name) => available.get(name)!);
+
+      // Run the DISTINCT tool set once (deduped across lenses), concurrently.
+      const allTools = [...new Set(selected.flatMap((lens) => lens.tools))];
+      ctx.ui.setStatus('code-review', `🔍 Running ${allTools.length} tool(s)...`);
+      const toolOutputs = await runTools(pi, cwd, allTools, {
+        timeoutMs: config.toolTimeoutMs,
+        concurrency: config.toolConcurrency,
+      });
 
       const lensSections: string[] = [];
       for (let i = 0; i < lensNames.length; i++) {
         const name = lensNames[i];
         ctx.ui.setStatus('code-review', `🔍 Lens ${i + 1}/${lensNames.length}: ${name}`);
 
-        const lens = available.get(name)!;
-        const content = getLensContent(lensDir, name) ?? '';
-        const result = await reviewWithLens(pi, ctx, cwd, lens, content, diff);
-
-        if (result._lensSection) {
-          lensSections.push(result._lensSection);
-        }
+        const lens = selected[i];
+        const content = (await getLensContent(lensDir, name)) ?? '';
+        const result = buildLensResult(lens, content, pickLensToolOutputs(lens, toolOutputs));
+        if (result._lensSection) lensSections.push(result._lensSection);
       }
 
       ctx.ui.setStatus('code-review', undefined);
+
+      // Self-driving path: run the Bugbot-style pipeline in-command and deliver
+      // the validated report in-session for discussion. Mirrors the tool.
+      if (ctx.model && config.review.passes > 0 && lensSections.length > 0) {
+        try {
+          const { resolution, plan, warnings } = resolveModelPlan(
+            config.review,
+            ctx.model,
+            ctx.modelRegistry,
+          );
+          for (const warning of warnings) ctx.ui.notify(warning, 'warning');
+          const basePrompt = buildReviewBasePrompt(lensSections, diff);
+          const pipeline = await runPipeline(resolution, plan, basePrompt, config.review, {
+            onStage: (stage) => ctx.ui.setStatus('code-review', `🔍 ${stage}...`),
+          });
+          ctx.ui.setStatus('code-review', undefined);
+          pi.sendUserMessage(renderPipelineReport(pipeline, diff), { deliverAs: 'followUp' });
+          return;
+        } catch (cause) {
+          ctx.ui.setStatus('code-review', undefined);
+          ctx.ui.notify(
+            `Pipeline unavailable (${cause instanceof Error ? cause.message : String(cause)}) — single-pass fallback`,
+            'warning',
+          );
+        }
+      }
 
       const combinedPrompt = [
         `Review the following changes through ${lensNames.length} lens(es): ${lensNames.join(', ')}.`,

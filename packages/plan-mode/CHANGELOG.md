@@ -1,5 +1,35 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.19.0
+
+### Minor Changes
+
+- 48cee24: fix(plan-mode): multi-plan / cross-session drift + silent wrong-plan writes
+
+  Real-world report from a repo with many simultaneously-in-progress plans surfaced two trust-breakers plus several rough edges (see `FEEDBACK.md`). All addressed:
+
+  - **Registry status is now a projection of task state** (🔴 #1). Plan completion was coupled to a formal in-session execution run (`state.executing`), so a plan driven to all-tasks-`done` via `update_task` in another session/model stayed `in-progress` forever. `reconcilePlanStatus` now re-derives `plans.jsonl` status from `tasks.jsonl` on every task write (in `update_task` **and** `add_task`), decoupling completion from execution mode.
+  - **Explicit `plan` hint always wins** (🔴 #7). `resolveActivePlan` returned the in-memory `state.plan` before ever consulting an explicit `{ plan: "<name>" }` argument, so once a plan was submitted in a session every `update_task` / `add_task` silently pinned to it — landing writes in the wrong `tasks.jsonl`. The hint is now resolved **before** the in-memory short-circuit and re-attaches the named plan from disk.
+  - **New `update_plan` tool** (#2/#3): close or reopen a plan (`done` / `superseded` / `abandoned` / `in-progress`) with a `reason`, instead of hand-editing the registry or smuggling status into the title.
+  - **Widened plan status** (#3): `PlanManifestEntry.status` gains `superseded` and `abandoned`, plus an optional `reason`. Only `in-progress` is active; terminal statuses drop out of resolution and are never auto-overridden by reconciliation.
+  - **New `reconcile_plans` tool** (#6): walks every plan, reports drift (registry vs. derived task status), orphan task dirs, and registry-only plans; `apply: true` repairs safe `in-progress` ⇄ `done` drift.
+  - **`clean` archives instead of deletes** (#4): closed-plan directories move to `.plans/.archive/<name>/` by default (preserving HANDOFF.md + tasks.jsonl); true deletion is gated behind `--purge`. The CLI now reads `plans.jsonl` (was `plans.json`).
+  - **Multi-plan UX** (#5): `/plan focus <name>` pins the active plan so tracking calls default to it; `plan_status` with no arg and multiple in-progress plans renders a progress table (`7/17`, `8/8 ⚠ done?`) that surfaces reconcile candidates at a glance.
+
+## 0.18.0
+
+### Minor Changes
+
+- Make `update_task` / `add_task` usable across sessions and resilient for autonomous agents.
+
+  The active plan was session-scoped: `update_task` / `add_task` only worked when a plan was submitted in the same session, restored from its entries, or handed off via the one-shot exec-pending marker. An agent executing an existing `.plans/<name>/` in a fresh session (the common plan-here / execute-there flow) hit a hard `No active plan` throw.
+
+  - **Disk-backed resolution** (`resolveActivePlan`): when nothing is attached in memory, the active plan is resolved from `.plans/plans.jsonl` — the sole in-progress plan auto-attaches (data only; does NOT enter execution mode / change tools / model). Wired into `session_start` and both tracking tools.
+  - **No hard throws on tracking calls**: `update_task` / `add_task` now return soft, non-terminating results (no active plan, unknown task id, already-resolved task) so a tracking miss never derails the real work. `update_task` is idempotent — re-marking the same status is a no-op success.
+  - **`plan` parameter**: both tools accept an optional `plan` (name or `.plans/<name>`) to disambiguate without the interactive `/plan resume` when multiple plans are in-progress.
+  - **`update_task` corrections**: a different status on an already-resolved task now applies as a correction (e.g. `done`→`skipped`, or `blocked`→`done` to unblock) and is reported as such, instead of being refused.
+  - **New `plan_status` tool**: read-only snapshot of the active plan — progress counts + every task id/status — so an agent can check what's active and which ids are valid (disk-backed; works in a fresh execution session) instead of probing with a failing `update_task`. Added to both tool sets.
+
 ## 0.17.1
 
 ### Patch Changes

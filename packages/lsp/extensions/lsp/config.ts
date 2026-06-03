@@ -1,21 +1,29 @@
 /**
  * LSP server configuration loader.
  *
- * Purely config-driven — no built-in servers. Users define all servers
- * in their config files:
+ * Purely config-driven — no built-in servers and no language enabled by
+ * default. Users define every server in their config files:
  *
  *   ~/.pi/agent/extensions/lsp/config.json  (global defaults)
  *   .pi/lsp.json                            (project overrides)
  *
  * Project config merges on top of global. `disabled: true` disables a server.
  * `lsp: false` disables all LSP functionality.
+ *
+ * IO and command resolution are expressed as Effect programs against the
+ * FileSystem / CommandResolver services. The `*Effect` functions are the real
+ * implementations; the Promise-returning wrappers provide the live services and
+ * exist for the imperative call sites (extension entry, commands, tests).
  */
 
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { execSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
+import { Effect } from 'effect';
+import { join } from 'node:path';
 import { homedir } from 'node:os';
 
+import { CommandResolver } from './effects/command';
+import { FileSystem } from './effects/filesystem';
+import { makeRuntimeLayer } from './effects/runtime';
+import type { ConfigWriteError } from './errors';
 import type { LspConfigFile, LspServerUserConfig, ResolvedServerConfig } from './types';
 
 // ── Paths ───────────────────────────────────────────────────────────────────
@@ -29,100 +37,102 @@ function projectConfigPath(cwd: string): string {
   return join(cwd, '.pi', 'lsp.json');
 }
 
-async function fileExists(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
+/**
+ * Starter template scaffolded on first run. Every server is `disabled` so the
+ * extension never auto-starts a language server the user did not opt into —
+ * TypeScript is just one example among several, not a default.
+ */
 const STARTER_CONFIG = `{
   "lsp": {
     "typescript": {
       "command": ["typescript-language-server", "--stdio"],
-      "extensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"]
+      "extensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"],
+      "disabled": true
+    },
+    "pyright": {
+      "command": ["pyright-langserver", "--stdio"],
+      "extensions": [".py"],
+      "disabled": true
+    },
+    "rust": {
+      "command": ["rust-analyzer"],
+      "extensions": [".rs"],
+      "disabled": true
+    },
+    "gopls": {
+      "command": ["gopls"],
+      "extensions": [".go"],
+      "disabled": true
     }
   }
 }
 `;
 
+// ── Effect programs ───────────────────────────────────────────────────────────
+
 /**
  * Scaffold a starter global config if neither global nor project config exists.
- * Returns true if a file was created.
+ * Succeeds with `true` when a file was created, `false` otherwise.
  */
-export async function scaffoldGlobalConfig(cwd: string): Promise<boolean> {
-  const globalPath = globalConfigPath();
-  const projectPath = projectConfigPath(cwd);
+export function scaffoldGlobalConfigEffect(
+  cwd: string,
+): Effect.Effect<boolean, ConfigWriteError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const globalPath = globalConfigPath();
 
-  if (await fileExists(globalPath)) return false;
-  if (await fileExists(projectPath)) return false;
+    if (yield* fs.fileExists(globalPath)) return false;
+    if (yield* fs.fileExists(projectConfigPath(cwd))) return false;
 
-  await mkdir(dirname(globalPath), { recursive: true });
-  await writeFile(globalPath, STARTER_CONFIG, 'utf8');
-  return true;
+    yield* fs.writeTextFile(globalPath, STARTER_CONFIG);
+    return true;
+  });
 }
 
-// ── Loading ─────────────────────────────────────────────────────────────────
-
-async function loadJsonFile<T>(path: string): Promise<T | null> {
-  try {
-    const text = await readFile(path, 'utf8');
-    return JSON.parse(text) as T;
-  } catch {
-    return null;
-  }
+function readJsonFileEffect<T>(path: string): Effect.Effect<T | null, never, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const raw = yield* fs.readTextFile(path).pipe(Effect.either);
+    if (raw._tag === 'Left') return null;
+    try {
+      return JSON.parse(raw.right) as T;
+    } catch {
+      return null;
+    }
+  });
 }
 
-function commandAvailableVia(command: string, cwd: string): 'global' | 'npx' | null {
-  try {
-    const whichCmd = process.platform === 'win32' ? 'where' : 'which';
-    execSync(`${whichCmd} ${command}`, { stdio: 'pipe', timeout: 5_000 });
-    return 'global';
-  } catch {
-    // not global
-  }
-  try {
-    execSync(`npx --yes ${command} --version`, { stdio: 'pipe', cwd, timeout: 15_000 });
-    return 'npx';
-  } catch {
-    return null;
-  }
-}
-
-// ── Resolving ───────────────────────────────────────────────────────────────
-
-function resolveServer(
+function resolveServerEffect(
   name: string,
   config: LspServerUserConfig,
   cwd: string,
-): ResolvedServerConfig | null {
-  if (config.disabled) return null;
-  if (!config.command || config.command.length === 0) return null;
-  if (!config.extensions || config.extensions.length === 0) return null;
+): Effect.Effect<ResolvedServerConfig | null, never, CommandResolver> {
+  return Effect.gen(function* () {
+    if (config.disabled) return null;
+    if (!config.command || config.command.length === 0) return null;
+    if (!config.extensions || config.extensions.length === 0) return null;
 
-  let finalCommand = config.command[0];
-  let finalArgs = config.command.slice(1);
+    let finalCommand = config.command[0];
+    let finalArgs = config.command.slice(1);
 
-  const via = commandAvailableVia(finalCommand, cwd);
-  if (!via) return null;
-  if (via === 'npx') {
-    finalArgs = ['--yes', finalCommand, ...finalArgs];
-    finalCommand = 'npx';
-  }
+    const resolver = yield* CommandResolver;
+    const via = yield* resolver.resolve(finalCommand, cwd);
+    if (!via) return null;
+    if (via === 'npx') {
+      finalArgs = ['--yes', finalCommand, ...finalArgs];
+      finalCommand = 'npx';
+    }
 
-  return {
-    name,
-    command: finalCommand,
-    args: finalArgs,
-    extensions: config.extensions,
-    env: config.env ?? {},
-    initializationOptions: config.initialization ?? {},
-  };
+    return {
+      name,
+      command: finalCommand,
+      args: finalArgs,
+      extensions: config.extensions,
+      env: config.env ?? {},
+      initializationOptions: config.initialization ?? {},
+    } satisfies ResolvedServerConfig;
+  });
 }
-
-// ── Public API ──────────────────────────────────────────────────────────────
 
 export interface LoadedConfig {
   servers: ResolvedServerConfig[];
@@ -130,47 +140,59 @@ export interface LoadedConfig {
   errors: string[];
 }
 
-export async function loadConfig(cwd: string): Promise<LoadedConfig> {
-  const errors: string[] = [];
+export function loadConfigEffect(
+  cwd: string,
+): Effect.Effect<LoadedConfig, never, FileSystem | CommandResolver> {
+  return Effect.gen(function* () {
+    const errors: string[] = [];
 
-  const globalConfig = await loadJsonFile<LspConfigFile>(globalConfigPath());
-  const projectConfig = await loadJsonFile<LspConfigFile>(projectConfigPath(cwd));
+    const globalConfig = yield* readJsonFileEffect<LspConfigFile>(globalConfigPath());
+    const projectConfig = yield* readJsonFileEffect<LspConfigFile>(projectConfigPath(cwd));
 
-  // Check if globally disabled
-  if (globalConfig?.lsp === false || projectConfig?.lsp === false) {
-    return { servers: [], globalDisabled: true, errors };
-  }
-
-  const globalServers = (typeof globalConfig?.lsp === 'object' ? globalConfig.lsp : {}) as Record<
-    string,
-    LspServerUserConfig
-  >;
-  const projectServers = (
-    typeof projectConfig?.lsp === 'object' ? projectConfig.lsp : {}
-  ) as Record<string, LspServerUserConfig>;
-
-  // Merge: project overrides global
-  const allNames = new Set([...Object.keys(globalServers), ...Object.keys(projectServers)]);
-  const servers: ResolvedServerConfig[] = [];
-
-  for (const name of allNames) {
-    const userConfig: LspServerUserConfig = {
-      ...globalServers[name],
-      ...projectServers[name],
-    };
-
-    // Merge env maps properly
-    if (globalServers[name]?.env || projectServers[name]?.env) {
-      userConfig.env = { ...globalServers[name]?.env, ...projectServers[name]?.env };
+    if (globalConfig?.lsp === false || projectConfig?.lsp === false) {
+      return { servers: [], globalDisabled: true, errors };
     }
 
-    const resolved = resolveServer(name, userConfig, cwd);
-    if (resolved) {
-      servers.push(resolved);
-    }
-  }
+    const globalServers = (typeof globalConfig?.lsp === 'object' ? globalConfig.lsp : {}) as Record<
+      string,
+      LspServerUserConfig
+    >;
+    const projectServers = (
+      typeof projectConfig?.lsp === 'object' ? projectConfig.lsp : {}
+    ) as Record<string, LspServerUserConfig>;
 
-  return { servers, globalDisabled: false, errors };
+    const allNames = new Set([...Object.keys(globalServers), ...Object.keys(projectServers)]);
+    const servers: ResolvedServerConfig[] = [];
+
+    for (const name of allNames) {
+      const userConfig: LspServerUserConfig = {
+        ...globalServers[name],
+        ...projectServers[name],
+      };
+
+      // Merge env maps properly (project on top of global).
+      if (globalServers[name]?.env || projectServers[name]?.env) {
+        userConfig.env = { ...globalServers[name]?.env, ...projectServers[name]?.env };
+      }
+
+      const resolved = yield* resolveServerEffect(name, userConfig, cwd);
+      if (resolved) servers.push(resolved);
+    }
+
+    return { servers, globalDisabled: false, errors };
+  });
+}
+
+// ── Promise wrappers (live services provided) ────────────────────────────────
+
+export function scaffoldGlobalConfig(cwd: string): Promise<boolean> {
+  return Effect.runPromise(
+    scaffoldGlobalConfigEffect(cwd).pipe(Effect.provide(makeRuntimeLayer())),
+  );
+}
+
+export function loadConfig(cwd: string): Promise<LoadedConfig> {
+  return Effect.runPromise(loadConfigEffect(cwd).pipe(Effect.provide(makeRuntimeLayer())));
 }
 
 /** Find all servers that handle a given file extension. */

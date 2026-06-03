@@ -1,117 +1,143 @@
 #!/usr/bin/env node
 /**
- * CLI to clean completed plans from `.plans/`.
+ * CLI to clean closed plans from `.plans/`.
  *
  * Usage:
- *   npx @dreki-gg/pi-plan-mode clean [--dry-run]
+ *   npx @dreki-gg/pi-plan-mode clean [--dry-run] [--purge]
  *
- * Reads `.plans/plans.json`, deletes directories for plans with status "done",
- * and updates `plans.json` to remove them.
+ * Reads `.plans/plans.jsonl`, and for every plan whose status is terminal
+ * (done / superseded / abandoned):
+ *   - default:  ARCHIVES the plan directory to `.plans/.archive/<name>/`
+ *               (non-destructive — keeps HANDOFF.md + tasks.jsonl as a record)
+ *   - --purge:  permanently deletes the plan directory
+ * In both cases the entry is removed from the active `plans.jsonl` registry.
  *
  * Designed for use in GitHub Actions after merge — similar to changesets.
+ * History-preserving by default (FEEDBACK #4): closing out a finished plan must
+ * not silently destroy its handoff + task ledger.
  */
 
-import { readFileSync, writeFileSync, rmSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, rmSync, renameSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
 const PLANS_DIR = '.plans';
-const PLANS_JSON = join(PLANS_DIR, 'plans.json');
+const ARCHIVE_DIR = join(PLANS_DIR, '.archive');
+const MANIFEST_PATH = join(PLANS_DIR, 'plans.jsonl');
+
+const TERMINAL_STATUSES = new Set(['done', 'superseded', 'abandoned']);
+
+/** Parse `.plans/plans.jsonl` into an array of plan entries. */
+function readManifest(path) {
+  const text = readFileSync(path, 'utf-8');
+  const entries = [];
+  for (const [index, raw] of text.split(/\r?\n/).entries()) {
+    if (!raw.trim()) continue;
+    try {
+      entries.push(JSON.parse(raw));
+    } catch (err) {
+      console.error(`Failed to parse ${MANIFEST_PATH} at line ${index + 1}:`, err);
+      process.exit(1);
+    }
+  }
+  return entries;
+}
+
+function writeManifest(path, entries) {
+  const content =
+    entries.map((entry) => JSON.stringify(entry)).join('\n') + (entries.length ? '\n' : '');
+  writeFileSync(path, content);
+}
 
 function main() {
   const args = process.argv.slice(2);
   const command = args[0];
 
   if (command !== 'clean') {
-    console.error('Usage: pi-plan-mode clean [--dry-run]\n');
+    console.error('Usage: pi-plan-mode clean [--dry-run] [--purge]\n');
     console.error('Commands:');
-    console.error('  clean       Remove completed plan directories and update plans.json\n');
+    console.error('  clean       Archive closed plan directories and update plans.jsonl\n');
     console.error('Options:');
-    console.error('  --dry-run   Show what would be deleted without actually deleting');
+    console.error('  --dry-run   Show what would be cleaned without changing anything');
+    console.error('  --purge     Permanently delete instead of archiving to .plans/.archive/');
     process.exit(1);
   }
 
   const dryRun = args.includes('--dry-run');
-  const plansJsonPath = resolve(PLANS_JSON);
+  const purge = args.includes('--purge');
+  const manifestPath = resolve(MANIFEST_PATH);
 
-  if (!existsSync(plansJsonPath)) {
-    console.log('No .plans/plans.json found — nothing to clean.');
+  if (!existsSync(manifestPath)) {
+    console.log(`No ${MANIFEST_PATH} found — nothing to clean.`);
     process.exit(0);
   }
 
-  /** @type {Record<string, { status: string; title: string; created: string; completed: string | null }>} */
-  let manifest;
-  try {
-    manifest = JSON.parse(readFileSync(plansJsonPath, 'utf-8'));
-  } catch (err) {
-    console.error(`Failed to parse ${PLANS_JSON}:`, err);
-    process.exit(1);
+  const entries = readManifest(manifestPath);
+  const closed = entries.filter((entry) => TERMINAL_STATUSES.has(entry.status));
+  const inFlight = entries.filter((entry) => entry.status === 'in-progress');
+
+  if (closed.length === 0) {
+    console.log('No closed plans to clean.');
+    if (inFlight.length > 0) {
+      console.log(`\n${inFlight.length} plan(s) still in progress:`);
+      for (const entry of inFlight) console.log(`  ○ ${entry.name} — ${entry.title}`);
+    }
+    process.exit(0);
   }
 
-  const donePlans = Object.entries(manifest).filter(([, entry]) => entry.status === 'done');
-  const inFlightPlans = Object.entries(manifest).filter(
-    ([, entry]) => entry.status === 'in-progress',
+  const verb = purge ? 'delete' : 'archive';
+  console.log(
+    dryRun ? `Dry run — would ${verb}:\n` : `${purge ? 'Deleting' : 'Archiving'} closed plans:\n`,
   );
 
-  if (donePlans.length === 0) {
-    console.log('No completed plans to clean.');
-    if (inFlightPlans.length > 0) {
-      console.log(`\n${inFlightPlans.length} plan(s) still in progress:`);
-      for (const [name, entry] of inFlightPlans) {
-        console.log(`  ○ ${name} — ${entry.title}`);
-      }
-    }
-    process.exit(0);
+  if (!dryRun && !purge && !existsSync(resolve(ARCHIVE_DIR))) {
+    mkdirSync(resolve(ARCHIVE_DIR), { recursive: true });
   }
 
-  console.log(dryRun ? 'Dry run — would clean:\n' : 'Cleaning completed plans:\n');
-
+  const remaining = [...inFlight];
   let cleaned = 0;
-  for (const [name, entry] of donePlans) {
-    const planPath = resolve(join(PLANS_DIR, name));
+  for (const entry of closed) {
+    const planPath = resolve(join(PLANS_DIR, entry.name));
     const exists = existsSync(planPath);
+    const label = `${entry.name} — ${entry.title} [${entry.status}]`;
 
     if (dryRun) {
-      console.log(`  ✓ ${name} — ${entry.title}${exists ? '' : ' (directory already missing)'}`);
-    } else {
-      if (exists) {
+      console.log(`  ✓ ${label}${exists ? '' : ' (directory already missing)'}`);
+      continue;
+    }
+
+    if (exists) {
+      if (purge) {
         rmSync(planPath, { recursive: true, force: true });
-        console.log(`  ✓ Deleted ${PLANS_DIR}/${name} — ${entry.title}`);
+        console.log(`  ✓ Deleted ${PLANS_DIR}/${entry.name} — ${label}`);
       } else {
-        console.log(`  ✓ ${name} — directory already missing, removing from manifest`);
-      }
-      delete manifest[name];
-      cleaned++;
-    }
-  }
-
-  if (!dryRun) {
-    const remaining = Object.keys(manifest).length;
-    if (remaining === 0) {
-      rmSync(plansJsonPath, { force: true });
-      // Remove .plans/ if completely empty
-      const plansDir = resolve(PLANS_DIR);
-      try {
-        if (existsSync(plansDir) && readdirSync(plansDir).length === 0) {
-          rmSync(plansDir, { recursive: true, force: true });
-          console.log(`\nRemoved empty ${PLANS_DIR}/`);
-        }
-      } catch {
-        // Directory might have other contents
+        const dest = resolve(join(ARCHIVE_DIR, entry.name));
+        rmSync(dest, { recursive: true, force: true }); // replace any stale archive
+        renameSync(planPath, dest);
+        console.log(`  ✓ Archived ${PLANS_DIR}/${entry.name} → ${ARCHIVE_DIR}/${entry.name}`);
       }
     } else {
-      writeFileSync(plansJsonPath, JSON.stringify(manifest, null, 2) + '\n');
+      console.log(`  ✓ ${entry.name} — directory already missing, removing from manifest`);
     }
-
-    console.log(`\nCleaned ${cleaned} plan(s).`);
-    if (remaining > 0) {
-      console.log(`${remaining} plan(s) still in progress.`);
-    }
-  } else {
-    console.log(`\n${donePlans.length} plan(s) would be cleaned.`);
-    if (inFlightPlans.length > 0) {
-      console.log(`${inFlightPlans.length} plan(s) still in progress (will be kept).`);
-    }
+    cleaned++;
   }
+
+  if (dryRun) {
+    console.log(`\n${closed.length} plan(s) would be cleaned.`);
+    if (inFlight.length > 0) {
+      console.log(`${inFlight.length} plan(s) still in progress (will be kept).`);
+    }
+    return;
+  }
+
+  if (remaining.length === 0) {
+    rmSync(manifestPath, { force: true });
+  } else {
+    writeManifest(manifestPath, remaining);
+  }
+
+  console.log(`\nCleaned ${cleaned} plan(s).`);
+  if (remaining.length > 0) console.log(`${remaining.length} plan(s) still in progress.`);
+  if (!purge) console.log(`Archived plans kept in ${ARCHIVE_DIR}/ (use --purge to delete).`);
 }
 
 main();

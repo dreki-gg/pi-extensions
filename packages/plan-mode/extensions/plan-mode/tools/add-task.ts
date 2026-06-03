@@ -9,11 +9,13 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
-import type { PlanData, TaskRecord } from '../types.js';
+import type { TaskRecord } from '../types.js';
+import type { ResolvedPlan } from '../resolve-plan.js';
 import { nextTaskId } from '../utils.js';
 
 export interface AddTaskCallbacks {
-  getPlan: () => PlanData | undefined;
+  /** Resolve the active plan, attaching from disk when none is in memory. */
+  resolvePlan: (opts?: { name?: string }) => Promise<ResolvedPlan>;
   onTaskAdded: (task: TaskRecord) => void | Promise<void>;
 }
 
@@ -38,11 +40,31 @@ export function registerAddTaskTool(pi: ExtensionAPI, callbacks: AddTaskCallback
         Type.String({ description: 'Optional fuller implementation notes for the follow-up' }),
       ),
       depends_on: Type.Optional(Type.Array(Type.String({ description: 'Dependency task ID' }))),
+      plan: Type.Optional(
+        Type.String({
+          description:
+            'Plan name (or .plans/<name>) to target. Only needed to disambiguate when multiple plans are in-progress.',
+        }),
+      ),
     }),
 
     async execute(_toolCallId, params) {
-      const plan = callbacks.getPlan();
-      if (!plan) throw new Error('No active plan. Cannot add a follow-up task.');
+      const { plan, candidates } = await callbacks.resolvePlan({ name: params.plan });
+      // No active plan is a tracking miss, not an error — return a soft,
+      // non-terminating result so real work continues.
+      if (!plan) {
+        const hint =
+          candidates.length > 1
+            ? ` Multiple in-progress plans (${candidates.join(', ')}) — pass { plan: "<name>" } to choose.`
+            : ' No in-progress plan found in .plans/plans.jsonl.';
+        const details: Record<string, unknown> = { skipped: true, candidates };
+        return {
+          content: [
+            { type: 'text' as const, text: `Skipped follow-up capture — no active plan.${hint}` },
+          ],
+          details,
+        };
+      }
 
       const now = new Date().toISOString();
       const task: TaskRecord = {

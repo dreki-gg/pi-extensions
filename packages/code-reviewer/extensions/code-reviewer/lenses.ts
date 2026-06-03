@@ -1,5 +1,7 @@
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { resolve, basename } from 'node:path';
+import { Effect } from 'effect';
+import { basename, resolve } from 'node:path';
+
+import { FileSystem, nodeFileSystemService } from './effects/filesystem';
 import type { LensConfig, LensSeverity } from './types';
 
 type SectionKind = 'top' | 'criteria' | 'tools' | 'severity';
@@ -91,27 +93,52 @@ function parseSeverityRule(trimmed: string, rules: Record<LensSeverity, string>)
   }
 }
 
-/** Discover all lens files in a directory. */
-export function discoverLenses(lensDir: string): Map<string, LensConfig> {
-  const lenses = new Map<string, LensConfig>();
+/** Discover all lens files in a directory (missing dir → empty map). */
+export function discoverLensesEffect(
+  lensDir: string,
+): Effect.Effect<Map<string, LensConfig>, never, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const lenses = new Map<string, LensConfig>();
 
-  if (!existsSync(lensDir)) return lenses;
+    const entries = yield* fs.readDirectory(lensDir).pipe(Effect.either);
+    if (entries._tag === 'Left') return lenses;
 
-  const files = readdirSync(lensDir).filter((f) => f.endsWith('.md'));
+    for (const file of entries.right.filter((f) => f.endsWith('.md'))) {
+      const content = yield* fs.readTextFile(resolve(lensDir, file)).pipe(Effect.either);
+      if (content._tag === 'Left') continue;
+      const key = basename(file, '.md');
+      lenses.set(key, parseLensFile(content.right, file));
+    }
 
-  for (const file of files) {
-    const content = readFileSync(resolve(lensDir, file), 'utf-8');
-    const config = parseLensFile(content, file);
-    const key = basename(file, '.md');
-    lenses.set(key, config);
-  }
-
-  return lenses;
+    return lenses;
+  });
 }
 
 /** Get raw markdown content for a lens to pass to the reviewer agent. */
-export function getLensContent(lensDir: string, lensName: string): string | null {
-  const filePath = resolve(lensDir, `${lensName}.md`);
-  if (!existsSync(filePath)) return null;
-  return readFileSync(filePath, 'utf-8');
+export function getLensContentEffect(
+  lensDir: string,
+  lensName: string,
+): Effect.Effect<string | null, never, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const content = yield* fs.readTextFile(resolve(lensDir, `${lensName}.md`)).pipe(Effect.either);
+    return content._tag === 'Right' ? content.right : null;
+  });
+}
+
+// ── Promise wrappers (live FileSystem provided) ──────────────────────────────
+
+export function discoverLenses(lensDir: string): Promise<Map<string, LensConfig>> {
+  return Effect.runPromise(
+    discoverLensesEffect(lensDir).pipe(Effect.provideService(FileSystem, nodeFileSystemService)),
+  );
+}
+
+export function getLensContent(lensDir: string, lensName: string): Promise<string | null> {
+  return Effect.runPromise(
+    getLensContentEffect(lensDir, lensName).pipe(
+      Effect.provideService(FileSystem, nodeFileSystemService),
+    ),
+  );
 }

@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { FileSystem, nodeFileSystemService } from '../effects/filesystem.js';
 import {
   readPlansManifest,
+  reconcilePlanStatus,
   upsertPlanEntry,
   writePlansManifest,
 } from '../storage/plans-manifest.js';
@@ -70,5 +71,50 @@ describe('plans.jsonl manifest', () => {
     expect(entry.created_at).toBe('created');
     expect(entry.status).toBe('done');
     expect(entry.completed_at).toBeString();
+  });
+
+  test('records a reason for terminal statuses and clears completed_at on reopen', async () => {
+    await run(upsertPlanEntry('p', { status: 'in-progress', title: 'P' }));
+    await run(upsertPlanEntry('p', { status: 'superseded', reason: 'absorbed by q' }));
+    let [entry] = await run(readPlansManifest());
+    expect(entry.status).toBe('superseded');
+    expect(entry.reason).toBe('absorbed by q');
+    expect(entry.completed_at).toBeString();
+
+    // Reopening clears completed_at.
+    await run(upsertPlanEntry('p', { status: 'in-progress' }));
+    [entry] = await run(readPlansManifest());
+    expect(entry.status).toBe('in-progress');
+    expect(entry.completed_at).toBeNull();
+  });
+});
+
+describe('reconcilePlanStatus (registry as a projection of task state)', () => {
+  test('flips in-progress → done when finalizable', async () => {
+    await run(upsertPlanEntry('p', { status: 'in-progress', title: 'P' }));
+    await run(reconcilePlanStatus('p', true, 'P'));
+    const [entry] = await run(readPlansManifest());
+    expect(entry.status).toBe('done');
+  });
+
+  test('reopens done → in-progress when no longer finalizable', async () => {
+    await run(upsertPlanEntry('p', { status: 'done', title: 'P' }));
+    await run(reconcilePlanStatus('p', false, 'P'));
+    const [entry] = await run(readPlansManifest());
+    expect(entry.status).toBe('in-progress');
+    expect(entry.completed_at).toBeNull();
+  });
+
+  test('never overrides a manually-closed terminal status', async () => {
+    await run(upsertPlanEntry('p', { status: 'abandoned', title: 'P', reason: 'rejected' }));
+    await run(reconcilePlanStatus('p', true, 'P'));
+    const [entry] = await run(readPlansManifest());
+    expect(entry.status).toBe('abandoned');
+    expect(entry.reason).toBe('rejected');
+  });
+
+  test('is a no-op for an unknown plan (nothing created)', async () => {
+    await run(reconcilePlanStatus('ghost', true));
+    await expect(run(readPlansManifest())).resolves.toEqual([]);
   });
 });

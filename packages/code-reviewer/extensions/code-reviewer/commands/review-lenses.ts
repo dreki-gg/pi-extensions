@@ -7,9 +7,9 @@ export function registerReviewLensesCommand(pi: ExtensionAPI) {
   pi.registerCommand('review-lenses', {
     description: 'List available review lenses for this project',
     handler: async (_args, ctx) => {
-      const config = loadConfig(ctx.cwd);
+      const config = await loadConfig(ctx.cwd);
       const lensDir = getLensDir(ctx.cwd, config);
-      const available = discoverLenses(lensDir);
+      const available = await discoverLenses(lensDir);
 
       if (available.size === 0) {
         ctx.ui.notify(
