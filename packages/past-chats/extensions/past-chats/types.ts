@@ -1,7 +1,13 @@
 import type { SessionInfo } from '@earendil-works/pi-coding-agent';
 import type { PastChatCache, PastChatCacheEntry, PastChatsConfig } from './schema';
 
-export type { PastChatCache, PastChatCacheEntry, PastChatFolderConfig, PastChatSummaryConfig, PastChatsConfig } from './schema';
+export type {
+  PastChatCache,
+  PastChatCacheEntry,
+  PastChatFolderConfig,
+  PastChatSummaryConfig,
+  PastChatsConfig,
+} from './schema';
 
 export type ResolvedPastChatFolder = {
   path: string;
@@ -38,4 +44,3 @@ export type PastChatsRuntimeState = {
   folders: ResolvedPastChatFolder[];
   index: PastChatIndex;
 };
-

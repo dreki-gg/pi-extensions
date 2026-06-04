@@ -60,9 +60,15 @@ export function resolveFolders(cwd: string, config: PastChatsConfig): ResolvedPa
   });
 }
 
-export function addFolder(config: PastChatsConfig, folderPath: string, label?: string): PastChatsConfig {
+export function addFolder(
+  config: PastChatsConfig,
+  folderPath: string,
+  label?: string,
+): PastChatsConfig {
   const normalizedLabel = label?.trim();
-  const folders = config.folders.filter((folder) => folder.path !== folderPath && folder.label !== normalizedLabel);
+  const folders = config.folders.filter(
+    (folder) => folder.path !== folderPath && folder.label !== normalizedLabel,
+  );
   folders.push({ path: folderPath, ...(normalizedLabel ? { label: normalizedLabel } : {}) });
   return { ...config, folders };
 }
@@ -71,6 +77,8 @@ export function removeFolder(config: PastChatsConfig, target: string): PastChats
   const normalized = target.trim();
   return {
     ...config,
-    folders: config.folders.filter((folder) => folder.path !== normalized && folder.label !== normalized),
+    folders: config.folders.filter(
+      (folder) => folder.path !== normalized && folder.label !== normalized,
+    ),
   };
 }

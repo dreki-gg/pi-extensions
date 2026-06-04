@@ -17,11 +17,18 @@ function parseAddArgs(rest: string): { path: string; label?: string } | undefine
   return { path: folderPath, ...(labelParts.length ? { label: labelParts.join(' ') } : {}) };
 }
 
-function notify(ctx: ExtensionCommandContext, message: string, level: 'info' | 'warning' | 'error' = 'info'): void {
+function notify(
+  ctx: ExtensionCommandContext,
+  message: string,
+  level: 'info' | 'warning' | 'error' = 'info',
+): void {
   if (ctx.hasUI) ctx.ui.notify(message, level);
 }
 
-async function commandList(ctx: ExtensionCommandContext, state: PastChatsRuntimeState): Promise<void> {
+async function commandList(
+  ctx: ExtensionCommandContext,
+  state: PastChatsRuntimeState,
+): Promise<void> {
   const currentCount = state.index.getItems().filter((item) => item.source.current).length;
   const lines = [
     `Current folder: ${state.cwd} (${currentCount} sessions)`,
@@ -77,7 +84,10 @@ export function registerCommands(
           state.config = addFolder(state.config, parsed.path, parsed.label);
           saveConfig(state.cwd || ctx.cwd, state.config);
           await reload(ctx.cwd);
-          notify(ctx, `past-chats: added ${parsed.path}${parsed.label ? ` (${parsed.label})` : ''}`);
+          notify(
+            ctx,
+            `past-chats: added ${parsed.path}${parsed.label ? ` (${parsed.label})` : ''}`,
+          );
           return;
         }
 

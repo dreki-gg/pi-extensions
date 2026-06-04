@@ -20,7 +20,13 @@ function textFromContent(content: unknown): string {
   return content
     .flatMap((block) => {
       if (!block || typeof block !== 'object') return [];
-      const candidate = block as { type?: string; text?: string; thinking?: string; name?: string; arguments?: unknown };
+      const candidate = block as {
+        type?: string;
+        text?: string;
+        thinking?: string;
+        name?: string;
+        arguments?: unknown;
+      };
       if (candidate.type === 'text' && typeof candidate.text === 'string') return [candidate.text];
       return [];
     })
@@ -61,7 +67,10 @@ export function loadSessionEntries(sessionPath: string): FileEntry[] {
   }
 }
 
-export function buildDeterministicSummary(item: PastChatItem, entries = loadSessionEntries(item.session.path)): string {
+export function buildDeterministicSummary(
+  item: PastChatItem,
+  entries = loadSessionEntries(item.session.path),
+): string {
   const compactions: string[] = [];
   const branchSummaries: string[] = [];
   const recentUser: string[] = [];
@@ -86,7 +95,8 @@ export function buildDeterministicSummary(item: PastChatItem, entries = loadSess
   sections.push(`Title: ${item.title}`);
 
   const latestCompactions = compactions.slice(-2);
-  if (latestCompactions.length) sections.push(`\nCompaction summaries:\n${latestCompactions.join('\n')}`);
+  if (latestCompactions.length)
+    sections.push(`\nCompaction summaries:\n${latestCompactions.join('\n')}`);
 
   const latestBranches = branchSummaries.slice(-2);
   if (latestBranches.length) sections.push(`\nBranch summaries:\n${latestBranches.join('\n')}`);
@@ -95,10 +105,12 @@ export function buildDeterministicSummary(item: PastChatItem, entries = loadSess
   if (latestUser.length) sections.push(`\nRecent user messages:\n${latestUser.join('\n')}`);
 
   const latestAssistant = assistant.slice(-5);
-  if (latestAssistant.length) sections.push(`\nRecent assistant notes:\n${latestAssistant.join('\n')}`);
+  if (latestAssistant.length)
+    sections.push(`\nRecent assistant notes:\n${latestAssistant.join('\n')}`);
 
   const uniqueTools = unique(tools).slice(-MAX_SNIPPETS);
-  if (uniqueTools.length) sections.push(`\nTool calls / points of interest:\n${uniqueTools.join('\n')}`);
+  if (uniqueTools.length)
+    sections.push(`\nTool calls / points of interest:\n${uniqueTools.join('\n')}`);
 
   if (sections.length === 2 && item.session.firstMessage) {
     sections.push(`\nFirst message:\n- ${truncate(item.session.firstMessage, 1_000)}`);
@@ -125,7 +137,11 @@ function buildAiSummaryPrompt(item: PastChatItem): string {
   ].join('\n');
 }
 
-async function buildAiSummary(ctx: ExtensionContext, item: PastChatItem, config: PastChatsConfig): Promise<string | undefined> {
+async function buildAiSummary(
+  ctx: ExtensionContext,
+  item: PastChatItem,
+  config: PastChatsConfig,
+): Promise<string | undefined> {
   const provider = config.summary?.provider;
   const modelId = config.summary?.model;
   if (!provider || !modelId) return undefined;
@@ -138,7 +154,11 @@ async function buildAiSummary(ctx: ExtensionContext, item: PastChatItem, config:
 
   const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
   if (!auth.ok || !auth.apiKey) {
-    if (ctx.hasUI) ctx.ui.notify(`past-chats: ${auth.ok ? `No API key for ${provider}/${modelId}` : auth.error}`, 'warning');
+    if (ctx.hasUI)
+      ctx.ui.notify(
+        `past-chats: ${auth.ok ? `No API key for ${provider}/${modelId}` : auth.error}`,
+        'warning',
+      );
     return undefined;
   }
 
@@ -202,7 +222,8 @@ export async function getSummaryForItem(
     }
   } catch (err) {
     console.warn('[past-chats] AI summary failed:', err);
-    if (ctx.hasUI) ctx.ui.notify('past-chats: AI summary failed; using deterministic fallback.', 'warning');
+    if (ctx.hasUI)
+      ctx.ui.notify('past-chats: AI summary failed; using deterministic fallback.', 'warning');
   }
 
   return buildDeterministicSummary(item);

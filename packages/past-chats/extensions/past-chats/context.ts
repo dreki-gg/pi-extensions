@@ -51,7 +51,10 @@ export function registerContextInjection(pi: ExtensionAPI, state: PastChatsRunti
     ].join('\n');
 
     if (ctx.hasUI) {
-      ctx.ui.notify(`Attached ${packs.length} past chat reference${packs.length === 1 ? '' : 's'}.`, 'info');
+      ctx.ui.notify(
+        `Attached ${packs.length} past chat reference${packs.length === 1 ? '' : 's'}.`,
+        'info',
+      );
     }
 
     return {
@@ -61,7 +64,11 @@ export function registerContextInjection(pi: ExtensionAPI, state: PastChatsRunti
         display: false,
         details: {
           tokens,
-          resolved: resolved.map(({ token, item }) => ({ token, id: item.id, path: item.session.path })),
+          resolved: resolved.map(({ token, item }) => ({
+            token,
+            id: item.id,
+            path: item.session.path,
+          })),
           unresolved,
         },
       },

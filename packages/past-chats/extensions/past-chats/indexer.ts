@@ -19,7 +19,11 @@ export function getSessionTitle(session: SessionInfo): string {
   return path.basename(session.path);
 }
 
-export function buildSearchableText(session: SessionInfo, title: string, sourceLabel: string): string {
+export function buildSearchableText(
+  session: SessionInfo,
+  title: string,
+  sourceLabel: string,
+): string {
   return [
     title,
     sourceLabel,
@@ -35,7 +39,9 @@ export function buildSearchableText(session: SessionInfo, title: string, sourceL
     .toLowerCase();
 }
 
-function assignIds(sessions: Array<{ session: SessionInfo; source: PastChatItem['source'] }>): PastChatItem[] {
+function assignIds(
+  sessions: Array<{ session: SessionInfo; source: PastChatItem['source'] }>,
+): PastChatItem[] {
   const used = new Set<string>();
 
   return sessions.map(({ session, source }) => {
@@ -60,7 +66,11 @@ function assignIds(sessions: Array<{ session: SessionInfo; source: PastChatItem[
   });
 }
 
-async function listSource(cwd: string, label: string, current: boolean): Promise<Array<{ session: SessionInfo; source: PastChatItem['source'] }>> {
+async function listSource(
+  cwd: string,
+  label: string,
+  current: boolean,
+): Promise<Array<{ session: SessionInfo; source: PastChatItem['source'] }>> {
   const sessions = await SessionManager.list(cwd);
   return sessions.map((session) => ({ session, source: { cwd, label, current } }));
 }
@@ -80,11 +90,13 @@ export function createPastChatIndex(): PastChatIndex {
     async refresh(cwd: string, folders: ResolvedPastChatFolder[]): Promise<void> {
       const sources = [
         ...(await listSource(cwd, 'Current', true)),
-        ...(await Promise.all(
-          folders
-            .filter((folder) => folder.exists)
-            .map((folder) => listSource(folder.path, folder.label, false)),
-        )).flat(),
+        ...(
+          await Promise.all(
+            folders
+              .filter((folder) => folder.exists)
+              .map((folder) => listSource(folder.path, folder.label, false)),
+          )
+        ).flat(),
       ];
 
       items = sortPastChatItems(assignIds(sources));

@@ -28,6 +28,16 @@ Selecting a suggestion inserts a stable token such as `@chat:9ab12cd34ef0`. When
 
 The agent can use the injected summary immediately, or read the listed session JSONL file for deeper details.
 
+## Agent tool: `search_past_chats`
+
+The extension also exposes a tool the agent can call directly to discover relevant prior sessions:
+
+- **Input:** `query` (fuzzy search string) and optional `limit` (default 10).
+- **Scope:** the current working directory plus folders configured in `.pi/past-chats.json` (same index as autocomplete).
+- **Output:** for each match, the session JSONL **file path**, a **snippet** showing why it matched, and a **fuzzy score** (lower is better), sorted best match first.
+
+The agent then reads any returned path with the built-in `read` tool to inspect the full conversation. This lets the agent narrow down which past chats discussed a topic before pulling in the detail it needs.
+
 ## Commands
 
 ```text

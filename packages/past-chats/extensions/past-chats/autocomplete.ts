@@ -1,5 +1,9 @@
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent';
-import type { AutocompleteItem, AutocompleteProvider, AutocompleteSuggestions } from '@earendil-works/pi-tui';
+import type {
+  AutocompleteItem,
+  AutocompleteProvider,
+  AutocompleteSuggestions,
+} from '@earendil-works/pi-tui';
 import { fuzzyFilter } from '@earendil-works/pi-tui';
 import type { PastChatItem, PastChatsRuntimeState } from './types';
 import { buildToken, findActiveToken } from './tokens';
@@ -35,7 +39,12 @@ export function createPastChatsAutocompleteProvider(
   state: PastChatsRuntimeState,
 ): AutocompleteProvider {
   return {
-    async getSuggestions(lines, cursorLine, cursorCol, options): Promise<AutocompleteSuggestions | null> {
+    async getSuggestions(
+      lines,
+      cursorLine,
+      cursorCol,
+      options,
+    ): Promise<AutocompleteSuggestions | null> {
       const line = lines[cursorLine] ?? '';
       const beforeCursor = line.slice(0, cursorCol);
       const active = findActiveToken(beforeCursor);
