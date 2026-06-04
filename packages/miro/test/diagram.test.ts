@@ -5,7 +5,8 @@ import type {
   CreateShapeArgs,
   CreatedItem,
 } from '../extensions/miro/client.js';
-import { type DiagramClient, renderDiagram } from '../extensions/miro/diagram.js';
+import { type DiagramClient, computeBounds, renderDiagram } from '../extensions/miro/diagram.js';
+import { layoutDiagram } from '../extensions/miro/layout.js';
 import type { DiagramSpec } from '../extensions/miro/types.js';
 
 class FakeClient implements DiagramClient {
@@ -69,6 +70,23 @@ describe('renderDiagram', () => {
     expect(client.shapes.every((shape) => shape.args.shape === 'hexagon')).toBe(true);
   });
 
+  test('wraps the diagram in one outer frame when frameTitle is set', async () => {
+    const client = new FakeClient();
+    const result = await renderDiagram(client, 'board1', spec, {
+      defaultShape: 'rectangle',
+      wrapTitle: 'My Map',
+    });
+    // 1 group frame + 1 outer wrapping frame.
+    expect(client.frames.length).toBe(2);
+    expect(result.frameIds.length).toBe(2);
+    const outer = client.frames[0];
+    expect(outer.title).toBe('My Map');
+    // Outer frame must be larger than the single group frame it contains.
+    const group = client.frames[1];
+    expect(outer.width).toBeGreaterThan(group.width);
+    expect(outer.height).toBeGreaterThan(group.height);
+  });
+
   test('propagates validation errors from the spec', async () => {
     const client = new FakeClient();
     await expect(
@@ -81,5 +99,23 @@ describe('renderDiagram', () => {
         },
       ),
     ).rejects.toThrow('unknown node "x"');
+  });
+});
+
+describe('computeBounds', () => {
+  test('encloses every node with padding', () => {
+    const layout = layoutDiagram(spec);
+    const bounds = computeBounds(layout)!;
+    expect(bounds).toBeDefined();
+    for (const box of layout.nodes.values()) {
+      expect(box.x - box.width / 2).toBeGreaterThanOrEqual(bounds.x - bounds.width / 2);
+      expect(box.x + box.width / 2).toBeLessThanOrEqual(bounds.x + bounds.width / 2);
+      expect(box.y - box.height / 2).toBeGreaterThanOrEqual(bounds.y - bounds.height / 2);
+      expect(box.y + box.height / 2).toBeLessThanOrEqual(bounds.y + bounds.height / 2);
+    }
+  });
+
+  test('returns undefined for an empty layout', () => {
+    expect(computeBounds({ nodes: new Map() })).toBeUndefined();
   });
 });

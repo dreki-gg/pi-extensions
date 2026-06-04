@@ -36,6 +36,12 @@ export const diagramToolSchema = Type.Object({
   boardId: Type.Optional(
     Type.String({ description: 'Existing board id. Defaults to defaultBoardId in .pi/miro.json.' }),
   ),
+  frameTitle: Type.Optional(
+    Type.String({
+      description:
+        'When set, wrap the whole diagram in one titled outer frame so it is easy to find (appears in the Frames panel). Recommended.',
+    }),
+  ),
   nodes: Type.Array(nodeSchema, { description: 'Diagram nodes (boxes).' }),
   edges: Type.Array(edgeSchema, { description: 'Directed connectors between nodes.' }),
   groups: Type.Optional(
@@ -50,6 +56,7 @@ export const diagramToolSchema = Type.Object({
 
 export type DiagramToolInput = {
   boardId?: string;
+  frameTitle?: string;
   nodes: DiagramSpec['nodes'];
   edges: DiagramSpec['edges'];
   groups?: DiagramSpec['groups'];
@@ -99,6 +106,7 @@ export function registerDiagramTool(
       try {
         const result = await renderDiagram(built.client, boardId, spec, {
           defaultShape: config.defaultShape,
+          wrapTitle: params.frameTitle,
         });
         let viewLink: string | undefined;
         try {

@@ -23,6 +23,12 @@ export interface RenderOptions {
   defaultShape: ShapeKind;
   /** Max concurrent create calls. Default 4 — gentle on Miro rate limits. */
   concurrency?: number;
+  /**
+   * When set, wrap the whole diagram in one titled outer frame. This makes the
+   * result a single findable unit (shows in Miro's Frames panel — click to jump
+   * to it) instead of free-floating items at the canvas origin.
+   */
+  wrapTitle?: string;
 }
 
 export interface RenderResult {
@@ -45,8 +51,25 @@ export async function renderDiagram(
   const layout = layoutDiagram(spec);
   const concurrency = options.concurrency ?? 4;
 
-  // 1. Group frames (behind everything).
   const frameIds: string[] = [];
+
+  // 0. Optional outer wrapping frame (created first → sits behind everything,
+  // and becomes the single anchor in the Frames panel).
+  if (options.wrapTitle) {
+    const bounds = computeBounds(layout);
+    if (bounds) {
+      const outer = await client.createFrame(boardId, {
+        title: options.wrapTitle,
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+      });
+      frameIds.push(outer.id);
+    }
+  }
+
+  // 1. Group frames (behind nodes).
   for (const group of spec.groups ?? []) {
     const box = layout.groups.get(group.id);
     if (!box) continue;
@@ -93,6 +116,44 @@ export async function renderDiagram(
   });
 
   return { frameIds, shapeIds: [...idMap.values()], connectorIds };
+}
+
+/** Padding around the whole layout for the outer wrapping frame. */
+const WRAP_PADDING = 80;
+/** Extra top room so the frame title bar doesn't overlap the first row. */
+const WRAP_TITLE_HEADROOM = 60;
+
+/**
+ * Axis-aligned bounding box of every placed node + group, expanded for the
+ * outer wrapping frame (with extra headroom on top for the title bar).
+ * Returns undefined when there is nothing to wrap.
+ */
+export function computeBounds(layout: {
+  nodes: Map<string, { x: number; y: number; width: number; height: number }>;
+  groups?: Map<string, { x: number; y: number; width: number; height: number }>;
+}): { x: number; y: number; width: number; height: number } | undefined {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  // Include group frames too — they extend past their member nodes (group
+  // padding), so the outer frame must enclose them, not just the raw nodes.
+  const boxes = [...layout.nodes.values(), ...(layout.groups?.values() ?? [])];
+  for (const box of boxes) {
+    minX = Math.min(minX, box.x - box.width / 2);
+    minY = Math.min(minY, box.y - box.height / 2);
+    maxX = Math.max(maxX, box.x + box.width / 2);
+    maxY = Math.max(maxY, box.y + box.height / 2);
+  }
+  if (!Number.isFinite(minX)) return undefined;
+
+  const left = minX - WRAP_PADDING;
+  const right = maxX + WRAP_PADDING;
+  const top = minY - WRAP_PADDING - WRAP_TITLE_HEADROOM;
+  const bottom = maxY + WRAP_PADDING;
+  const width = right - left;
+  const height = bottom - top;
+  return { x: left + width / 2, y: top + height / 2, width, height };
 }
 
 /**
