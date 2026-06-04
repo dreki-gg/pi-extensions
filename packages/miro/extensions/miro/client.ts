@@ -26,6 +26,8 @@ export interface CreateConnectorArgs {
   endItemId: string;
   label?: string;
   shape?: ConnectorShape;
+  /** Stroke color (hex). */
+  color?: string;
 }
 
 export interface CreateFrameArgs {
@@ -34,6 +36,8 @@ export interface CreateFrameArgs {
   y: number;
   width: number;
   height: number;
+  /** Background fill (must be a Miro-allowed frame color). */
+  fillColor?: string;
 }
 
 /**
@@ -80,6 +84,7 @@ export class MiroClient {
       data: { title: args.title },
       position: { x: args.x, y: args.y },
       geometry: { width: args.width, height: args.height },
+      style: args.fillColor ? { fillColor: args.fillColor } : undefined,
     });
     return { id: item.id };
   }
@@ -91,6 +96,7 @@ export class MiroClient {
       endItem: { id: args.endItemId },
       shape: args.shape ?? 'curved',
       captions: args.label ? [{ content: args.label }] : undefined,
+      style: args.color ? { strokeColor: args.color, strokeWidth: '2' } : undefined,
     });
     return { id: item.id };
   }
@@ -102,6 +108,7 @@ function toShapeStyle(style?: NodeStyle): Record<string, string> | undefined {
   if (style.fillColor) mapped.fillColor = style.fillColor;
   if (style.textColor) mapped.color = style.textColor;
   if (style.borderColor) mapped.borderColor = style.borderColor;
+  if (style.borderWidth) mapped.borderWidth = style.borderWidth;
   return Object.keys(mapped).length > 0 ? mapped : undefined;
 }
 

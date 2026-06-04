@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-miro",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Create native Miro board items from pi — shapes, connectors, frames, and auto-laid-out diagrams",
   "keywords": [
     "pi-package",

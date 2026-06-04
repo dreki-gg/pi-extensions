@@ -70,6 +70,33 @@ describe('renderDiagram', () => {
     expect(client.shapes.every((shape) => shape.args.shape === 'hexagon')).toBe(true);
   });
 
+  test('color-codes groups by default (frame fill + node + connector)', async () => {
+    const client = new FakeClient();
+    await renderDiagram(client, 'board1', spec, { defaultShape: 'rectangle' });
+    expect(client.frames[0].fillColor).toBeTruthy();
+    expect(client.shapes.every((shape) => shape.args.style?.fillColor)).toBe(true);
+    expect(client.connectors.every((connector) => connector.color)).toBe(true);
+  });
+
+  test('colorize:false leaves items unstyled', async () => {
+    const client = new FakeClient();
+    await renderDiagram(client, 'board1', spec, { defaultShape: 'rectangle', colorize: false });
+    expect(client.frames.every((frame) => frame.fillColor === undefined)).toBe(true);
+    expect(client.shapes.every((shape) => shape.args.style === undefined)).toBe(true);
+    expect(client.connectors.every((connector) => connector.color === undefined)).toBe(true);
+  });
+
+  test('explicit node style overrides the group theme', async () => {
+    const client = new FakeClient();
+    const styled: DiagramSpec = {
+      nodes: [{ id: 'a', label: 'A', group: 'g', style: { fillColor: '#123456' } }],
+      edges: [],
+      groups: [{ id: 'g', label: 'G' }],
+    };
+    await renderDiagram(client, 'board1', styled, { defaultShape: 'rectangle' });
+    expect(client.shapes[0].args.style?.fillColor).toBe('#123456');
+  });
+
   test('wraps the diagram in one outer frame when frameTitle is set', async () => {
     const client = new FakeClient();
     const result = await renderDiagram(client, 'board1', spec, {

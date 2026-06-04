@@ -30,6 +30,8 @@ export interface NodeStyle {
   fillColor?: string;
   textColor?: string;
   borderColor?: string;
+  /** Border thickness in px (string per Miro API). */
+  borderWidth?: string;
 }
 
 export interface DiagramNode {

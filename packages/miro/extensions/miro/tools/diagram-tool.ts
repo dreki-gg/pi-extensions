@@ -7,6 +7,12 @@ import { renderDiagram } from '../diagram.js';
 import { CONNECTOR_SHAPES, SHAPE_KINDS, type DiagramSpec } from '../types.js';
 import { type MiroRuntime, type ToolResult, errorResult, textResult } from '../runtime.js';
 
+const nodeStyleSchema = Type.Object({
+  fillColor: Type.Optional(Type.String({ description: 'Fill hex, e.g. "#e8f1fc".' })),
+  borderColor: Type.Optional(Type.String({ description: 'Border hex.' })),
+  textColor: Type.Optional(Type.String({ description: 'Text hex.' })),
+});
+
 const nodeSchema = Type.Object({
   id: Type.String({ description: 'Stable node id, referenced by edges and group membership.' }),
   label: Type.String({ description: 'Text shown inside the shape.' }),
@@ -15,6 +21,11 @@ const nodeSchema = Type.Object({
   ),
   shape: Type.Optional(
     StringEnum(SHAPE_KINDS, { description: 'Shape kind. Default from config (round_rectangle).' }),
+  ),
+  style: Type.Optional(
+    Type.Object(nodeStyleSchema.properties, {
+      description: 'Explicit color override. Wins over the automatic group color theme.',
+    }),
   ),
 });
 
@@ -52,6 +63,12 @@ export const diagramToolSchema = Type.Object({
       description: 'Layout direction. Default TB (top-bottom).',
     }),
   ),
+  colorize: Type.Optional(
+    Type.Boolean({
+      description:
+        'Auto color-code by group (frame fill + node fill/border + connector stroke). Default true.',
+    }),
+  ),
 });
 
 export type DiagramToolInput = {
@@ -61,6 +78,7 @@ export type DiagramToolInput = {
   edges: DiagramSpec['edges'];
   groups?: DiagramSpec['groups'];
   direction?: DiagramSpec['direction'];
+  colorize?: boolean;
 };
 
 export function registerDiagramTool(
@@ -107,6 +125,7 @@ export function registerDiagramTool(
         const result = await renderDiagram(built.client, boardId, spec, {
           defaultShape: config.defaultShape,
           wrapTitle: params.frameTitle,
+          colorize: params.colorize,
         });
         let viewLink: string | undefined;
         try {

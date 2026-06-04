@@ -5,10 +5,12 @@ import type {
   CreatedItem,
 } from './client.js';
 import { layoutDiagram } from './layout.js';
+import { NEUTRAL_THEME, assignGroupThemes } from './theme.js';
 import {
   DEFAULT_NODE_HEIGHT,
   DEFAULT_NODE_WIDTH,
   type DiagramSpec,
+  type NodeStyle,
   type ShapeKind,
 } from './types.js';
 
@@ -29,6 +31,11 @@ export interface RenderOptions {
    * to it) instead of free-floating items at the canvas origin.
    */
   wrapTitle?: string;
+  /**
+   * Auto color-code by group (frame fill + node fill/border + connector stroke).
+   * Default true. Explicit per-node `style` always wins over the group theme.
+   */
+  colorize?: boolean;
 }
 
 export interface RenderResult {
@@ -50,6 +57,11 @@ export async function renderDiagram(
 ): Promise<RenderResult> {
   const layout = layoutDiagram(spec);
   const concurrency = options.concurrency ?? 4;
+  const colorize = options.colorize ?? true;
+  const themes = colorize
+    ? assignGroupThemes((spec.groups ?? []).map((group) => group.id))
+    : undefined;
+  const groupOf = new Map(spec.nodes.map((node) => [node.id, node.group]));
 
   const frameIds: string[] = [];
 
@@ -79,6 +91,7 @@ export async function renderDiagram(
       y: box.y,
       width: box.width,
       height: box.height,
+      fillColor: themes?.get(group.id)?.frameFill,
     });
     frameIds.push(frame.id);
   }
@@ -95,7 +108,7 @@ export async function renderDiagram(
       y: box.y,
       width: node.width ?? box.width ?? DEFAULT_NODE_WIDTH,
       height: node.height ?? box.height ?? DEFAULT_NODE_HEIGHT,
-      style: node.style,
+      style: node.style ?? themeNodeStyle(themes, node.group),
     });
     idMap.set(node.id, created.id);
   });
@@ -111,11 +124,46 @@ export async function renderDiagram(
       endItemId,
       label: edge.label,
       shape: edge.shape,
+      color: themeConnectorColor(themes, groupOf.get(edge.from)),
     });
     connectorIds.push(created.id);
   });
 
   return { frameIds, shapeIds: [...idMap.values()], connectorIds };
+}
+
+/** Build the node fill/border/text style for a node from its group theme. */
+function themeNodeStyle(
+  themes: Map<string, import('./theme.js').GroupTheme> | undefined,
+  group: string | undefined,
+): NodeStyle | undefined {
+  if (!themes) return undefined;
+  const theme = group ? themes.get(group) : undefined;
+  if (!theme) {
+    // Ungrouped node → neutral dark chip with light text (entry points pop).
+    return {
+      fillColor: NEUTRAL_THEME.nodeFill,
+      borderColor: NEUTRAL_THEME.nodeBorder,
+      textColor: '#ffffff',
+      borderWidth: '2',
+    };
+  }
+  return {
+    fillColor: theme.nodeFill,
+    borderColor: theme.nodeBorder,
+    textColor: '#1f2436',
+    borderWidth: '2',
+  };
+}
+
+/** Connector stroke color from the source node's group theme. */
+function themeConnectorColor(
+  themes: Map<string, import('./theme.js').GroupTheme> | undefined,
+  group: string | undefined,
+): string | undefined {
+  if (!themes) return undefined;
+  const theme = group ? themes.get(group) : undefined;
+  return theme?.connector ?? NEUTRAL_THEME.connector;
 }
 
 /** Padding around the whole layout for the outer wrapping frame. */
