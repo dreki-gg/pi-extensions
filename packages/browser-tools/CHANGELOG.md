@@ -1,5 +1,15 @@
 # @dreki-gg/pi-browser-tools
 
+## 0.2.0
+
+### Minor Changes
+
+- Default to the `agent-browser` backend with automatic Playwright fallback, and add optional vision-model screenshot analysis.
+
+  - When `PI_BROWSER_BACKEND` is unset, prefer `agent-browser` when it is installed and healthy, otherwise silently fall back to `playwright`. Explicit backend selections are unchanged.
+  - `web_screenshot` and `web_interact` gain opt-in `analyze` / `analyze_prompt` params that send the screenshot to a vision model (e.g. Gemini Flash) and return a text description instead of the image.
+  - Configure the analysis model via `WEB_SCREENSHOT_MODEL` (`provider:modelId`, default `google:gemini-2.5-flash`) and enable analysis globally via `WEB_SCREENSHOT_ANALYZE`.
+
 ## 0.1.2
 
 ### Patch Changes

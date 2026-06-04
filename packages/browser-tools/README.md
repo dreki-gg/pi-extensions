@@ -16,7 +16,7 @@ It adds:
 pi install npm:@dreki-gg/pi-browser-tools
 ```
 
-Default browser backend: Playwright.
+Default browser backend: `agent-browser` when available, otherwise Playwright (see [Browser backend selection](#browser-backend-selection)).
 
 Optional `agent-browser` backend setup:
 
@@ -69,8 +69,27 @@ export PI_BROWSER_BACKEND=playwright
 export PI_BROWSER_BACKEND=agent-browser
 ```
 
-- Unset or invalid values fall back to `playwright`.
-- If `agent-browser` is selected but unavailable, browser-backed tools fail with install guidance.
+- Unset or invalid values use **auto**: prefer `agent-browser` when it is installed and healthy, otherwise silently fall back to `playwright`.
+- If `agent-browser` is selected explicitly but unavailable, browser-backed tools fail with install guidance.
+
+## Screenshot analysis (vision model)
+
+`web_screenshot` and `web_interact` can optionally hand the screenshot to a vision
+model (e.g. Gemini Flash) and return a **text description instead of the image** —
+useful for letting a multimodal model recognize forms, shapes, and layout.
+
+- Per-call opt-in: pass `analyze: true` (and optionally `analyze_prompt: "..."`).
+- Global default: set `WEB_SCREENSHOT_ANALYZE=1` (truthy: `1`, `true`, `yes`, `on`).
+  An explicit `analyze` param always overrides the env default.
+- Model selection via `WEB_SCREENSHOT_MODEL` as `provider:modelId`
+  (default `google:gemini-2.5-flash`; a bare value is treated as a `google` model id).
+
+```bash
+export WEB_SCREENSHOT_ANALYZE=1
+export WEB_SCREENSHOT_MODEL=google:gemini-2.5-flash
+```
+
+The chosen model must have auth configured in pi (API key / OAuth) like any other model.
 
 ## Notes
 

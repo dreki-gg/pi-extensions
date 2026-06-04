@@ -1,12 +1,13 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { StringEnum } from '@earendil-works/pi-ai';
 import { Type } from 'typebox';
+import { resolveBrowserBackend } from './backends/select.js';
+import type { BrowserBackendName, ConsoleEntry, ViewportPreset } from './backends/types.js';
 import {
-  ensureSelectedBrowserBackendAvailable,
-  getSelectedBrowserBackend,
-  getSelectedBrowserBackendName,
-} from './backends/select.js';
-import type { ConsoleEntry, ViewportPreset } from './backends/types.js';
+  analyzeScreenshot,
+  resolveAnalyzeEnabled,
+  type AnalysisModelRegistry,
+} from './analysis/gemini.js';
 import { fetchAsMarkdown, renderedPageToMarkdown } from './markdown.js';
 import { webSearch } from './search.js';
 
@@ -22,8 +23,6 @@ const env =
     }
   ).process?.env ?? {};
 
-const browserBackend = getSelectedBrowserBackend();
-const selectedBrowserBackendName = getSelectedBrowserBackendName();
 const VIEWPORT_ENUM = ['desktop', 'mobile'] as const;
 const ACTION_ENUM = ['click', 'type', 'scroll', 'select', 'hover', 'wait'] as const;
 const SCROLL_DIRECTION_ENUM = ['up', 'down'] as const;
@@ -53,7 +52,7 @@ function formatSearchResults(
 function formatVisitMarkdown(result: {
   markdown: string;
   title: string;
-  method: 'fetch' | typeof selectedBrowserBackendName;
+  method: 'fetch' | BrowserBackendName;
   url: string;
 }): string {
   const header = [`Source: ${result.url}`, `Method: ${result.method}`].join('\n');
@@ -109,7 +108,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
       params: { url: string; render?: boolean },
       signal?: AbortSignal,
     ) {
-      await ensureSelectedBrowserBackendAvailable();
+      const browserBackend = await resolveBrowserBackend();
 
       const result = params.render
         ? renderedPageToMarkdown(await browserBackend.renderPage(params.url))
@@ -124,7 +123,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
         content: [{ type: 'text', text: formatVisitMarkdown(finalResult) }],
         details: {
           method: finalResult.method,
-          backend: selectedBrowserBackendName,
+          backend: browserBackend.name,
           title: finalResult.title,
           url: finalResult.url,
           length: finalResult.markdown.length,
@@ -144,12 +143,31 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
       viewport: Type.Optional(StringEnum(VIEWPORT_ENUM, { description: 'Viewport preset' })),
       width: Type.Optional(Type.Number({ description: 'Viewport width override' })),
       height: Type.Optional(Type.Number({ description: 'Viewport height override' })),
+      analyze: Type.Optional(
+        Type.Boolean({
+          description:
+            'Analyze the screenshot with a vision model and return a text description instead of the image.',
+        }),
+      ),
+      analyze_prompt: Type.Optional(
+        Type.String({ description: 'Custom prompt for screenshot analysis (requires analyze).' }),
+      ),
     }),
     async execute(
       _toolCallId: string,
-      params: { url?: string; viewport?: ViewportPreset; width?: number; height?: number },
+      params: {
+        url?: string;
+        viewport?: ViewportPreset;
+        width?: number;
+        height?: number;
+        analyze?: boolean;
+        analyze_prompt?: string;
+      },
+      signal: AbortSignal | undefined,
+      _onUpdate: unknown,
+      ctx: { modelRegistry: AnalysisModelRegistry },
     ) {
-      await ensureSelectedBrowserBackendAvailable();
+      const browserBackend = await resolveBrowserBackend();
 
       const screenshot = await browserBackend.screenshot({
         url: params.url,
@@ -158,6 +176,25 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
         height: params.height,
         waitMs: 1500,
       });
+
+      if (resolveAnalyzeEnabled(params.analyze, env)) {
+        const analysis = await analyzeScreenshot({
+          modelRegistry: ctx.modelRegistry,
+          imageBase64: screenshot.imageBase64,
+          prompt: params.analyze_prompt,
+          signal,
+          env,
+        });
+        return {
+          content: [{ type: 'text', text: analysis.text }],
+          details: {
+            backend: browserBackend.name,
+            url: screenshot.url,
+            viewport: screenshot.viewport,
+            analysis: { model: analysis.model } as { model: string } | undefined,
+          },
+        };
+      }
 
       return {
         content: [
@@ -168,9 +205,10 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
           },
         ],
         details: {
-          backend: selectedBrowserBackendName,
+          backend: browserBackend.name,
           url: screenshot.url,
           viewport: screenshot.viewport,
+          analysis: undefined,
         },
       };
     },
@@ -192,6 +230,15 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
       ),
       amount: Type.Optional(Type.Number({ description: 'Scroll amount in pixels' })),
       timeout: Type.Optional(Type.Number({ description: 'Wait timeout in milliseconds' })),
+      analyze: Type.Optional(
+        Type.Boolean({
+          description:
+            'Analyze the resulting screenshot with a vision model and return a text description instead of the image.',
+        }),
+      ),
+      analyze_prompt: Type.Optional(
+        Type.String({ description: 'Custom prompt for screenshot analysis (requires analyze).' }),
+      ),
     }),
     async execute(
       _toolCallId: string,
@@ -203,9 +250,14 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
         direction?: (typeof SCROLL_DIRECTION_ENUM)[number];
         amount?: number;
         timeout?: number;
+        analyze?: boolean;
+        analyze_prompt?: string;
       },
+      signal: AbortSignal | undefined,
+      _onUpdate: unknown,
+      ctx: { modelRegistry: AnalysisModelRegistry },
     ) {
-      await ensureSelectedBrowserBackendAvailable();
+      const browserBackend = await resolveBrowserBackend();
 
       if (!browserBackend.isOpen()) {
         throw new Error(
@@ -215,6 +267,29 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
 
       const interaction = await browserBackend.interact(params);
       const screenshot = await browserBackend.screenshot();
+
+      if (resolveAnalyzeEnabled(params.analyze, env)) {
+        const analysis = await analyzeScreenshot({
+          modelRegistry: ctx.modelRegistry,
+          imageBase64: screenshot.imageBase64,
+          prompt: params.analyze_prompt,
+          signal,
+          env,
+        });
+        return {
+          content: [
+            { type: 'text', text: `Action completed: ${params.action}` },
+            { type: 'text', text: analysis.text },
+          ],
+          details: {
+            action: params.action,
+            backend: browserBackend.name,
+            url: interaction.url ?? screenshot.url,
+            viewport: interaction.viewport ?? screenshot.viewport,
+            analysis: { model: analysis.model } as { model: string } | undefined,
+          },
+        };
+      }
 
       return {
         content: [
@@ -230,9 +305,10 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
         ],
         details: {
           action: params.action,
-          backend: selectedBrowserBackendName,
+          backend: browserBackend.name,
           url: interaction.url ?? screenshot.url,
           viewport: interaction.viewport ?? screenshot.viewport,
+          analysis: undefined,
         },
       };
     },
@@ -272,7 +348,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
         clear?: boolean;
       },
     ) {
-      await ensureSelectedBrowserBackendAvailable();
+      const browserBackend = await resolveBrowserBackend();
 
       const entries = await browserBackend.getConsoleEntries({
         level: params.level,
@@ -289,7 +365,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
             count: 0,
             levels: {},
             cleared: params.clear ?? false,
-            backend: selectedBrowserBackendName,
+            backend: browserBackend.name,
           },
         };
       }
@@ -312,7 +388,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
             ]).filter(([, count]) => (count as number) > 0),
           ),
           cleared: params.clear ?? false,
-          backend: selectedBrowserBackendName,
+          backend: browserBackend.name,
         },
       };
     },
@@ -327,12 +403,12 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
         ui: { notify(message: string, level: 'info' | 'warning' | 'error'): void };
       },
     ) => {
-      await ensureSelectedBrowserBackendAvailable();
+      const browserBackend = await resolveBrowserBackend();
 
       const status = browserBackend.getStatus();
       const message = status.isOpen
-        ? `Browser open (${selectedBrowserBackendName})\nURL: ${status.url ?? 'unknown'}\nViewport: ${status.viewport?.width ?? '?'}x${status.viewport?.height ?? '?'}`
-        : `Browser closed (${selectedBrowserBackendName} selected)`;
+        ? `Browser open (${browserBackend.name})\nURL: ${status.url ?? 'unknown'}\nViewport: ${status.viewport?.width ?? '?'}x${status.viewport?.height ?? '?'}`
+        : `Browser closed (${browserBackend.name} selected)`;
 
       if (ctx.hasUI) {
         ctx.ui.notify(message, 'info');
@@ -341,6 +417,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
   });
 
   pi.on('session_shutdown', async () => {
+    const browserBackend = await resolveBrowserBackend();
     await browserBackend.close();
   });
 }
