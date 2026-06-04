@@ -1,5 +1,14 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.21.0
+
+### Minor Changes
+
+- Add two plan-management tools:
+
+  - `revise_plan` — sister of `submit_plan` that rewrites an existing plan in place by name. All content fields (title, handoff, tasks) are optional, so you pass only what changes. When tasks are supplied they fully replace the set, but `status` and `notes` are preserved for any task whose id is unchanged; registry status is re-derived from task state. Use when a plan was submitted prematurely and follow-up changes arrive, instead of creating a new plan.
+  - `set_active_plan` — tool form of the `/plan focus` command. Pins a plan into session state so subsequent `plan_status` / `update_task` / `add_task` calls target it. Useful when `plan_status` reports multiple in-progress plans and the agent needs to select one programmatically. Available in both plan and execution phases.
+
 ## 0.20.1
 
 ### Patch Changes

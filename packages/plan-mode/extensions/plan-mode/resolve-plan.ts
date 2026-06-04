@@ -116,3 +116,21 @@ export async function resolveActivePlan(
 
   return { plan: undefined, candidates: inProgress.map((entry) => entry.name) };
 }
+
+/**
+ * Pin a plan as the active one (the tool/command form of `/plan focus`).
+ *
+ * Clears any stale in-memory plan first so the hint always re-attaches from
+ * disk, then resolves by name. Returns the same `ResolvedPlan` shape so callers
+ * can report success or surface in-progress candidates on a miss.
+ */
+export async function focusActivePlan(
+  state: PlanModeState,
+  pi: ExtensionAPI,
+  runPlanIO: RunPlanIO,
+  name: string,
+): Promise<ResolvedPlan> {
+  state.plan = undefined;
+  state.planDir = undefined;
+  return resolveActivePlan(state, pi, runPlanIO, { name });
+}

@@ -10,12 +10,14 @@ export const PLAN_TOOLS = [
   'find',
   'ls',
   'submit_plan',
+  'revise_plan',
   'preview_prototype',
   'write',
   'questionnaire',
   'search_skills',
   'subagent',
   'plan_status',
+  'set_active_plan',
   'update_plan',
   'reconcile_plans',
 ];
@@ -29,6 +31,7 @@ export const EXEC_TOOLS = [
   'update_tasks',
   'add_task',
   'plan_status',
+  'set_active_plan',
   'update_plan',
   'reconcile_plans',
 ];

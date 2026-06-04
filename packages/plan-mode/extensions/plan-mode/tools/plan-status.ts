@@ -49,6 +49,7 @@ export function registerPlanStatusTool(pi: ExtensionAPI, callbacks: PlanStatusCa
     promptGuidelines: [
       'Call plan_status when unsure whether a plan is active or which task ids exist — it is read-only and never mutates state.',
       'Prefer it over guessing task ids; the returned ids are what update_task expects.',
+      'When it reports multiple in-progress plans, call set_active_plan to pin one before update_task / add_task.',
     ],
     parameters: Type.Object({
       plan: Type.Optional(
@@ -74,7 +75,7 @@ export function registerPlanStatusTool(pi: ExtensionAPI, callbacks: PlanStatusCa
             })
             .join('\n');
           const text =
-            `No single active plan — ${summaries.length} in-progress. Pass { plan: "<name>" } to target one.\n` +
+            `No single active plan — ${summaries.length} in-progress. Pass { plan: "<name>" } or call set_active_plan to target one.\n` +
             `Progress:\n${rows}`;
           return {
             content: [{ type: 'text' as const, text }],

@@ -38,14 +38,16 @@ import { filterExecutionMessages, filterStalePlanMessages } from './context-filt
 import { activeTasksResolved, deferredTasks, isPlanFinalizable } from './task-status.js';
 import { enterPlanMode, exitPlanMode, switchModel } from './phase-transitions.js';
 import { resumePlan, executeInNewSession } from './resume.js';
-import { resolveActivePlan } from './resolve-plan.js';
+import { resolveActivePlan, focusActivePlan } from './resolve-plan.js';
 import { collectPlanDrift } from './reconcile.js';
 import { registerSubmitPlanTool } from './tools/submit-plan.js';
+import { registerRevisePlanTool } from './tools/revise-plan.js';
 import { registerPreviewPrototypeTool } from './tools/preview-prototype.js';
 import { registerUpdateTaskTool } from './tools/update-task.js';
 import { registerUpdateTasksTool } from './tools/update-tasks.js';
 import { registerAddTaskTool } from './tools/add-task.js';
 import { registerPlanStatusTool } from './tools/plan-status.js';
+import { registerSetActivePlanTool } from './tools/set-active-plan.js';
 import { registerUpdatePlanTool } from './tools/update-plan.js';
 import { registerReconcilePlansTool } from './tools/reconcile-plans.js';
 import { isSafeCommand, isPlanPath } from './utils.js';
@@ -67,6 +69,15 @@ export default function planMode(pi: ExtensionAPI): void {
     onPlanSubmitted: (dir, submittedPlan) => {
       state.planDir = dir;
       state.plan = submittedPlan;
+      state.persist(pi);
+    },
+  });
+
+  registerRevisePlanTool(pi, runPlanIO, {
+    resolvePlan: (opts) => resolveActivePlan(state, pi, runPlanIO, opts),
+    onPlanRevised: (dir, revisedPlan) => {
+      state.planDir = dir;
+      state.plan = revisedPlan;
       state.persist(pi);
     },
   });
@@ -169,6 +180,10 @@ export default function planMode(pi: ExtensionAPI): void {
     },
   });
 
+  registerSetActivePlanTool(pi, {
+    setActivePlan: (name) => focusActivePlan(state, pi, runPlanIO, name),
+  });
+
   registerUpdatePlanTool(pi, runPlanIO);
   registerReconcilePlansTool(pi, runPlanIO);
 
@@ -220,10 +235,7 @@ export default function planMode(pi: ExtensionAPI): void {
           ctx.ui.notify('Usage: /plan focus <name>', 'info');
           return;
         }
-        // Clear any stale in-memory plan so the hint re-attaches from disk.
-        state.plan = undefined;
-        state.planDir = undefined;
-        const { plan, candidates } = await resolveActivePlan(state, pi, runPlanIO, { name });
+        const { plan, candidates } = await focusActivePlan(state, pi, runPlanIO, name);
         if (plan) {
           ctx.ui.notify(`Focused plan: ${plan.title} (${plan.planName})`, 'info');
         } else {
