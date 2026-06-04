@@ -14,12 +14,14 @@ import { listChannels } from './client/channels.js';
 import { readMessages, readThread } from './client/channels.js';
 import { searchMessages } from './client/search.js';
 import { downloadFile } from './client/files.js';
+import { postMessage } from './client/messages.js';
 import {
   formatChannelList,
   formatMessages,
   formatThread,
   formatSearchResults,
   formatDownloadedFile,
+  formatPostedMessage,
 } from './format.js';
 import {
   TOOL_GUIDELINES,
@@ -28,6 +30,7 @@ import {
   readThreadParams,
   searchParams,
   downloadFileParams,
+  postMessageParams,
 } from './tools.js';
 
 // ---------------------------------------------------------------------------
@@ -279,6 +282,51 @@ export default function slackExtension(pi: ExtensionAPI) {
           isImage: result.info.isImage,
           mimetype: result.info.mimetype,
           size: result.info.size,
+        });
+      } catch (err) {
+        return errorResult(`❌ ${(err as Error).message}`);
+      }
+    },
+  });
+
+  // -------------------------------------------------------------------------
+  // slack_post_message
+  // -------------------------------------------------------------------------
+
+  pi.registerTool({
+    name: 'slack_post_message',
+    label: 'Slack Post Message',
+    description:
+      'Post a message to a Slack channel or reply in a thread. Requires the bot token to have the `chat:write` scope and the bot to be a member of the channel.',
+    promptSnippet: 'Post a message to a Slack channel or thread',
+    promptGuidelines: TOOL_GUIDELINES,
+    parameters: postMessageParams,
+
+    async execute(
+      _toolCallId: string,
+      params: {
+        channel: string;
+        text: string;
+        thread_ts?: string;
+        reply_broadcast?: boolean;
+      },
+    ) {
+      const creds = getCredentials();
+      if (!creds) return missingCredentials('bot');
+
+      try {
+        const result = await runSlack(
+          creds,
+          postMessage({
+            channel: params.channel,
+            text: params.text,
+            threadTs: params.thread_ts,
+            replyBroadcast: params.reply_broadcast,
+          }),
+        );
+        return textResult(formatPostedMessage(result, params.thread_ts), {
+          channel: result.channel,
+          ts: result.ts,
         });
       } catch (err) {
         return errorResult(`❌ ${(err as Error).message}`);

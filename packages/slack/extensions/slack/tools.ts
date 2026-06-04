@@ -11,6 +11,7 @@ export const TOOL_GUIDELINES = [
   'Use `slack_read_thread` to read all replies in a thread. You need both the channel ID and the thread timestamp (thread_ts).',
   'Use `slack_search` for full-text search across the workspace. Requires SLACK_USER_TOKEN to be set.',
   'Use `slack_download_file` to download images or files shared in Slack. The tool saves files to a temp directory and returns the path — use `read` to view images.',
+  'Use `slack_post_message` to send a message to a channel or reply in a thread. The bot token must have the `chat:write` scope and the bot must be a member of the target channel.',
   'When messages reference files or images (shown with 📎), download them with `slack_download_file` using the file ID to get visual context.',
   'Channel IDs look like C0123ABC456. Thread timestamps look like 1512085950.000216.',
 ];
@@ -112,4 +113,24 @@ export const downloadFileParams = Type.Object({
   file_id: Type.String({
     description: 'Slack file ID to download (e.g. F0123ABC456).',
   }),
+});
+
+export const postMessageParams = Type.Object({
+  channel: Type.String({
+    description: 'Channel ID (e.g. C0123ABC456) or #channel-name to post to.',
+  }),
+  text: Type.String({
+    description: 'Message text. Supports Slack mrkdwn formatting.',
+  }),
+  thread_ts: Type.Optional(
+    Type.String({
+      description: 'Reply within this thread (the parent message ts).',
+    }),
+  ),
+  reply_broadcast: Type.Optional(
+    Type.Boolean({
+      description:
+        'When replying in a thread, also broadcast the reply to the channel. Default false.',
+    }),
+  ),
 });

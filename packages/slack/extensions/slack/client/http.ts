@@ -1,4 +1,4 @@
-import { FetchHttpClient, HttpClient } from '@effect/platform';
+import { FetchHttpClient, HttpClient, HttpClientRequest } from '@effect/platform';
 import { Context, Effect, Layer, Schedule } from 'effect';
 import type { SlackCredentials } from '../config.js';
 import { SlackApiError, SlackAuthError, SlackRateLimitError } from './errors.js';
@@ -63,6 +63,56 @@ export function slackGet<T extends SlackOkResponse>(
       const response = yield* client.get(url.toString(), {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      // Handle rate limiting
+      if (response.status === 429) {
+        const retryAfter = Number(response.headers['retry-after']) || undefined;
+        return yield* new SlackRateLimitError({ method, retryAfter });
+      }
+
+      const json = (yield* response.json) as SlackResponse;
+
+      if (!json.ok) {
+        return yield* new SlackApiError({
+          method,
+          code: (json as SlackErrorResponse).error,
+        });
+      }
+
+      return json as T;
+    }),
+  );
+}
+
+/**
+ * Make a POST request to a Slack Web API method with a JSON body.
+ * Handles auth injection, rate limiting (with retry), and error mapping.
+ */
+export function slackPost<T extends SlackOkResponse>(
+  method: string,
+  body: Record<string, unknown>,
+  options?: { useUserToken?: boolean },
+) {
+  return Effect.scoped(
+    Effect.gen(function* () {
+      const config = yield* SlackConfig;
+      const client = yield* HttpClient.HttpClient;
+
+      const token = options?.useUserToken ? config.userToken : config.botToken;
+      if (!token) {
+        return yield* new SlackAuthError({
+          reason: options?.useUserToken
+            ? 'SLACK_USER_TOKEN is required for this operation but not set'
+            : 'SLACK_BOT_TOKEN is required but not set',
+        });
+      }
+
+      const request = HttpClientRequest.post(`${SLACK_BASE_URL}/${method}`).pipe(
+        HttpClientRequest.setHeaders({ Authorization: `Bearer ${token}` }),
+        HttpClientRequest.bodyUnsafeJson(body),
+      );
+
+      const response = yield* client.execute(request);
 
       // Handle rate limiting
       if (response.status === 429) {

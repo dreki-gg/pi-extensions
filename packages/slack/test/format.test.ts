@@ -6,6 +6,7 @@ import {
   formatSearchResults,
   formatFileInfo,
   formatDownloadedFile,
+  formatPostedMessage,
 } from '../extensions/slack/format.js';
 import type { SlackChannel, ReadMessagesResult } from '../extensions/slack/client/channels.js';
 import type { SearchResult } from '../extensions/slack/client/search.js';
@@ -188,5 +189,22 @@ describe('formatDownloadedFile', () => {
     const output = formatDownloadedFile(result);
     expect(output).toContain('📁 Downloaded to:');
     expect(output).not.toContain('`read');
+  });
+});
+
+describe('formatPostedMessage', () => {
+  test('formats a top-level post', () => {
+    const output = formatPostedMessage({ channel: 'C123', ts: '1700000000.000100' });
+    expect(output).toContain('✅ Message posted to C123');
+    expect(output).toContain('1700000000.000100');
+    expect(output).not.toContain('thread');
+  });
+
+  test('formats a thread reply', () => {
+    const output = formatPostedMessage(
+      { channel: 'C123', ts: '1700000000.000200' },
+      '1700000000.000100',
+    );
+    expect(output).toContain('thread 1700000000.000100 in C123');
   });
 });
