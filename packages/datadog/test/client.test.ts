@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test';
-import { parseRelativeTime, resolveTime, buildQuery } from '../extensions/datadog/client.js';
+import {
+  parseRelativeTime,
+  resolveTime,
+  buildQuery,
+  describeDatadogError,
+} from '../extensions/datadog/client.js';
 import type { DatadogProjectConfig } from '../extensions/datadog/config.js';
 
 describe('parseRelativeTime', () => {
@@ -119,5 +124,47 @@ describe('buildQuery', () => {
       config,
     );
     expect(result).toBe('status:error service:override-api env:staging');
+  });
+});
+
+// Minimal stand-in for the SDK's ApiException ({ code, body }).
+function apiException(code: number, body: unknown): Error {
+  const err = new Error(`HTTP-Code: ${code}`) as Error & { code: number; body: unknown };
+  err.code = code;
+  err.body = body;
+  return err;
+}
+
+describe('describeDatadogError', () => {
+  it('flags 429 as a rate limit and advises backing off', () => {
+    const info = describeDatadogError(apiException(429, { errors: ['Too many requests'] }));
+    expect(info.code).toBe(429);
+    expect(info.isRateLimit).toBe(true);
+    expect(info.message.toLowerCase()).toContain('rate limit');
+    expect(info.message).toContain('Too many requests');
+  });
+
+  it('flags 401/403 as auth errors', () => {
+    for (const code of [401, 403]) {
+      const info = describeDatadogError(apiException(code, { errors: ['Forbidden'] }));
+      expect(info.code).toBe(code);
+      expect(info.isRateLimit).toBe(false);
+      expect(info.message.toLowerCase()).toContain('auth');
+    }
+  });
+
+  it('surfaces the status code and API message for other API errors', () => {
+    const info = describeDatadogError(apiException(400, { errors: ['bad query'] }));
+    expect(info.code).toBe(400);
+    expect(info.isRateLimit).toBe(false);
+    expect(info.message).toContain('400');
+    expect(info.message).toContain('bad query');
+  });
+
+  it('falls back to the error message for plain errors', () => {
+    const info = describeDatadogError(new Error('network down'));
+    expect(info.code).toBeUndefined();
+    expect(info.isRateLimit).toBe(false);
+    expect(info.message).toContain('network down');
   });
 });

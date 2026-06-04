@@ -98,16 +98,100 @@ export function buildQuery(params: LogSearchParams, config: DatadogProjectConfig
   return parts.join(' ');
 }
 
+/** Max automatic retry attempts on 429 / 5xx responses. */
+const MAX_RETRIES = 4;
+
 function createApiInstance(credentials: DatadogCredentials, site: string): v2.LogsApi {
   const configuration = client.createConfiguration({
     authMethods: {
       apiKeyAuth: credentials.apiKey,
       appKeyAuth: credentials.appKey,
     },
+    // Transparently retry on 429 / 5xx. The SDK honours the `x-ratelimit-reset`
+    // header, so it waits exactly the window Datadog asks for before retrying
+    // (falling back to exponential backoff otherwise). This is what keeps the
+    // tool from "crying" about rate limits on bursty usage.
+    enableRetry: true,
+    maxRetries: MAX_RETRIES,
   });
   configuration.setServerVariables({ site });
 
   return new v2.LogsApi(configuration);
+}
+
+export interface DatadogErrorInfo {
+  /** Human-readable, agent-facing message. */
+  message: string;
+  /** HTTP status code, when the error came from the Datadog API. */
+  code?: number;
+  /** True when the error is a rate-limit (429) after retries were exhausted. */
+  isRateLimit: boolean;
+}
+
+/**
+ * Classifies an error thrown by the Datadog SDK into a clear, actionable message.
+ *
+ * The SDK throws an `ApiException`-shaped object (`{ code, body }`) on non-2xx
+ * responses. A 429 here means retries were already exhausted, so the message
+ * tells the agent to back off and keep queries narrow/batched rather than
+ * firing more requests.
+ */
+export function describeDatadogError(err: unknown): DatadogErrorInfo {
+  const code = extractStatusCode(err);
+  const detail = extractApiMessage(err);
+
+  if (code === 429) {
+    return {
+      code,
+      isRateLimit: true,
+      message:
+        `Rate limited by Datadog (429) after ${MAX_RETRIES} retries${detail ? `: ${detail}` : ''}. ` +
+        'Wait before retrying, and keep queries narrow/batched instead of firing many in quick succession.',
+    };
+  }
+
+  if (code === 401 || code === 403) {
+    return {
+      code,
+      isRateLimit: false,
+      message: `Datadog auth error (${code})${detail ? `: ${detail}` : ''}. Check DD_API_KEY / DD_APP_KEY.`,
+    };
+  }
+
+  if (code !== undefined) {
+    return {
+      code,
+      isRateLimit: false,
+      message: `Datadog API error (${code})${detail ? `: ${detail}` : ''}.`,
+    };
+  }
+
+  return {
+    isRateLimit: false,
+    message: `Datadog API error: ${err instanceof Error ? err.message : String(err)}`,
+  };
+}
+
+function extractStatusCode(err: unknown): number | undefined {
+  if (typeof err === 'object' && err !== null && 'code' in err) {
+    const code = (err as { code: unknown }).code;
+    if (typeof code === 'number') return code;
+  }
+  return undefined;
+}
+
+function extractApiMessage(err: unknown): string | undefined {
+  if (typeof err !== 'object' || err === null || !('body' in err)) return undefined;
+  const body = (err as { body: unknown }).body;
+
+  if (typeof body === 'string') return body || undefined;
+  if (typeof body === 'object' && body !== null && 'errors' in body) {
+    const errors = (body as { errors: unknown }).errors;
+    if (Array.isArray(errors) && errors.length > 0) {
+      return errors.map((e) => String(e)).join('; ');
+    }
+  }
+  return undefined;
 }
 
 function normalizeLogEntry(log: v2.Log): LogEntry {

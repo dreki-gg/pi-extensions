@@ -7,8 +7,10 @@ import {
   getCredentialStatus,
   loadProjectConfig,
 } from './config.js';
-import { searchLogs } from './client.js';
-import { formatSearchResult, formatSearchSummary } from './format.js';
+import { searchLogs, describeDatadogError } from './client.js';
+import { loadDotEnv } from './dotenv.js';
+import { formatSearchResult, formatSearchSummary, formatResultDigest } from './format.js';
+import { writeResultsFile } from './output.js';
 
 const SORT_ENUM = ['newest', 'oldest'] as const;
 
@@ -16,13 +18,18 @@ const TOOL_GUIDELINES = [
   'Use `datadog_logs_search` to search production logs in Datadog. It uses Datadog query syntax (e.g. `status:error`, `@http.status_code:500`, `service:my-api`).',
   '`datadog_logs_search` auto-applies project defaults for service and environment from `.pi/datadog.json` — only override when the user explicitly asks for a different service or env.',
   'When `datadog_logs_search` returns many results, summarize the patterns (error types, frequency, affected services) instead of listing every log entry.',
+  'The inline `datadog_logs_search` output is a compact digest (counts, status breakdown, services). The complete log entries — full messages and attributes — are written to a temp file whose path is in the response. To inspect actual log content (status codes, paths, stack traces), use the `read` tool on that file instead of re-querying.',
   'Use appropriate time ranges with `datadog_logs_search`: "15m" for recent issues, "1h" for general debugging, "24h" or "7d" for trend analysis.',
+  "Datadog is rate-limit sensitive: prefer a single narrow, well-scoped `datadog_logs_search` over many broad calls in quick succession. The tool already auto-retries on 429 (honouring Datadog's reset window) — if it still reports a rate limit, wait before retrying rather than firing again immediately.",
 ];
 
 export default function datadogExtension(pi: ExtensionAPI) {
   let projectConfig: DatadogProjectConfig | null = null;
 
   pi.on('session_start', async (_event, ctx) => {
+    // Load project-root .env so DD_API_KEY / DD_APP_KEY defined there are
+    // visible. Shell-exported vars still take precedence.
+    loadDotEnv(ctx.cwd);
     try {
       projectConfig = await loadProjectConfig(ctx.cwd);
     } catch (err) {
@@ -93,6 +100,9 @@ export default function datadogExtension(pi: ExtensionAPI) {
       _onUpdate?: unknown,
       ctx?: { cwd: string },
     ) {
+      // Ensure .env is loaded in case the tool runs before session_start.
+      if (ctx?.cwd) loadDotEnv(ctx.cwd);
+
       const credentials = getCredentials();
       if (!credentials) {
         const status = getCredentialStatus();
@@ -127,23 +137,42 @@ export default function datadogExtension(pi: ExtensionAPI) {
 
       try {
         const result = await searchLogs(params, config, credentials);
-        const formatted = formatSearchResult(result);
         const summary = formatSearchSummary(result);
 
+        // Write the full, untruncated results to a temp file the agent can read,
+        // and return only a compact digest inline to save tokens.
+        let resultsFile: string | undefined;
+        if (result.logs.length > 0) {
+          try {
+            const fullContent = formatSearchResult(result, {
+              maxMessageLength: Infinity,
+              maxAttributesLength: Infinity,
+            });
+            resultsFile = await writeResultsFile(fullContent);
+          } catch {
+            // Non-fatal: digest still carries the summary.
+            resultsFile = undefined;
+          }
+        }
+
         return {
-          content: [{ type: 'text' as const, text: formatted }],
-          details: summary as Record<string, unknown>,
+          content: [{ type: 'text' as const, text: formatResultDigest(result, resultsFile) }],
+          details: { ...summary, resultsFile } as Record<string, unknown>,
         };
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const info = describeDatadogError(err);
         return {
           content: [
             {
               type: 'text' as const,
-              text: `❌ Datadog API error: ${message}`,
+              text: `❌ ${info.message}`,
             },
           ],
-          details: { error: 'api_error', message } as Record<string, unknown>,
+          details: {
+            error: info.isRateLimit ? 'rate_limited' : 'api_error',
+            code: info.code,
+            message: info.message,
+          } as Record<string, unknown>,
           isError: true,
         };
       }
@@ -160,6 +189,7 @@ export default function datadogExtension(pi: ExtensionAPI) {
         ui: { notify(message: string, level: 'info' | 'warning' | 'error'): void };
       },
     ) => {
+      loadDotEnv(ctx.cwd);
       const credStatus = getCredentialStatus();
       const config = projectConfig ?? (await loadProjectConfig(ctx.cwd).catch(() => null));
 
