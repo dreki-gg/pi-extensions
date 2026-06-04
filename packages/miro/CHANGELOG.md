@@ -1,5 +1,11 @@
 # @dreki-gg/pi-miro
 
+## 0.4.0
+
+### Minor Changes
+
+- d4c03d6: Diagrams are now color-coded by group automatically. Each group gets a coordinated color from a curated palette — frame background, node fill/border, and the connectors originating in it — so the result reads organically instead of flat monochrome. Ungrouped nodes (entry points) render as dark chips. Add `colorize: false` to opt out, or set a per-node `style` (fillColor/borderColor/textColor) to override the theme. `miro_create_shape`/`miro_create_connector`/`miro_create_frame` gained the underlying color support too.
+
 ## 0.3.0
 
 ### Minor Changes
