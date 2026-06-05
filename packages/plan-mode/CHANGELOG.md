@@ -1,5 +1,11 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.22.0
+
+### Minor Changes
+
+- Add `/plans` command to list, filter, and sort plans interactively. Supports filtering by status (in-progress, done, superseded, abandoned) and sorting by date, task count, or name. Works both interactively and with inline args (e.g. `/plans done oldest`).
+
 ## 0.21.0
 
 ### Minor Changes

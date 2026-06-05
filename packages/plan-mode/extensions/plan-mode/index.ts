@@ -51,6 +51,7 @@ import { registerSetActivePlanTool } from './tools/set-active-plan.js';
 import { registerUpdatePlanTool } from './tools/update-plan.js';
 import { registerReconcilePlansTool } from './tools/reconcile-plans.js';
 import { isSafeCommand, isPlanPath } from './utils.js';
+import { handleListPlans } from './commands/list-plans.js';
 
 export default function planMode(pi: ExtensionAPI): void {
   const state = new PlanModeState();
@@ -265,6 +266,14 @@ export default function planMode(pi: ExtensionAPI): void {
         state.plan.tasks.find((task) => task.status === 'pending')?.id ?? state.plan.tasks[0]?.id;
       const kickoff = `Execute the following plan: "${state.plan.title}"\n\nTasks:\n${taskList}\n\nStart with ${first}. Call update_task after completing each task.`;
       await executeInNewSession(ctx, runPlanIO, state.planDir, state.plan, kickoff);
+    },
+  });
+
+  pi.registerCommand('plans', {
+    description:
+      'List all plans with filtering and sorting. Usage: /plans [filter] [sort]. Filters: all, in-progress, done, superseded, abandoned. Sorts: newest, oldest, tasks, name.',
+    handler: async (args, ctx) => {
+      await handleListPlans(ctx, runPlanIO, args);
     },
   });
 
