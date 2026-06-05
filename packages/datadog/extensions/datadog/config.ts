@@ -7,6 +7,10 @@ export interface DatadogProjectConfig {
   site: string;
   defaultTags?: string[];
   defaultTimeRange: string;
+  /** Default RUM application id (@application.id) for RUM event searches. */
+  rumApplicationId?: string;
+  /** Default service name for RUM event searches (falls back to `service`). */
+  rumService?: string;
 }
 
 interface RawConfig {
@@ -15,6 +19,8 @@ interface RawConfig {
   site?: unknown;
   defaultTags?: unknown;
   defaultTimeRange?: unknown;
+  rumApplicationId?: unknown;
+  rumService?: unknown;
 }
 
 const DEFAULT_CONFIG: DatadogProjectConfig = {
@@ -118,6 +124,20 @@ function validateConfig(raw: RawConfig, configPath: string): DatadogProjectConfi
       throw new Error(`${configPath}: "defaultTimeRange" must be a string`);
     }
     config.defaultTimeRange = raw.defaultTimeRange;
+  }
+
+  if (raw.rumApplicationId !== undefined) {
+    if (typeof raw.rumApplicationId !== 'string') {
+      throw new Error(`${configPath}: "rumApplicationId" must be a string`);
+    }
+    config.rumApplicationId = raw.rumApplicationId;
+  }
+
+  if (raw.rumService !== undefined) {
+    if (typeof raw.rumService !== 'string') {
+      throw new Error(`${configPath}: "rumService" must be a string`);
+    }
+    config.rumService = raw.rumService;
   }
 
   return config;

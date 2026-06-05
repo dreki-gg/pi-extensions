@@ -17,7 +17,7 @@ const nodeSchema = Type.Object({
   id: Type.String({ description: 'Stable node id, referenced by edges and group membership.' }),
   label: Type.String({ description: 'Text shown inside the shape.' }),
   group: Type.Optional(
-    Type.String({ description: 'Group id this node belongs to (drawn inside a frame).' }),
+    Type.String({ description: 'Group id this node belongs to (drawn inside a container region).' }),
   ),
   shape: Type.Optional(
     StringEnum(SHAPE_KINDS, { description: 'Shape kind. Default from config (round_rectangle).' }),
@@ -40,7 +40,7 @@ const edgeSchema = Type.Object({
 
 const groupSchema = Type.Object({
   id: Type.String({ description: 'Group id referenced by node.group.' }),
-  label: Type.String({ description: 'Frame title for the group.' }),
+  label: Type.String({ description: 'Title shown at the top of the group container.' }),
 });
 
 export const diagramToolSchema = Type.Object({
@@ -56,7 +56,10 @@ export const diagramToolSchema = Type.Object({
   nodes: Type.Array(nodeSchema, { description: 'Diagram nodes (boxes).' }),
   edges: Type.Array(edgeSchema, { description: 'Directed connectors between nodes.' }),
   groups: Type.Optional(
-    Type.Array(groupSchema, { description: 'Optional groups, each rendered as a titled frame.' }),
+    Type.Array(groupSchema, {
+      description:
+        'Optional groups, each rendered as a titled container shape (a backdrop region, not an artboard frame, so member nodes stay independent).',
+    }),
   ),
   direction: Type.Optional(
     StringEnum(['TB', 'BT', 'LR', 'RL'] as const, {
@@ -89,7 +92,7 @@ export function registerDiagramTool(
     name: 'miro_create_diagram',
     label: 'Miro Create Diagram',
     description:
-      'Render a node/edge diagram onto an existing Miro board. Auto-lays-out with dagre and creates native shapes, connectors, and group frames.',
+      'Render a node/edge diagram onto an existing Miro board. Auto-lays-out with dagre and creates native shapes, connectors, and group container regions.',
     promptSnippet: 'Create an auto-laid-out diagram (nodes + edges + groups) on a Miro board',
     promptGuidelines: [
       'Use miro_create_diagram to turn a graph (nodes + edges, optionally grouped) into native Miro items — this is the right tool for converting a Mermaid/architecture sketch into an editable board, not pasting an image.',
@@ -135,13 +138,16 @@ export function registerDiagramTool(
         }
         const summary =
           `✅ Created ${result.shapeIds.length} shapes, ${result.connectorIds.length} connectors, ` +
-          `${result.frameIds.length} frames on board ${boardId}.` +
+          `${result.containerIds.length} group containers, ${result.frameIds.length} frames ` +
+          `on board ${boardId}.` +
           (viewLink ? `\n${viewLink}` : '');
         return textResult(summary, {
           boardId,
           viewLink,
           shapes: result.shapeIds.length,
           connectors: result.connectorIds.length,
+          containers: result.containerIds.length,
+          labels: result.textIds.length,
           frames: result.frameIds.length,
         });
       } catch (err) {

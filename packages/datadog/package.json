@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-datadog",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "description": "Datadog log search tools for pi — query production logs with project-aware context",
   "keywords": [
     "pi-package",

@@ -7,6 +7,7 @@ import {
   formatFileInfo,
   formatDownloadedFile,
   formatPostedMessage,
+  formatEditedMessage,
 } from '../extensions/slack/format.js';
 import type { SlackChannel, ReadMessagesResult } from '../extensions/slack/client/channels.js';
 import type { SearchResult } from '../extensions/slack/client/search.js';
@@ -206,5 +207,14 @@ describe('formatPostedMessage', () => {
       '1700000000.000100',
     );
     expect(output).toContain('thread 1700000000.000100 in C123');
+  });
+});
+
+describe('formatEditedMessage', () => {
+  test('formats an edited message', () => {
+    const output = formatEditedMessage({ channel: 'C123', ts: '1700000000.000100' });
+    expect(output).toContain('✏️');
+    expect(output).toContain('C123');
+    expect(output).toContain('1700000000.000100');
   });
 });

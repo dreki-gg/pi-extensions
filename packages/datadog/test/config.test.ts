@@ -40,6 +40,8 @@ describe('loadProjectConfig', () => {
         site: 'datadoghq.eu',
         defaultTags: ['team:backend'],
         defaultTimeRange: '30m',
+        rumApplicationId: 'abc-123',
+        rumService: 'web-frontend',
       }),
     );
 
@@ -49,6 +51,18 @@ describe('loadProjectConfig', () => {
     expect(config.site).toBe('datadoghq.eu');
     expect(config.defaultTags).toEqual(['team:backend']);
     expect(config.defaultTimeRange).toBe('30m');
+    expect(config.rumApplicationId).toBe('abc-123');
+    expect(config.rumService).toBe('web-frontend');
+  });
+
+  it('throws on invalid rumApplicationId type', async () => {
+    writeFileSync(join(TMP_DIR, '.pi', 'datadog.json'), JSON.stringify({ rumApplicationId: 123 }));
+    await expect(loadProjectConfig(TMP_DIR)).rejects.toThrow('"rumApplicationId" must be a string');
+  });
+
+  it('throws on invalid rumService type', async () => {
+    writeFileSync(join(TMP_DIR, '.pi', 'datadog.json'), JSON.stringify({ rumService: 123 }));
+    await expect(loadProjectConfig(TMP_DIR)).rejects.toThrow('"rumService" must be a string');
   });
 
   it('uses defaults for omitted fields', async () => {

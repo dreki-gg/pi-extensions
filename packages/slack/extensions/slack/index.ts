@@ -14,7 +14,7 @@ import { listChannels } from './client/channels.js';
 import { readMessages, readThread } from './client/channels.js';
 import { searchMessages } from './client/search.js';
 import { downloadFile } from './client/files.js';
-import { postMessage } from './client/messages.js';
+import { postMessage, editMessage } from './client/messages.js';
 import {
   formatChannelList,
   formatMessages,
@@ -22,6 +22,7 @@ import {
   formatSearchResults,
   formatDownloadedFile,
   formatPostedMessage,
+  formatEditedMessage,
 } from './format.js';
 import {
   TOOL_GUIDELINES,
@@ -31,6 +32,7 @@ import {
   searchParams,
   downloadFileParams,
   postMessageParams,
+  editMessageParams,
 } from './tools.js';
 
 // ---------------------------------------------------------------------------
@@ -325,6 +327,49 @@ export default function slackExtension(pi: ExtensionAPI) {
           }),
         );
         return textResult(formatPostedMessage(result, params.thread_ts), {
+          channel: result.channel,
+          ts: result.ts,
+        });
+      } catch (err) {
+        return errorResult(`❌ ${(err as Error).message}`);
+      }
+    },
+  });
+
+  // -------------------------------------------------------------------------
+  // slack_edit_message
+  // -------------------------------------------------------------------------
+
+  pi.registerTool({
+    name: 'slack_edit_message',
+    label: 'Slack Edit Message',
+    description:
+      'Edit a message the bot previously posted. Requires the bot token to have the `chat:write` scope. Bots can only edit their own messages.',
+    promptSnippet: 'Edit a message the bot previously posted',
+    promptGuidelines: TOOL_GUIDELINES,
+    parameters: editMessageParams,
+
+    async execute(
+      _toolCallId: string,
+      params: {
+        channel: string;
+        ts: string;
+        text: string;
+      },
+    ) {
+      const creds = getCredentials();
+      if (!creds) return missingCredentials('bot');
+
+      try {
+        const result = await runSlack(
+          creds,
+          editMessage({
+            channel: params.channel,
+            ts: params.ts,
+            text: params.text,
+          }),
+        );
+        return textResult(formatEditedMessage(result), {
           channel: result.channel,
           ts: result.ts,
         });

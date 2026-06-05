@@ -101,22 +101,30 @@ export function buildQuery(params: LogSearchParams, config: DatadogProjectConfig
 /** Max automatic retry attempts on 429 / 5xx responses. */
 const MAX_RETRIES = 4;
 
-function createApiInstance(credentials: DatadogCredentials, site: string): v2.LogsApi {
+/**
+ * Builds a Datadog SDK configuration with credentials, the target site, and
+ * transparent retry on 429 / 5xx. The SDK honours the `x-ratelimit-reset`
+ * header, so it waits exactly the window Datadog asks for before retrying
+ * (falling back to exponential backoff otherwise). This is what keeps the
+ * tools from "crying" about rate limits on bursty usage.
+ *
+ * Shared by the logs and RUM clients so both inherit identical retry behaviour.
+ */
+export function createConfiguration(credentials: DatadogCredentials, site: string) {
   const configuration = client.createConfiguration({
     authMethods: {
       apiKeyAuth: credentials.apiKey,
       appKeyAuth: credentials.appKey,
     },
-    // Transparently retry on 429 / 5xx. The SDK honours the `x-ratelimit-reset`
-    // header, so it waits exactly the window Datadog asks for before retrying
-    // (falling back to exponential backoff otherwise). This is what keeps the
-    // tool from "crying" about rate limits on bursty usage.
     enableRetry: true,
     maxRetries: MAX_RETRIES,
   });
   configuration.setServerVariables({ site });
+  return configuration;
+}
 
-  return new v2.LogsApi(configuration);
+function createApiInstance(credentials: DatadogCredentials, site: string): v2.LogsApi {
+  return new v2.LogsApi(createConfiguration(credentials, site));
 }
 
 export interface DatadogErrorInfo {

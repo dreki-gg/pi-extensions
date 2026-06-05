@@ -1,5 +1,11 @@
 # @dreki-gg/pi-slack
 
+## 0.3.0
+
+### Minor Changes
+
+- Add `slack_edit_message` tool so the agent can edit messages it previously posted. Pass the `channel` ID and the message `ts` (returned by `slack_post_message`) along with the new `text` to rewrite a message via Slack's `chat.update`. Reuses the existing `chat:write` scope — bots can only edit their own messages.
+
 ## 0.2.0
 
 ### Minor Changes

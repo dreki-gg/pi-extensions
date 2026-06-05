@@ -30,7 +30,7 @@ function mockPi() {
 }
 
 describe('miro extension registration', () => {
-  test('registers all five tools', () => {
+  test('registers all eight tools', () => {
     const pi = mockPi();
     miroExtension(pi as never);
     const names = pi.tools.map((tool) => tool.name).sort();
@@ -39,7 +39,10 @@ describe('miro extension registration', () => {
       'miro_create_diagram',
       'miro_create_frame',
       'miro_create_shape',
+      'miro_delete_items',
       'miro_list_boards',
+      'miro_list_items',
+      'miro_update_item',
     ]);
   });
 

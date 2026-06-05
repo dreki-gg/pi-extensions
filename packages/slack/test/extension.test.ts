@@ -33,11 +33,12 @@ function loadExtension() {
   return { tools, commands, events };
 }
 
-test('registers all six tools, command, and session_start handler', () => {
+test('registers all seven tools, command, and session_start handler', () => {
   const { tools, commands, events } = loadExtension();
 
   expect(tools.map((t) => t.name).sort()).toEqual([
     'slack_download_file',
+    'slack_edit_message',
     'slack_list_channels',
     'slack_post_message',
     'slack_read_messages',
@@ -80,9 +81,26 @@ test('post message tool errors gracefully when SLACK_BOT_TOKEN is missing', asyn
   try {
     const { tools } = loadExtension();
     const post = tools.find((t) => t.name === 'slack_post_message')!;
-    const result = await post.execute(
+    const result = await post.execute('id', { channel: 'C123', text: 'hi' }, undefined, undefined, {
+      cwd: process.cwd(),
+    });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('SLACK_BOT_TOKEN');
+  } finally {
+    if (orig) process.env.SLACK_BOT_TOKEN = orig;
+  }
+});
+
+test('edit message tool errors gracefully when SLACK_BOT_TOKEN is missing', async () => {
+  const orig = process.env.SLACK_BOT_TOKEN;
+  delete process.env.SLACK_BOT_TOKEN;
+
+  try {
+    const { tools } = loadExtension();
+    const edit = tools.find((t) => t.name === 'slack_edit_message')!;
+    const result = await edit.execute(
       'id',
-      { channel: 'C123', text: 'hi' },
+      { channel: 'C123', ts: '1700000000.000100', text: 'updated' },
       undefined,
       undefined,
       { cwd: process.cwd() },

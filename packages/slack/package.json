@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-slack",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Slack read tools for pi — messages, threads, channels, search, and file/image downloads with Effect-powered client",
   "keywords": [
     "pi-package",

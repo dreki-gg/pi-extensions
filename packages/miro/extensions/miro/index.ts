@@ -2,6 +2,7 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { getCredentialStatus } from './config.js';
 import { MiroRuntime } from './runtime.js';
 import { registerDiagramTool } from './tools/diagram-tool.js';
+import { registerItemTools } from './tools/item-tools.js';
 import { registerPrimitiveTools } from './tools/primitive-tools.js';
 
 export default function miroExtension(pi: ExtensionAPI) {
@@ -20,4 +21,5 @@ export default function miroExtension(pi: ExtensionAPI) {
 
   registerDiagramTool(pi, runtime);
   registerPrimitiveTools(pi, runtime);
+  registerItemTools(pi, runtime);
 }

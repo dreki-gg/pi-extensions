@@ -1,5 +1,16 @@
 # @dreki-gg/pi-miro
 
+## 0.5.0
+
+### Minor Changes
+
+- Make diagram groups behave like real groupings and add board read/write tools.
+
+  - **Groups render as container shapes, not frames.** Miro frames are artboards that auto-parent any item inside their bounds, so the old per-group frames captured member nodes (move/delete the frame, drag its contents; frames can't nest; overlapping group frames fought over ownership). Each group is now a soft-tinted backdrop `round_rectangle` plus a separate top-left title text — member nodes stay fully independent. The optional `frameTitle` outer wrap is still a real frame for Frames-panel navigation.
+  - **New `miro_list_items`** — list items on a board (id, type, label, position, size), filterable by `type` and/or parent `frameId`. Discovering ids unblocks connecting, updating, and deleting existing items.
+  - **New `miro_update_item`** — edit a `shape`/`text`/`sticky_note`/`frame`'s content, position, size, or colors. Partial position/size edits merge over the item's current values.
+  - **New `miro_delete_items`** — delete one or more items by id, tolerating per-item failure.
+
 ## 0.4.0
 
 ### Minor Changes

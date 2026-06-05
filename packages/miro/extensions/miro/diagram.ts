@@ -2,10 +2,16 @@ import type {
   CreateConnectorArgs,
   CreateFrameArgs,
   CreateShapeArgs,
+  CreateTextArgs,
   CreatedItem,
 } from './client.js';
 import { layoutDiagram } from './layout.js';
-import { NEUTRAL_THEME, assignGroupThemes } from './theme.js';
+import {
+  NEUTRAL_THEME,
+  assignGroupThemes,
+  themeContainerStyle,
+  themeContainerTitleColor,
+} from './theme.js';
 import {
   DEFAULT_NODE_HEIGHT,
   DEFAULT_NODE_WIDTH,
@@ -18,6 +24,7 @@ import {
 export interface DiagramClient {
   createShape(boardId: string, args: CreateShapeArgs): Promise<CreatedItem>;
   createFrame(boardId: string, args: CreateFrameArgs): Promise<CreatedItem>;
+  createText(boardId: string, args: CreateTextArgs): Promise<CreatedItem>;
   createConnector(boardId: string, args: CreateConnectorArgs): Promise<CreatedItem>;
 }
 
@@ -39,10 +46,22 @@ export interface RenderOptions {
 }
 
 export interface RenderResult {
+  /** Outer wrapping frame ids (the only frames we still create). */
   frameIds: string[];
+  /** Group container backdrop shape ids. */
+  containerIds: string[];
+  /** Group title text item ids. */
+  textIds: string[];
   shapeIds: string[];
   connectorIds: string[];
 }
+
+/** Shape kind used for group container backdrops. */
+const CONTAINER_SHAPE: ShapeKind = 'round_rectangle';
+/** Inset of the title text from the container's top-left corner. */
+const CONTAINER_TITLE_INSET = 24;
+/** Title font size for group containers (dp). */
+const CONTAINER_TITLE_FONT_SIZE = '18';
 
 /**
  * Render a declarative diagram onto an existing board: frames first (so nodes
@@ -64,6 +83,8 @@ export async function renderDiagram(
   const groupOf = new Map(spec.nodes.map((node) => [node.id, node.group]));
 
   const frameIds: string[] = [];
+  const containerIds: string[] = [];
+  const textIds: string[] = [];
 
   // 0. Optional outer wrapping frame (created first → sits behind everything,
   // and becomes the single anchor in the Frames panel).
@@ -81,19 +102,34 @@ export async function renderDiagram(
     }
   }
 
-  // 1. Group frames (behind nodes).
+  // 1. Group containers (behind nodes). Each group is a backdrop SHAPE (not a
+  // frame — frames are artboards that would capture member nodes as children)
+  // plus a separate top-left title text item. Created before nodes so they sit
+  // behind them by z-order.
   for (const group of spec.groups ?? []) {
     const box = layout.groups.get(group.id);
     if (!box) continue;
-    const frame = await client.createFrame(boardId, {
-      title: group.label,
+    const container = await client.createShape(boardId, {
+      shape: CONTAINER_SHAPE,
+      content: '',
       x: box.x,
       y: box.y,
       width: box.width,
       height: box.height,
-      fillColor: themes?.get(group.id)?.frameFill,
+      style: themeContainerStyle(themes?.get(group.id)),
     });
-    frameIds.push(frame.id);
+    containerIds.push(container.id);
+
+    const title = await client.createText(boardId, {
+      content: group.label,
+      x: box.x,
+      y: box.y - box.height / 2 + CONTAINER_TITLE_INSET,
+      width: box.width - CONTAINER_TITLE_INSET * 2,
+      color: colorize ? themeContainerTitleColor(themes?.get(group.id)) : undefined,
+      fontSize: CONTAINER_TITLE_FONT_SIZE,
+      textAlign: 'left',
+    });
+    textIds.push(title.id);
   }
 
   // 2. Shapes, keeping the nodeId -> Miro item id map for connector wiring.
@@ -129,7 +165,7 @@ export async function renderDiagram(
     connectorIds.push(created.id);
   });
 
-  return { frameIds, shapeIds: [...idMap.values()], connectorIds };
+  return { frameIds, containerIds, textIds, shapeIds: [...idMap.values()], connectorIds };
 }
 
 /** Build the node fill/border/text style for a node from its group theme. */

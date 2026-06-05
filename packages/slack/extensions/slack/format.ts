@@ -1,7 +1,7 @@
 import type { SlackChannel, SlackMessage, ReadMessagesResult } from './client/channels.js';
 import type { SearchResult } from './client/search.js';
 import type { DownloadedFile, SlackFileInfo } from './client/files.js';
-import type { PostMessageResult } from './client/messages.js';
+import type { PostMessageResult, EditMessageResult } from './client/messages.js';
 
 // ---------------------------------------------------------------------------
 // Channels
@@ -85,14 +85,13 @@ export function formatSearchResults(result: SearchResult, query: string): string
 // Posting
 // ---------------------------------------------------------------------------
 
-export function formatPostedMessage(
-  result: PostMessageResult,
-  threadTs?: string,
-): string {
-  const where = threadTs
-    ? `thread ${threadTs} in ${result.channel}`
-    : `${result.channel}`;
+export function formatPostedMessage(result: PostMessageResult, threadTs?: string): string {
+  const where = threadTs ? `thread ${threadTs} in ${result.channel}` : `${result.channel}`;
   return `✅ Message posted to ${where} (ts: ${result.ts})`;
+}
+
+export function formatEditedMessage(result: EditMessageResult): string {
+  return `✏️ Message edited in ${result.channel} (ts: ${result.ts})`;
 }
 
 // ---------------------------------------------------------------------------

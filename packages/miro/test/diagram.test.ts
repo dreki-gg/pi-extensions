@@ -3,6 +3,7 @@ import type {
   CreateConnectorArgs,
   CreateFrameArgs,
   CreateShapeArgs,
+  CreateTextArgs,
   CreatedItem,
 } from '../extensions/miro/client.js';
 import { type DiagramClient, computeBounds, renderDiagram } from '../extensions/miro/diagram.js';
@@ -13,15 +14,25 @@ class FakeClient implements DiagramClient {
   shapes: Array<{ args: CreateShapeArgs }> = [];
   connectors: CreateConnectorArgs[] = [];
   frames: CreateFrameArgs[] = [];
+  texts: CreateTextArgs[] = [];
+  /** Ordered log of created item kinds, for z-order assertions. */
+  order: string[] = [];
   private counter = 0;
 
   async createShape(_boardId: string, args: CreateShapeArgs): Promise<CreatedItem> {
     this.shapes.push({ args });
-    return { id: `shape-${args.content}` };
+    this.order.push(`shape:${args.content}`);
+    return { id: `shape-${args.content || ++this.counter}` };
   }
   async createFrame(_boardId: string, args: CreateFrameArgs): Promise<CreatedItem> {
     this.frames.push(args);
+    this.order.push(`frame:${args.title}`);
     return { id: `frame-${++this.counter}` };
+  }
+  async createText(_boardId: string, args: CreateTextArgs): Promise<CreatedItem> {
+    this.texts.push(args);
+    this.order.push(`text:${args.content}`);
+    return { id: `text-${++this.counter}` };
   }
   async createConnector(_boardId: string, args: CreateConnectorArgs): Promise<CreatedItem> {
     this.connectors.push(args);
@@ -43,16 +54,45 @@ const spec: DiagramSpec = {
 };
 
 describe('renderDiagram', () => {
-  test('creates a shape per node, frame per group, connector per edge', async () => {
+  test('creates a node shape per node, a container shape + title per group, connector per edge', async () => {
     const client = new FakeClient();
     const result = await renderDiagram(client, 'board1', spec, { defaultShape: 'rectangle' });
 
-    expect(client.shapes.length).toBe(3);
-    expect(client.frames.length).toBe(1);
+    // 3 node shapes + 1 group container shape.
+    expect(client.shapes.length).toBe(4);
+    // Groups are no longer frames; only the (absent) outer wrap would be one.
+    expect(client.frames.length).toBe(0);
+    expect(client.texts.length).toBe(1);
     expect(client.connectors.length).toBe(2);
     expect(result.shapeIds.length).toBe(3);
+    expect(result.containerIds.length).toBe(1);
+    expect(result.textIds.length).toBe(1);
     expect(result.connectorIds.length).toBe(2);
-    expect(result.frameIds.length).toBe(1);
+    expect(result.frameIds.length).toBe(0);
+  });
+
+  test('group container is a label-less shape drawn before its member nodes', async () => {
+    const client = new FakeClient();
+    await renderDiagram(client, 'board1', spec, { defaultShape: 'rectangle' });
+
+    // The container shape carries no content (label lives in a separate text).
+    const container = client.shapes.find((shape) => shape.args.content === '')!;
+    expect(container).toBeDefined();
+    expect(container.args.shape).toBe('round_rectangle');
+
+    // Z-order: container created before any member node shape.
+    const containerIdx = client.order.indexOf('shape:');
+    const nodeAIdx = client.order.indexOf('shape:A');
+    expect(containerIdx).toBeGreaterThanOrEqual(0);
+    expect(containerIdx).toBeLessThan(nodeAIdx);
+  });
+
+  test('group title renders as a separate text item', async () => {
+    const client = new FakeClient();
+    await renderDiagram(client, 'board1', spec, { defaultShape: 'rectangle' });
+    const title = client.texts.find((text) => text.content === 'Group')!;
+    expect(title).toBeDefined();
+    expect(title.textAlign).toBe('left');
   });
 
   test('wires connectors to the created shape ids (not node ids)', async () => {
@@ -67,22 +107,35 @@ describe('renderDiagram', () => {
   test('falls back to the default shape when a node omits one', async () => {
     const client = new FakeClient();
     await renderDiagram(client, 'board1', spec, { defaultShape: 'hexagon' });
-    expect(client.shapes.every((shape) => shape.args.shape === 'hexagon')).toBe(true);
+    // Container shapes are always round_rectangle; only node shapes follow the default.
+    expect(
+      client.shapes
+        .filter((shape) => shape.args.content !== '')
+        .every((shape) => shape.args.shape === 'hexagon'),
+    ).toBe(true);
   });
 
-  test('color-codes groups by default (frame fill + node + connector)', async () => {
+  test('color-codes groups by default (container fill/opacity + node + connector)', async () => {
     const client = new FakeClient();
     await renderDiagram(client, 'board1', spec, { defaultShape: 'rectangle' });
-    expect(client.frames[0].fillColor).toBeTruthy();
-    expect(client.shapes.every((shape) => shape.args.style?.fillColor)).toBe(true);
+    const container = client.shapes.find((shape) => shape.args.content === '')!;
+    expect(container.args.style?.fillColor).toBeTruthy();
+    expect(container.args.style?.fillOpacity).toBeTruthy();
+    // Every node shape (non-container) is filled too.
+    expect(
+      client.shapes
+        .filter((shape) => shape.args.content !== '')
+        .every((shape) => shape.args.style?.fillColor),
+    ).toBe(true);
+    expect(client.texts.every((text) => text.color)).toBe(true);
     expect(client.connectors.every((connector) => connector.color)).toBe(true);
   });
 
   test('colorize:false leaves items unstyled', async () => {
     const client = new FakeClient();
     await renderDiagram(client, 'board1', spec, { defaultShape: 'rectangle', colorize: false });
-    expect(client.frames.every((frame) => frame.fillColor === undefined)).toBe(true);
     expect(client.shapes.every((shape) => shape.args.style === undefined)).toBe(true);
+    expect(client.texts.every((text) => text.color === undefined)).toBe(true);
     expect(client.connectors.every((connector) => connector.color === undefined)).toBe(true);
   });
 
@@ -94,7 +147,8 @@ describe('renderDiagram', () => {
       groups: [{ id: 'g', label: 'G' }],
     };
     await renderDiagram(client, 'board1', styled, { defaultShape: 'rectangle' });
-    expect(client.shapes[0].args.style?.fillColor).toBe('#123456');
+    const node = client.shapes.find((shape) => shape.args.content === 'A')!;
+    expect(node.args.style?.fillColor).toBe('#123456');
   });
 
   test('wraps the diagram in one outer frame when frameTitle is set', async () => {
@@ -103,15 +157,15 @@ describe('renderDiagram', () => {
       defaultShape: 'rectangle',
       wrapTitle: 'My Map',
     });
-    // 1 group frame + 1 outer wrapping frame.
-    expect(client.frames.length).toBe(2);
-    expect(result.frameIds.length).toBe(2);
+    // Only the outer wrap is a frame now; the group is a container shape.
+    expect(client.frames.length).toBe(1);
+    expect(result.frameIds.length).toBe(1);
     const outer = client.frames[0];
     expect(outer.title).toBe('My Map');
-    // Outer frame must be larger than the single group frame it contains.
-    const group = client.frames[1];
-    expect(outer.width).toBeGreaterThan(group.width);
-    expect(outer.height).toBeGreaterThan(group.height);
+    // Outer frame must be larger than the group container shape it encloses.
+    const container = client.shapes.find((shape) => shape.args.content === '')!;
+    expect(outer.width).toBeGreaterThan(container.args.width);
+    expect(outer.height).toBeGreaterThan(container.args.height);
   });
 
   test('propagates validation errors from the spec', async () => {

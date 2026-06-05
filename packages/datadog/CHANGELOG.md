@@ -1,5 +1,11 @@
 # @dreki-gg/pi-datadog
 
+## 0.3.0
+
+### Minor Changes
+
+- Add `datadog_rum_search` tool for searching Datadog RUM events (sessions, views, actions, front-end errors). Defaults to session events and, like the logs tool, returns a compact inline digest while writing the full untruncated events to a temp file the agent can read. Adds optional `rumApplicationId` / `rumService` fields to `.pi/datadog.json` (with per-call overrides), and surfaces them in the `/datadog` status command.
+
 ## 0.2.4
 
 ### Patch Changes

@@ -1,4 +1,12 @@
 import { MiroApi } from '@mirohq/miro-api';
+import {
+  type BoardItem,
+  type ItemChanges,
+  type ListableItemType,
+  type RawItem,
+  buildUpdateRequest,
+  normalizeItem,
+} from './items.js';
 import type { ConnectorShape, NodeStyle, ShapeKind } from './types.js';
 
 export interface BoardSummary {
@@ -9,6 +17,20 @@ export interface BoardSummary {
 
 export interface CreatedItem {
   id: string;
+}
+
+export interface ListItemsOptions {
+  /** Filter to one item type (e.g. "shape", "frame"). */
+  type?: ListableItemType;
+  /** Only items inside this parent frame. */
+  frameId?: string;
+  /** Stop after this many items. Default 100. */
+  limit?: number;
+}
+
+export interface DeleteResult {
+  deleted: string[];
+  failed: Array<{ id: string; error: string }>;
 }
 
 export interface CreateShapeArgs {
@@ -38,6 +60,21 @@ export interface CreateFrameArgs {
   height: number;
   /** Background fill (must be a Miro-allowed frame color). */
   fillColor?: string;
+}
+
+export interface CreateTextArgs {
+  content: string;
+  /** Center position of the text box (Miro origin). */
+  x: number;
+  y: number;
+  /** Text box width; height is auto-sized by Miro. */
+  width: number;
+  /** Text color (hex). */
+  color?: string;
+  /** Font size in dp (string per Miro API). */
+  fontSize?: string;
+  /** Horizontal alignment. Default left for container titles. */
+  textAlign?: 'left' | 'center' | 'right';
 }
 
 /**
@@ -89,6 +126,84 @@ export class MiroClient {
     return { id: item.id };
   }
 
+  async createText(boardId: string, args: CreateTextArgs): Promise<CreatedItem> {
+    const board = await this.api.getBoard(boardId);
+    const style: Record<string, string> = {};
+    if (args.color) style.color = args.color;
+    if (args.fontSize) style.fontSize = args.fontSize;
+    if (args.textAlign) style.textAlign = args.textAlign;
+    const item = await board.createTextItem({
+      data: { content: args.content },
+      position: { x: args.x, y: args.y },
+      geometry: { width: args.width },
+      style: Object.keys(style).length > 0 ? style : undefined,
+    });
+    return { id: item.id };
+  }
+
+  /** List items on a board, optionally filtered by type and/or parent frame. */
+  async listItems(boardId: string, options: ListItemsOptions = {}): Promise<BoardItem[]> {
+    const limit = options.limit ?? 100;
+    const items: BoardItem[] = [];
+    let cursor: string | undefined;
+    do {
+      const query = {
+        ...(options.type ? { type: options.type } : {}),
+        ...(cursor ? { cursor } : {}),
+        limit: String(Math.min(50, limit - items.length)),
+      };
+      const page = options.frameId
+        ? await this.api._api.getItemsWithinFrame(boardId, options.frameId, query)
+        : await this.api._api.getItems(boardId, query);
+      for (const raw of page.body.data ?? []) {
+        items.push(normalizeItem(raw as RawItem));
+        if (items.length >= limit) return items;
+      }
+      cursor = page.body.cursor || undefined;
+    } while (cursor);
+    return items;
+  }
+
+  /** Edit an existing item's content/position/size/colors. */
+  async updateItem(boardId: string, itemId: string, changes: ItemChanges): Promise<BoardItem> {
+    const current = (await this.api._api.getSpecificItem(boardId, itemId)).body as RawItem;
+    const request = buildUpdateRequest(current.type, current, changes);
+    switch (current.type) {
+      case 'shape':
+        await this.api._api.updateShapeItem(boardId, itemId, request as never);
+        break;
+      case 'text':
+        await this.api._api.updateTextItem(boardId, itemId, request as never);
+        break;
+      case 'sticky_note':
+        await this.api._api.updateStickyNoteItem(boardId, itemId, request as never);
+        break;
+      case 'frame':
+        await this.api._api.updateFrameItem(boardId, itemId, request as never);
+        break;
+      default:
+        // buildUpdateRequest already throws for non-updatable types.
+        break;
+    }
+    const updated = (await this.api._api.getSpecificItem(boardId, itemId)).body as RawItem;
+    return normalizeItem(updated);
+  }
+
+  /** Delete items by id, tolerating per-item failure. */
+  async deleteItems(boardId: string, itemIds: string[]): Promise<DeleteResult> {
+    const deleted: string[] = [];
+    const failed: Array<{ id: string; error: string }> = [];
+    for (const id of itemIds) {
+      try {
+        await this.api._api.deleteItem(boardId, id);
+        deleted.push(id);
+      } catch (err) {
+        failed.push({ id, error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    return { deleted, failed };
+  }
+
   async createConnector(boardId: string, args: CreateConnectorArgs): Promise<CreatedItem> {
     const board = await this.api.getBoard(boardId);
     const item = await board.createConnector({
@@ -106,6 +221,7 @@ function toShapeStyle(style?: NodeStyle): Record<string, string> | undefined {
   if (!style) return undefined;
   const mapped: Record<string, string> = {};
   if (style.fillColor) mapped.fillColor = style.fillColor;
+  if (style.fillOpacity) mapped.fillOpacity = style.fillOpacity;
   if (style.textColor) mapped.color = style.textColor;
   if (style.borderColor) mapped.borderColor = style.borderColor;
   if (style.borderWidth) mapped.borderWidth = style.borderWidth;

@@ -13,6 +13,8 @@ Uses [Effect](https://effect.website) for the Slack client layer (typed errors, 
 | `slack_read_thread` | Read replies in a thread |
 | `slack_search` | Full-text search across workspace (requires user token) |
 | `slack_download_file` | Download a shared file/image to temp directory |
+| `slack_post_message` | Post a message to a channel or reply in a thread (requires `chat:write`) |
+| `slack_edit_message` | Edit a message the bot previously posted (requires `chat:write`) |
 
 ## Setup
 

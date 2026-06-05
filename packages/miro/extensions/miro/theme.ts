@@ -42,6 +42,32 @@ export const NEUTRAL_THEME: GroupTheme = {
 export const NODE_FILL_OPACITY = '1';
 
 /**
+ * Fill opacity for group container backdrops. Low so member nodes drawn on top
+ * stay legible and the container reads as a soft region, not a solid block.
+ */
+export const CONTAINER_FILL_OPACITY = '0.2';
+
+/**
+ * Build the backdrop container style for a group from its theme: the group
+ * fill at low opacity with the group border color. Returns undefined when no
+ * theme (colorize disabled) so the container renders unstyled.
+ */
+export function themeContainerStyle(theme: GroupTheme | undefined) {
+  if (!theme) return undefined;
+  return {
+    fillColor: theme.frameFill,
+    fillOpacity: CONTAINER_FILL_OPACITY,
+    borderColor: theme.nodeBorder,
+    borderWidth: '2',
+  };
+}
+
+/** Title text color for a group container (its border accent, or neutral). */
+export function themeContainerTitleColor(theme: GroupTheme | undefined): string {
+  return theme?.nodeBorder ?? NEUTRAL_THEME.nodeBorder;
+}
+
+/**
  * Assign a palette theme to each group id, cycling the palette so even many
  * groups stay distinct. Deterministic in input order.
  */

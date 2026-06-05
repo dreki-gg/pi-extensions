@@ -12,6 +12,13 @@ export interface PostMessageResult {
   channel: string;
 }
 
+export interface EditMessageResult {
+  /** Timestamp of the edited message. */
+  ts: string;
+  /** Channel the message lives in. */
+  channel: string;
+}
+
 // ---------------------------------------------------------------------------
 // Effects
 // ---------------------------------------------------------------------------
@@ -39,5 +46,20 @@ export function postMessage(params: {
       ts: resp.ts,
       channel: resp.channel,
     } satisfies PostMessageResult;
+  });
+}
+
+export function editMessage(params: { channel: string; ts: string; text: string }) {
+  return Effect.gen(function* () {
+    const resp = yield* slackPost<{ ok: true; ts: string; channel: string }>('chat.update', {
+      channel: params.channel,
+      ts: params.ts,
+      text: params.text,
+    });
+
+    return {
+      ts: resp.ts,
+      channel: resp.channel,
+    } satisfies EditMessageResult;
   });
 }

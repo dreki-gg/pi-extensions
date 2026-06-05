@@ -32,6 +32,8 @@ export interface NodeStyle {
   borderColor?: string;
   /** Border thickness in px (string per Miro API). */
   borderWidth?: string;
+  /** Fill opacity 0.0–1.0 (string per Miro API). Used for soft container tints. */
+  fillOpacity?: string;
 }
 
 export interface DiagramNode {
