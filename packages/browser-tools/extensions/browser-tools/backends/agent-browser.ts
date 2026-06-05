@@ -6,6 +6,7 @@ import {
   runAgentBrowserJson,
   viewportFor,
 } from './agent-browser-cli.js';
+import { resolveTargetRef } from './resolve-target.js';
 import type {
   BrowserBackend,
   BrowserInteractParams,
@@ -419,7 +420,6 @@ class AgentBrowserBackend implements BrowserBackend {
       throw new Error('This action requires either selector or text');
     }
 
-    const targetText = params.text.trim();
     const snapshot = await runAgentBrowserJson<AgentBrowserSnapshotData>(['snapshot', '-i']);
     if (snapshot.origin?.trim()) {
       this.markOpen(snapshot.origin.trim());
@@ -430,46 +430,9 @@ class AgentBrowserBackend implements BrowserBackend {
       throw new Error(`Could not find any interactive elements for text: ${params.text}`);
     }
 
-    const accessibleNameMatches = refs.filter(([, ref]) => ref.name?.trim() === targetText);
-    const singleAccessibleMatch = pickSingleMatch(accessibleNameMatches);
-    if (singleAccessibleMatch) {
-      return singleAccessibleMatch;
-    }
-
-    const visibleTextMatches = await this.findVisibleTextMatches(
-      accessibleNameMatches.length > 0 ? accessibleNameMatches : refs,
-      targetText,
-    );
-    const singleVisibleTextMatch = pickSingleMatch(visibleTextMatches);
-    if (singleVisibleTextMatch) {
-      return singleVisibleTextMatch;
-    }
-
-    if (accessibleNameMatches.length > 1) {
-      throwAmbiguousMatch(accessibleNameMatches, targetText, 'accessible name');
-    }
-
-    if (visibleTextMatches.length > 1) {
-      throwAmbiguousMatch(visibleTextMatches, targetText, 'visible text');
-    }
-
-    throw new Error(
-      `Could not resolve a unique interactive element for text: ${params.text}. Try using selector instead.`,
-    );
-  }
-
-  private async findVisibleTextMatches(
-    refs: Array<[string, AgentBrowserSnapshotRef]>,
-    targetText: string,
-  ): Promise<Array<[string, AgentBrowserSnapshotRef]>> {
-    const results = await Promise.all(
-      refs.map(async ([refId, ref]) => {
-        const text = await this.getVisibleTextForRef(refId);
-        return text === targetText ? ([refId, ref] as [string, AgentBrowserSnapshotRef]) : null;
-      }),
-    );
-
-    return results.filter((entry): entry is [string, AgentBrowserSnapshotRef] => entry !== null);
+    return resolveTargetRef(params.text, refs, {
+      getVisibleText: (refId) => this.getVisibleTextForRef(refId),
+    });
   }
 
   private async getVisibleTextForRef(refId: string): Promise<string | null> {
@@ -635,25 +598,6 @@ function normalizeConsoleLevel(type?: string): ConsoleEntry['level'] {
   }
 }
 
-function pickSingleMatch(matches: Array<[string, AgentBrowserSnapshotRef]>): string | null {
-  return matches.length === 1 ? `@${matches[0][0]}` : null;
-}
-
-function throwAmbiguousMatch(
-  matches: Array<[string, AgentBrowserSnapshotRef]>,
-  targetText: string,
-  matchType: 'accessible name' | 'visible text',
-): never {
-  const descriptions = matches.map(([refId, ref]) => formatRefDescription(refId, ref));
-  throw new Error(
-    [
-      `Found multiple matches for text "${targetText}" by ${matchType}.`,
-      `Matches: ${descriptions.join(', ')}`,
-      'Use selector instead to disambiguate.',
-    ].join(' '),
-  );
-}
-
 function formatConsoleArgs(
   args?: Array<{ value?: unknown; description?: string; type?: string }>,
 ): string {
@@ -674,12 +618,6 @@ function formatConsoleArgs(
     .filter(Boolean)
     .join(' ')
     .trim();
-}
-
-function formatRefDescription(refId: string, ref: AgentBrowserSnapshotRef): string {
-  const role = ref.role?.trim() || 'element';
-  const name = ref.name?.trim() || '(unnamed)';
-  return `@${refId} (${role}: ${JSON.stringify(name)})`;
 }
 
 export const agentBrowserBackend = new AgentBrowserBackend();

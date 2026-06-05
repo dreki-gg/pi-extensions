@@ -95,7 +95,7 @@ The chosen model must have auth configured in pi (API key / OAuth) like any othe
 
 - `web_visit` uses plain fetch by default and falls back to the selected browser backend when the fetched markdown is too thin.
 - `web_interact` and `web_console` require an open browser session. Open one first with `web_screenshot` or `web_visit` using `render: true`.
-- `web_interact.text` is best-effort on `agent-browser`; prefer `selector` for reliable automation.
+- `web_interact.text` resolves against the accessibility snapshot using tiered matching: exact accessible name, exact visible text, then case-insensitive substring on each. A tier is only accepted when it yields a single match — ambiguous text throws and asks for a `selector`. Prefer `selector` when you need deterministic targeting.
 - `web_console` on `agent-browser` merges console messages and page errors, so ordering and level attribution are best-effort.
 - `web_visit.details.method` is either `fetch` or `agent-browser`.
 - A browser session stays open and is reused across tool calls until the pi session ends (or `close()` is called explicitly). There is no idle auto-close, so `web_interact`/`web_console` keep working after long gaps following `web_screenshot`.

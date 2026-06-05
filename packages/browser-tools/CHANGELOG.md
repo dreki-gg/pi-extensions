@@ -1,5 +1,15 @@
 # @dreki-gg/pi-browser-tools
 
+## 0.4.0
+
+### Minor Changes
+
+- Drop the Playwright backend — `agent-browser` is now the only browser runtime. The `PI_BROWSER_BACKEND` selection logic (and silent `auto` fallback) is gone, so browser-backed tools hard-fail with install guidance when the `agent-browser` CLI is unavailable.
+
+  Removed the 30s idle auto-close timer. The browser session is now a durable singleton reused across tool calls until the pi session shuts down, fixing intermittent `Browser is not open` errors when long gaps occur between `web_screenshot` and `web_interact`/`web_console`.
+
+  `web_interact` text targeting now uses a tiered resolver: exact accessible name, exact visible text, then case-insensitive substring on each. Each tier only accepts a unique match (ambiguous text still throws), so labels like `"Echoes of Home"` resolve against an `img` alt of `"Echoes of Home — play"` without needing a selector.
+
 ## 0.3.0
 
 ### Minor Changes
