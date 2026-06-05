@@ -7,31 +7,12 @@ const unavailable = async () => {
 };
 
 describe('selectBrowserBackend', () => {
-  test('explicit playwright never probes agent-browser', async () => {
-    let probed = false;
-    const backend = await selectBrowserBackend('playwright', async () => {
-      probed = true;
-    });
-    expect(backend.name).toBe('playwright');
-    expect(probed).toBe(false);
-  });
-
-  test('explicit agent-browser resolves when available', async () => {
-    const backend = await selectBrowserBackend('agent-browser', available);
+  test('resolves agent-browser when available', async () => {
+    const backend = await selectBrowserBackend(available);
     expect(backend.name).toBe('agent-browser');
   });
 
-  test('explicit agent-browser hard-fails when unavailable', async () => {
-    await expect(selectBrowserBackend('agent-browser', unavailable)).rejects.toThrow();
-  });
-
-  test('auto prefers agent-browser when available', async () => {
-    const backend = await selectBrowserBackend('auto', available);
-    expect(backend.name).toBe('agent-browser');
-  });
-
-  test('auto falls back to playwright when agent-browser is unavailable', async () => {
-    const backend = await selectBrowserBackend('auto', unavailable);
-    expect(backend.name).toBe('playwright');
+  test('hard-fails when agent-browser is unavailable', async () => {
+    await expect(selectBrowserBackend(unavailable)).rejects.toThrow();
   });
 });

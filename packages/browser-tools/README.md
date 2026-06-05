@@ -16,7 +16,7 @@ It adds:
 pi install npm:@dreki-gg/pi-browser-tools
 ```
 
-Default browser backend: `agent-browser` when available, otherwise Playwright (see [Browser backend selection](#browser-backend-selection)).
+Browser backend: `agent-browser` (see [Browser backend](#browser-backend)).
 
 Optional `agent-browser` backend setup:
 
@@ -59,18 +59,18 @@ export BRAVE_SEARCH_API_KEY=...
 If `WEB_SEARCH_PROVIDER=google`, both `GOOGLE_CSE_API_KEY` and `GOOGLE_CSE_ID` are required.
 If `WEB_SEARCH_PROVIDER=brave`, `BRAVE_SEARCH_API_KEY` is required.
 
-## Browser backend selection
+## Browser backend
 
-Use `PI_BROWSER_BACKEND` to choose the browser runtime:
+Browser-backed tools use [`agent-browser`](https://github.com/agent-browser/agent-browser) as the only runtime. Install it with:
 
 ```bash
-export PI_BROWSER_BACKEND=playwright
-# or
-export PI_BROWSER_BACKEND=agent-browser
+# macOS
+brew install agent-browser && agent-browser install
+# or any platform
+npm install -g agent-browser && agent-browser install
 ```
 
-- Unset or invalid values use **auto**: prefer `agent-browser` when it is installed and healthy, otherwise silently fall back to `playwright`.
-- If `agent-browser` is selected explicitly but unavailable, browser-backed tools fail with install guidance.
+If `agent-browser` is unavailable, browser-backed tools fail with install guidance.
 
 ## Screenshot analysis (vision model)
 
@@ -96,7 +96,7 @@ The chosen model must have auth configured in pi (API key / OAuth) like any othe
 - `web_visit` uses plain fetch by default and falls back to the selected browser backend when the fetched markdown is too thin.
 - `web_interact` and `web_console` require an open browser session. Open one first with `web_screenshot` or `web_visit` using `render: true`.
 - `web_interact.text` is best-effort on `agent-browser`; prefer `selector` for reliable automation.
-- `web_console` on `agent-browser` merges console messages and page errors, so ordering and level attribution may differ slightly from Playwright.
-- `web_visit.details.method` can now be `fetch`, `playwright`, or `agent-browser`.
-- Browser sessions auto-close after a short idle timeout.
+- `web_console` on `agent-browser` merges console messages and page errors, so ordering and level attribution are best-effort.
+- `web_visit.details.method` is either `fetch` or `agent-browser`.
+- A browser session stays open and is reused across tool calls until the pi session ends (or `close()` is called explicitly). There is no idle auto-close, so `web_interact`/`web_console` keep working after long gaps following `web_screenshot`.
 - See [`docs/agent-browser-compatibility.md`](./docs/agent-browser-compatibility.md) for known gaps and backend-specific notes.

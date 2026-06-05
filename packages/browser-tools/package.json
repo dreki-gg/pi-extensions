@@ -1,12 +1,12 @@
 {
   "name": "@dreki-gg/pi-browser-tools",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Browser automation and web research tools for pi — search, visit, screenshot, interact, and inspect console output",
   "keywords": [
     "pi-package",
     "pi",
     "browser",
-    "playwright",
+    "agent-browser",
     "web"
   ],
   "author": "Juan Albarran <jalbarrandev@gmail.com>",
@@ -38,7 +38,6 @@
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
     "linkedom": "^0.18.12",
-    "playwright": "^1.59.1",
     "turndown": "^7.2.1"
   },
   "devDependencies": {

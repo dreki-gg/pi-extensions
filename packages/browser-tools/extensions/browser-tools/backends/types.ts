@@ -19,7 +19,7 @@ export type BrowserStatus = {
   viewport: { width: number; height: number } | null;
 };
 
-export type BrowserBackendName = 'playwright' | 'agent-browser';
+export type BrowserBackendName = 'agent-browser';
 
 export type RenderedPage = {
   html: string;

@@ -18,7 +18,6 @@ import type {
 
 const DEFAULT_WAIT_MS = 1_500;
 const POST_INTERACTION_WAIT_MS = 500;
-const IDLE_TIMEOUT_MS = 30_000;
 const MAX_CONSOLE_ENTRIES = 1_000;
 
 type AgentBrowserSnapshotRef = {
@@ -77,7 +76,6 @@ class AgentBrowserBackend implements BrowserBackend {
   readonly name = 'agent-browser' as const;
 
   private queue: Promise<unknown> = Promise.resolve();
-  private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private availableChecked = false;
   private suppressedPageErrorCounts = new Map<string, number>();
   private status: BrowserStatus = {
@@ -329,7 +327,6 @@ class AgentBrowserBackend implements BrowserBackend {
 
   private async ensureSessionStarted(): Promise<void> {
     if (this.status.isOpen) {
-      this.resetIdleTimer();
       return;
     }
 
@@ -340,8 +337,6 @@ class AgentBrowserBackend implements BrowserBackend {
     await this.ensureSessionStarted();
     if (!this.status.viewport) {
       await this.setViewportInternal('desktop');
-    } else {
-      this.resetIdleTimer();
     }
   }
 
@@ -376,18 +371,15 @@ class AgentBrowserBackend implements BrowserBackend {
     };
 
     this.status.viewport = viewport;
-    this.resetIdleTimer();
     return viewport;
   }
 
   private async waitForPage(waitMs: number): Promise<void> {
     if (waitMs <= 0) {
-      this.resetIdleTimer();
       return;
     }
 
     await runAgentBrowserJson(['wait', String(waitMs)]);
-    this.resetIdleTimer();
   }
 
   private async refreshUrl(fallbackUrl?: string): Promise<void> {
@@ -412,7 +404,6 @@ class AgentBrowserBackend implements BrowserBackend {
     try {
       await runAgentBrowserJson(['screenshot', screenshotPath]);
       const png = await readFile(screenshotPath);
-      this.resetIdleTimer();
       return png.toString('base64');
     } finally {
       await rm(tempDir, { recursive: true, force: true });
@@ -493,15 +484,9 @@ class AgentBrowserBackend implements BrowserBackend {
   private markOpen(url: string | null): void {
     this.status.isOpen = true;
     this.status.url = url;
-    this.resetIdleTimer();
   }
 
   private async closeInternal(): Promise<void> {
-    if (this.idleTimer) {
-      clearTimeout(this.idleTimer);
-      this.idleTimer = null;
-    }
-
     const shouldAttemptClose = this.status.isOpen;
     this.status = {
       isOpen: false,
@@ -546,15 +531,6 @@ class AgentBrowserBackend implements BrowserBackend {
     this.suppressedPageErrorCounts.clear();
   }
 
-  private resetIdleTimer(): void {
-    if (this.idleTimer) {
-      clearTimeout(this.idleTimer);
-    }
-
-    this.idleTimer = setTimeout(() => {
-      void this.close();
-    }, IDLE_TIMEOUT_MS);
-  }
 }
 
 function normalizeConsoleMessages(

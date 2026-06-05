@@ -1,5 +1,13 @@
 # @dreki-gg/pi-browser-tools
 
+## 0.3.0
+
+### Minor Changes
+
+- Drop the Playwright backend — `agent-browser` is now the only browser runtime. The `PI_BROWSER_BACKEND` selection logic (and silent `auto` fallback) is gone, so browser-backed tools hard-fail with install guidance when the `agent-browser` CLI is unavailable.
+
+  Also removed the 30s idle auto-close timer. The browser session is now a durable singleton reused across tool calls until the pi session shuts down, fixing intermittent `Browser is not open` errors when long gaps occur between `web_screenshot` and `web_interact`/`web_console`.
+
 ## 0.2.0
 
 ### Minor Changes
