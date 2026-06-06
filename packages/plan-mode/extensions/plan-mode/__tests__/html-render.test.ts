@@ -1,34 +1,48 @@
 import { describe, expect, test } from 'bun:test';
-import { renderPrototypeHtml } from '../html/render.js';
+import { buildPrototypeDocument } from '../html/render.js';
 
-describe('renderPrototypeHtml', () => {
-  test('renders title and intent in a minimal header', () => {
-    const html = renderPrototypeHtml('Sidebar redesign', 'Left-aligned nav with icons', '.nav Nav');
+describe('buildPrototypeDocument', () => {
+  test('returns a full HTML document untouched, with no imposed wrapper', () => {
+    const doc = `<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>My own design</title></head>
+  <body style="background: salmon"><h1>Hand-crafted</h1></body>
+</html>`;
 
-    expect(html).toContain('Sidebar redesign');
-    expect(html).toContain('Left-aligned nav with icons');
-    expect(html).toContain('Prototype');
+    const html = buildPrototypeDocument('Sidebar redesign', doc);
+
+    // Author's document is preserved verbatim — no badge, no theme, no panel.
+    expect(html).toBe(doc.trim());
+    expect(html).not.toContain('Prototype ·');
+    expect(html).not.toContain('class="prototype"');
+    expect(html).not.toContain('Inter');
   });
 
-  test('renders the Pug body markup', () => {
-    const html = renderPrototypeHtml('Card', 'A product card', '.card Product card');
-
-    expect(html).toContain('class="card"');
-    expect(html).toContain('Product card');
+  test('recognizes a full document via <html> even without a doctype', () => {
+    const doc = '<html><body><main>Hello</main></body></html>';
+    const html = buildPrototypeDocument('Card', doc);
+    expect(html).toBe(doc);
   });
 
-  test('does not render tasks or handoff sections', () => {
-    const html = renderPrototypeHtml('Card', 'A product card', '.card Hello');
+  test('wraps a bare fragment in a minimal, unstyled shell', () => {
+    const html = buildPrototypeDocument('Card', '<div class="card">Product card</div>');
 
-    expect(html).not.toContain('Handoff');
-    expect(html).not.toContain('Tasks');
-    expect(html).not.toContain('Depends on');
+    expect(html).toMatch(/^<!doctype html>/i);
+    expect(html).toContain('<title>Card</title>');
+    expect(html).toContain('<div class="card">Product card</div>');
+    // The shell imposes no theme of its own.
+    expect(html).not.toContain('background');
+    expect(html).not.toContain('Inter');
   });
 
-  test('handles an empty prototype body without throwing', () => {
-    const html = renderPrototypeHtml('Empty', 'Nothing yet', '');
+  test('escapes the title when used in the fallback shell', () => {
+    const html = buildPrototypeDocument('A & B <script>', '<p>hi</p>');
+    expect(html).toContain('<title>A &amp; B &lt;script&gt;</title>');
+  });
 
-    expect(html).toContain('Empty');
-    expect(html).toContain('Nothing yet');
+  test('handles an empty body without throwing', () => {
+    const html = buildPrototypeDocument('Empty', '');
+    expect(html).toMatch(/^<!doctype html>/i);
+    expect(html).toContain('<title>Empty</title>');
   });
 });

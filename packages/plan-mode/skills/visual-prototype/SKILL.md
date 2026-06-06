@@ -30,9 +30,11 @@ Call `preview_prototype` with:
 
 - `title` — short name for the prototype
 - `intent` — one line describing what it shows
-- `pug` — self-contained Pug markup for the prototype body. Inline any styles the prototype needs; assume nothing about the host page.
+- `html` — a complete, self-contained HTML document you author **with full freedom**. There is no template engine and no imposed theme: pick your own markup, fonts, colors, layout, and inline `<style>`/`<script>`. Assume nothing about a host page.
 
-The tool renders the Pug, writes `.plans/_prototypes/<slug>.html`, and opens it for review.
+The tool persists your HTML to `.plans/_prototypes/<slug>.html` and opens it for review. It does not wrap, restyle, or theme your markup — what you write is what the user sees. (A bare fragment is tolerated and dropped into a minimal unstyled shell, but prefer sending a full document.)
+
+**Avoid generic boilerplate.** A dark dashboard with a purple accent and a card is not a design — it is slop. Design something that fits the actual product. For real design taste, delegate the markup to the `ux-designer` subagent and pass its HTML straight through `preview_prototype`.
 
 ### 3. Get a reaction before submitting
 

@@ -1,5 +1,11 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.23.0
+
+### Minor Changes
+
+- `preview_prototype` is now freeform. The tool dropped its Pug dependency and the imposed wrapper template (fixed dark theme, badge header, purple-accent panel) that made every prototype look the same. It now takes a `html` parameter — a complete, self-contained HTML document the agent authors with full freedom over markup, fonts, colors, layout, and inline scripts — and only persists and opens it. A bare fragment is tolerated and wrapped in a minimal unstyled shell. The `visual-prototype` skill and plan-mode prompt now steer the agent toward product-fitting designs and toward delegating the markup to the `ux-designer` subagent for real design taste, instead of generic boilerplate.
+
 ## 0.22.0
 
 ### Minor Changes
