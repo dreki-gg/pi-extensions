@@ -11,6 +11,7 @@ import {
 } from '../errors.js';
 import { decodeTasksLine } from '../schema.js';
 import type { TaskMeta, TaskRecord } from '../types.js';
+import { withFileLock } from './file-lock.js';
 
 const TASKS_FILE = 'tasks.jsonl';
 
@@ -86,20 +87,25 @@ export function updateTask(
   ReadError | PlanWriteError | TasksFileNotFound | TaskNotFound,
   FileSystem
 > {
-  return Effect.gen(function* () {
-    const snapshot = yield* readTasksJsonl(planDir);
-    if (!snapshot) return yield* Effect.fail(new TasksFileNotFound({ planDir }));
+  // Serialize the read-modify-write so concurrent task updates to the same plan
+  // (e.g. parallel update_task / update_tasks calls) cannot clobber each other.
+  return withFileLock(
+    join(planDir, TASKS_FILE),
+    Effect.gen(function* () {
+      const snapshot = yield* readTasksJsonl(planDir);
+      if (!snapshot) return yield* Effect.fail(new TasksFileNotFound({ planDir }));
 
-    const index = snapshot.tasks.findIndex((task) => task.id === taskId);
-    if (index === -1) return yield* Effect.fail(new TaskNotFound({ planDir, taskId }));
+      const index = snapshot.tasks.findIndex((task) => task.id === taskId);
+      if (index === -1) return yield* Effect.fail(new TaskNotFound({ planDir, taskId }));
 
-    const updated: TaskRecord = {
-      ...snapshot.tasks[index],
-      ...updates,
-      updated_at: new Date().toISOString(),
-    };
-    snapshot.tasks[index] = updated;
-    yield* writeTasksJsonl(planDir, snapshot.meta, snapshot.tasks);
-    return updated;
-  });
+      const updated: TaskRecord = {
+        ...snapshot.tasks[index],
+        ...updates,
+        updated_at: new Date().toISOString(),
+      };
+      snapshot.tasks[index] = updated;
+      yield* writeTasksJsonl(planDir, snapshot.meta, snapshot.tasks);
+      return updated;
+    }),
+  );
 }

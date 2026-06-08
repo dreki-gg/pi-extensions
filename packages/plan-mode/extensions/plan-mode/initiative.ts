@@ -18,8 +18,8 @@ import { FileSystem } from './effects/filesystem.js';
 import type { JsonlParseError, JsonlValidationError, PlanWriteError } from './errors.js';
 import { readPlansManifest, type PlanManifestEntry } from './storage/plans-manifest.js';
 import {
-  readInitiativesManifest,
-  upsertInitiativeEntry,
+  applyInitiativeUpsert,
+  mutateInitiativesManifest,
 } from './storage/initiatives-manifest.js';
 import type { PlanStatus } from './types.js';
 
@@ -139,16 +139,20 @@ type ReconcileError = JsonlParseError | JsonlValidationError | PlanWriteError;
 export function reconcileInitiativeStatus(
   name: string,
 ): Effect.Effect<void, ReconcileError, FileSystem> {
-  return Effect.gen(function* () {
-    const initiatives = yield* readInitiativesManifest();
-    const existing = initiatives.find((entry) => entry.name === name);
-    if (!existing) return;
-    if (existing.status === 'superseded' || existing.status === 'abandoned') return;
-    const plans = yield* readPlansManifest();
-    const status: PlanStatus = isInitiativeFinalizable(name, plans) ? 'done' : 'in-progress';
-    if (existing.status === status) return;
-    yield* upsertInitiativeEntry(name, { status, title: existing.title });
-  });
+  // The whole read-decide-write runs under the initiatives lock so a concurrent
+  // writer cannot slip a status change between our read and our write.
+  return mutateInitiativesManifest((initiatives) =>
+    Effect.gen(function* () {
+      const existing = initiatives.find((entry) => entry.name === name);
+      if (!existing) return false;
+      if (existing.status === 'superseded' || existing.status === 'abandoned') return false;
+      const plans = yield* readPlansManifest();
+      const status: PlanStatus = isInitiativeFinalizable(name, plans) ? 'done' : 'in-progress';
+      if (existing.status === status) return false;
+      applyInitiativeUpsert(initiatives, name, { status, title: existing.title });
+      return true;
+    }),
+  );
 }
 
 /**

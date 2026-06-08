@@ -18,6 +18,7 @@ import { FileSystem } from '../effects/filesystem.js';
 import { JsonlParseError, JsonlValidationError, PlanWriteError } from '../errors.js';
 import { decodeInitiativeManifestEntry } from '../schema.js';
 import type { InitiativeStatus } from '../types.js';
+import { withFileLock } from './file-lock.js';
 
 const MANIFEST_DIR = '.plans';
 const MANIFEST_PATH = '.plans/initiatives.jsonl';
@@ -86,27 +87,68 @@ export function writeInitiativesManifest(
   });
 }
 
+export interface InitiativeUpsert {
+  status: InitiativeStatus;
+  title?: string;
+  reason?: string;
+}
+
+/**
+ * Pure transform: upsert `name` into the in-memory `entries` array, preserving
+ * created_at from any existing entry. No IO — shared by the locked
+ * `upsertInitiativeEntry` and `reconcileInitiativeStatus` so both flow through
+ * one serialized read-modify-write and never nest locks.
+ */
+export function applyInitiativeUpsert(
+  entries: InitiativeManifestEntry[],
+  name: string,
+  updates: InitiativeUpsert,
+): void {
+  const now = new Date().toISOString();
+  const index = entries.findIndex((entry) => entry.name === name);
+  const existing = index === -1 ? undefined : entries[index];
+  const entry: InitiativeManifestEntry = {
+    _type: 'initiative',
+    name,
+    status: updates.status,
+    title: updates.title ?? existing?.title ?? 'Untitled initiative',
+    created_at: existing?.created_at ?? now,
+    // Terminal statuses record a completion timestamp; reopening clears it.
+    completed_at: isTerminalStatus(updates.status) ? (existing?.completed_at ?? now) : null,
+    reason: updates.reason ?? existing?.reason,
+  };
+  if (index === -1) entries.push(entry);
+  else entries[index] = entry;
+}
+
+/**
+ * Serialized read-modify-write of the initiatives registry. Holds a
+ * process-wide lock on the manifest path across the whole read → transform →
+ * write so concurrent tool calls cannot clobber each other. `transform` may run
+ * IO (e.g. read the plans manifest to project status) and mutates the entries
+ * array in place, returning `true` when it changed something.
+ */
+export function mutateInitiativesManifest<E, R>(
+  transform: (entries: InitiativeManifestEntry[]) => Effect.Effect<boolean, E, R>,
+): Effect.Effect<void, ReadError | PlanWriteError | E, FileSystem | R> {
+  return withFileLock(
+    MANIFEST_PATH,
+    Effect.gen(function* () {
+      const entries = yield* readInitiativesManifest();
+      const changed = yield* transform(entries);
+      if (changed) yield* writeInitiativesManifest(entries);
+    }),
+  );
+}
+
 export function upsertInitiativeEntry(
   name: string,
-  updates: { status: InitiativeStatus; title?: string; reason?: string },
+  updates: InitiativeUpsert,
 ): Effect.Effect<void, ReadError | PlanWriteError, FileSystem> {
-  return Effect.gen(function* () {
-    const entries = yield* readInitiativesManifest();
-    const now = new Date().toISOString();
-    const index = entries.findIndex((entry) => entry.name === name);
-    const existing = index === -1 ? undefined : entries[index];
-    const entry: InitiativeManifestEntry = {
-      _type: 'initiative',
-      name,
-      status: updates.status,
-      title: updates.title ?? existing?.title ?? 'Untitled initiative',
-      created_at: existing?.created_at ?? now,
-      // Terminal statuses record a completion timestamp; reopening clears it.
-      completed_at: isTerminalStatus(updates.status) ? (existing?.completed_at ?? now) : null,
-      reason: updates.reason ?? existing?.reason,
-    };
-    if (index === -1) entries.push(entry);
-    else entries[index] = entry;
-    yield* writeInitiativesManifest(entries);
-  });
+  return mutateInitiativesManifest((entries) =>
+    Effect.sync(() => {
+      applyInitiativeUpsert(entries, name, updates);
+      return true;
+    }),
+  );
 }

@@ -117,6 +117,43 @@ describe('applyReconcile', () => {
     const [entry] = await runPlanIO(readPlansManifest());
     expect(entry.status).toBe('done');
   });
+
+  test('classifies an upgrade (in-progress registry, done tasks) as direction:upgrade', async () => {
+    await runPlanIO(writeTasksJsonl('.plans/up', meta('up'), [task('t-001', 'done')]));
+    await runPlanIO(upsertPlanEntry('up', { status: 'in-progress', title: 'Up' }));
+    const rows = await runPlanIO(collectPlanDrift());
+    expect(rows.find((r) => r.name === 'up')!.direction).toBe('upgrade');
+  });
+
+  test('a done plan with incomplete tasks is flagged downgrade and NOT auto-repaired', async () => {
+    // Work merged but tasks never marked done: registry done, tasks in-progress.
+    await runPlanIO(
+      writeTasksJsonl('.plans/merged', meta('merged'), [task('t-001', 'pending')]),
+    );
+    await runPlanIO(
+      writePlansManifest([
+        {
+          _type: 'plan',
+          name: 'merged',
+          status: 'done',
+          title: 'Merged',
+          created_at: now,
+          completed_at: now,
+        },
+      ]),
+    );
+
+    const rows = await runPlanIO(collectPlanDrift());
+    const merged = rows.find((r) => r.name === 'merged')!;
+    expect(merged.drift).toBe('status');
+    expect(merged.direction).toBe('downgrade');
+
+    // --apply must NOT regress it back to in-progress.
+    const repaired = await runPlanIO(applyReconcile(rows));
+    expect(repaired.map((r) => r.name)).not.toContain('merged');
+    const [entry] = await runPlanIO(readPlansManifest());
+    expect(entry.status).toBe('done');
+  });
 });
 
 describe('initiative drift', () => {

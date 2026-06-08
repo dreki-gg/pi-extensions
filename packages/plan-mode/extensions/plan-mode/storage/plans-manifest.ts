@@ -3,6 +3,7 @@ import { FileSystem } from '../effects/filesystem.js';
 import { JsonlParseError, JsonlValidationError, PlanWriteError } from '../errors.js';
 import { decodePlanManifestEntry } from '../schema.js';
 import type { PlanStatus } from '../types.js';
+import { withFileLock } from './file-lock.js';
 
 const MANIFEST_DIR = '.plans';
 const MANIFEST_PATH = '.plans/plans.jsonl';
@@ -71,39 +72,74 @@ export function writePlansManifest(
   });
 }
 
+export interface PlanUpsert {
+  status: PlanStatus;
+  title?: string;
+  reason?: string;
+  /** Parent initiative name; preserved when omitted. */
+  initiative?: string;
+  /** Plan-level dependencies (plan names); preserved when omitted. */
+  depends_on?: string[];
+}
+
+/**
+ * Pure transform: upsert `name` into the in-memory `entries` array, preserving
+ * created_at / membership / deps from any existing entry. No IO — shared by the
+ * locked `upsertPlanEntry` and `reconcilePlanStatus` so both flow through one
+ * serialized read-modify-write and never nest locks.
+ */
+export function applyPlanUpsert(
+  entries: PlanManifestEntry[],
+  name: string,
+  updates: PlanUpsert,
+): void {
+  const now = new Date().toISOString();
+  const index = entries.findIndex((entry) => entry.name === name);
+  const existing = index === -1 ? undefined : entries[index];
+  const entry: PlanManifestEntry = {
+    _type: 'plan',
+    name,
+    status: updates.status,
+    title: updates.title ?? existing?.title ?? 'Untitled plan',
+    created_at: existing?.created_at ?? now,
+    // Terminal statuses record a completion timestamp; reopening clears it.
+    completed_at: isTerminalStatus(updates.status) ? (existing?.completed_at ?? now) : null,
+    reason: updates.reason ?? existing?.reason,
+    // Membership + plan-level deps are preserved across status-only upserts.
+    initiative: updates.initiative ?? existing?.initiative,
+    depends_on: updates.depends_on ?? existing?.depends_on,
+  };
+  if (index === -1) entries.push(entry);
+  else entries[index] = entry;
+}
+
+/**
+ * Serialized read-modify-write of the plans registry. Holds a process-wide lock
+ * on the manifest path across the whole read → transform → write so concurrent
+ * tool calls cannot clobber each other (lost-update race). `transform` mutates
+ * the entries array in place and returns `true` when it changed something
+ * (return `false` to skip the rewrite).
+ */
+export function mutatePlansManifest(
+  transform: (entries: PlanManifestEntry[]) => boolean,
+): Effect.Effect<void, ReadError | PlanWriteError, FileSystem> {
+  return withFileLock(
+    MANIFEST_PATH,
+    Effect.gen(function* () {
+      const entries = yield* readPlansManifest();
+      const changed = transform(entries);
+      if (changed) yield* writePlansManifest(entries);
+    }),
+  );
+}
+
 export function upsertPlanEntry(
   name: string,
-  updates: {
-    status: PlanStatus;
-    title?: string;
-    reason?: string;
-    /** Parent initiative name; preserved when omitted. */
-    initiative?: string;
-    /** Plan-level dependencies (plan names); preserved when omitted. */
-    depends_on?: string[];
-  },
+  updates: PlanUpsert,
 ): Effect.Effect<void, ReadError | PlanWriteError, FileSystem> {
-  return Effect.gen(function* () {
-    const entries = yield* readPlansManifest();
-    const now = new Date().toISOString();
-    const index = entries.findIndex((entry) => entry.name === name);
-    const existing = index === -1 ? undefined : entries[index];
-    const entry: PlanManifestEntry = {
-      _type: 'plan',
-      name,
-      status: updates.status,
-      title: updates.title ?? existing?.title ?? 'Untitled plan',
-      created_at: existing?.created_at ?? now,
-      // Terminal statuses record a completion timestamp; reopening clears it.
-      completed_at: isTerminalStatus(updates.status) ? (existing?.completed_at ?? now) : null,
-      reason: updates.reason ?? existing?.reason,
-      // Membership + plan-level deps are preserved across status-only upserts.
-      initiative: updates.initiative ?? existing?.initiative,
-      depends_on: updates.depends_on ?? existing?.depends_on,
-    };
-    if (index === -1) entries.push(entry);
-    else entries[index] = entry;
-    yield* writePlansManifest(entries);
+  return mutatePlansManifest((entries) => {
+    applyPlanUpsert(entries, name, updates);
+    return true;
   });
 }
 
@@ -123,16 +159,16 @@ export function reconcilePlanStatus(
   finalizable: boolean,
   title?: string,
 ): Effect.Effect<void, ReadError | PlanWriteError, FileSystem> {
-  return Effect.gen(function* () {
-    const entries = yield* readPlansManifest();
+  return mutatePlansManifest((entries) => {
     const existing = entries.find((entry) => entry.name === name);
     // Reconcile only reflects task state for KNOWN plans; never conjure an
     // entry for an unregistered plan (orphans are surfaced, not auto-created).
-    if (!existing) return;
+    if (!existing) return false;
     // Do not resurrect / clobber an explicitly closed plan.
-    if (existing.status === 'superseded' || existing.status === 'abandoned') return;
+    if (existing.status === 'superseded' || existing.status === 'abandoned') return false;
     const status: PlanStatus = finalizable ? 'done' : 'in-progress';
-    if (existing.status === status) return; // no change
-    yield* upsertPlanEntry(name, { status, title });
+    if (existing.status === status) return false; // no change
+    applyPlanUpsert(entries, name, { status, title });
+    return true;
   });
 }

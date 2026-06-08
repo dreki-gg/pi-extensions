@@ -29,6 +29,10 @@ function describeRow(row: PlanDriftRow): string {
     return `  ⚠ ${row.name}${progress} — tasks.jsonl with no registry entry (orphan)`;
   }
   if (row.drift === 'status') {
+    if (row.direction === 'downgrade') {
+      // Wrong-direction projection: do NOT auto-repair. Mark tasks done instead.
+      return `  ⚠ ${row.name}${progress} — registry ${row.registryStatus}, tasks say ${row.derivedStatus} (likely merged; mark tasks done — not auto-repaired)`;
+    }
     return `  ✗ ${row.name}${progress} — registry ${row.registryStatus}, tasks say ${row.derivedStatus}`;
   }
   return `  ✓ ${row.name}${progress} — ${row.registryStatus} (in sync)`;
@@ -44,6 +48,7 @@ export function registerReconcilePlansTool(pi: ExtensionAPI, runPlanIO: RunPlanI
     promptGuidelines: [
       'Use reconcile_plans to audit .plans/ when registry status looks stale (e.g. a fully-done plan still in-progress).',
       'Run it read-only first; pass apply:true once you have reviewed the reported drift.',
+      'apply:true only records completion (in-progress→done). It never regresses a done plan back to in-progress — if a done plan shows incomplete tasks (work merged but tasks not marked), mark those tasks done instead.',
     ],
     parameters: Type.Object({
       apply: Type.Optional(
@@ -76,7 +81,12 @@ export function registerReconcilePlansTool(pi: ExtensionAPI, runPlanIO: RunPlanI
             ? `  ✗ ${row.name} (initiative, ${row.members} plans) — registry ${row.registryStatus}, plans say ${row.derivedStatus}`
             : `  ✓ ${row.name} (initiative, ${row.members} plans) — ${row.registryStatus} (in sync)`,
       );
-      const statusDrift = drifted.filter((r) => r.drift === 'status').length;
+      const statusDrift = drifted.filter(
+        (r) => r.drift === 'status' && r.direction === 'upgrade',
+      ).length;
+      const downgrades = drifted.filter(
+        (r) => r.drift === 'status' && r.direction === 'downgrade',
+      ).length;
       const orphans = drifted.filter((r) => r.drift === 'orphan').length;
       const registryOnly = drifted.filter((r) => r.drift === 'registry-only').length;
 
@@ -89,6 +99,7 @@ export function registerReconcilePlansTool(pi: ExtensionAPI, runPlanIO: RunPlanI
 
       const summary = [
         `status-drift ${statusDrift}`,
+        `needs-tasks-done ${downgrades}`,
         `orphan ${orphans}`,
         `registry-only ${registryOnly}`,
       ].join(', ');
@@ -102,7 +113,7 @@ export function registerReconcilePlansTool(pi: ExtensionAPI, runPlanIO: RunPlanI
         details: {
           applied: Boolean(params.apply),
           repaired: repaired.map((r) => r.name),
-          drift: drifted.map((r) => ({ name: r.name, kind: r.drift })),
+          drift: drifted.map((r) => ({ name: r.name, kind: r.drift, direction: r.direction })),
           total: rows.length,
           initiative_repaired: initiativeRepaired.map((r) => r.name),
           initiative_drift: initiativeDrifted.map((r) => ({ name: r.name, kind: r.drift })),

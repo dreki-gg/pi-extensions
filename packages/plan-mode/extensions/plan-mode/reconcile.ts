@@ -55,6 +55,18 @@ export interface PlanDriftRow {
    *   - undefined       : in sync
    */
   drift?: 'status' | 'registry-only' | 'orphan';
+  /**
+   * For `status` drift, the direction the registry would move if projected from
+   * tasks:
+   *   - 'upgrade'   : registry `in-progress` → tasks `done` (safe; auto-repaired)
+   *   - 'downgrade' : registry `done` → tasks `in-progress` (NOT auto-repaired)
+   *
+   * A downgrade almost always means "work merged but tasks were never marked
+   * done" — auto-projecting tasks→registry there would REGRESS a finished plan
+   * back to in-progress (the wrong direction). We surface it for a human to
+   * resolve by marking the tasks done instead.
+   */
+  direction?: 'upgrade' | 'downgrade';
 }
 
 type CollectError = JsonlParseError | JsonlValidationError | MissingMetaRecord;
@@ -92,6 +104,12 @@ export function collectPlanDrift(): Effect.Effect<PlanDriftRow[], CollectError, 
       // Terminal statuses (superseded/abandoned) are intentional — never drift.
       const isTerminalManual = entry.status === 'superseded' || entry.status === 'abandoned';
       const drift = !isTerminalManual && entry.status !== derivedStatus ? 'status' : undefined;
+      const direction =
+        drift === 'status'
+          ? derivedStatus === 'done'
+            ? ('upgrade' as const)
+            : ('downgrade' as const)
+          : undefined;
       rows.push({
         name: entry.name,
         registryStatus: entry.status,
@@ -101,6 +119,7 @@ export function collectPlanDrift(): Effect.Effect<PlanDriftRow[], CollectError, 
         total,
         hasTasks: true,
         drift,
+        direction,
       });
     }
 
@@ -186,8 +205,15 @@ export function applyInitiativeReconcile(
 
 /**
  * Repair `status`-class drift by projecting derived status into the registry.
- * Orphans and registry-only rows are reported but not auto-fixed (they need a
- * human decision). Returns the rows that were repaired.
+ *
+ * Safety: only `upgrade` drift (registry `in-progress` → tasks `done`) is
+ * auto-repaired. A `downgrade` (registry `done` → tasks `in-progress`) is
+ * reported but NEVER auto-applied — it almost always means work merged without
+ * marking tasks done, and projecting tasks→registry there would regress a
+ * finished plan. The human resolves it by marking the tasks done instead.
+ *
+ * Orphans and registry-only rows are likewise reported but not auto-fixed.
+ * Returns the rows that were repaired.
  */
 export function applyReconcile(
   rows: PlanDriftRow[],
@@ -196,6 +222,9 @@ export function applyReconcile(
     const repaired: PlanDriftRow[] = [];
     for (const row of rows) {
       if (row.drift !== 'status' || !row.derivedStatus) continue;
+      // Guard against the wrong-direction projection: never auto-regress a
+      // `done` plan back to `in-progress`.
+      if (row.direction === 'downgrade') continue;
       yield* reconcilePlanStatus(row.name, row.derivedStatus === 'done', row.title);
       // Repairing a plan's status can flip its parent initiative's projection.
       yield* reconcileInitiativeForPlan(row.name);

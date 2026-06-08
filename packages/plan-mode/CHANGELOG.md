@@ -1,5 +1,14 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.24.1
+
+### Patch Changes
+
+- Fix lost-update race on the plan/initiative registries and stop reconcile from regressing finished plans.
+
+  - **Serialized registry writes:** concurrent tool calls in one block (e.g. several `submit_initiative` / `submit_plan` / `revise_plan` at once) previously ran an unguarded read-modify-write against `plans.jsonl` / `initiatives.jsonl`, so only the last write survived. A process-wide per-file lock (`withFileLock`) now serializes the read→modify→write of both registries and per-plan `tasks.jsonl`, eliminating the lost updates. Atomic writes already guarded against torn files; this closes the in-process concurrency gap.
+  - **No wrong-direction reconcile:** `reconcile_plans --apply` now only records completion (`in-progress → done`) and never auto-downgrades a `done` plan back to `in-progress`. A done plan with incomplete tasks (work merged but tasks never marked done) is surfaced as `needs-tasks-done` for a human to resolve by marking the tasks done, instead of being silently regressed.
+
 ## 0.24.0
 
 ### Minor Changes
