@@ -55,6 +55,31 @@ export const PlanManifestEntrySchema = Schema.Struct({
   completed_at: Schema.NullOr(Schema.String),
   /** Optional human-readable reason, used for terminal statuses. */
   reason: Schema.optional(Schema.String),
+  /** Parent initiative name (kebab). Absent = standalone flat plan. */
+  initiative: Schema.optional(Schema.String),
+  /**
+   * Plan-level dependencies: names of plans this plan depends on. Distinct from
+   * the task-level `depends_on` above. Cross-initiative references are allowed.
+   */
+  depends_on: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+});
+
+/**
+ * Initiative lifecycle statuses reuse the plan lifecycle literals. An
+ * initiative's status is a projection of its member plans' statuses, with the
+ * same terminal-guard semantics as plans.
+ */
+export const InitiativeStatusSchema = PlanStatusSchema;
+
+export const InitiativeManifestEntrySchema = Schema.Struct({
+  _type: Schema.Literal('initiative'),
+  name: Schema.String,
+  status: InitiativeStatusSchema,
+  title: Schema.String,
+  created_at: Schema.String,
+  completed_at: Schema.NullOr(Schema.String),
+  /** Optional human-readable reason, used for terminal statuses. */
+  reason: Schema.optional(Schema.String),
 });
 
 export const ExecPendingConfigSchema = Schema.Struct({
@@ -66,4 +91,7 @@ export const decodeTaskRecord = Schema.decodeUnknownEither(TaskRecordSchema);
 export const decodeTaskMeta = Schema.decodeUnknownEither(TaskMetaSchema);
 export const decodeTasksLine = Schema.decodeUnknownEither(TasksLineSchema);
 export const decodePlanManifestEntry = Schema.decodeUnknownEither(PlanManifestEntrySchema);
+export const decodeInitiativeManifestEntry = Schema.decodeUnknownEither(
+  InitiativeManifestEntrySchema,
+);
 export const decodeExecPendingConfig = Schema.decodeUnknownEither(ExecPendingConfigSchema);

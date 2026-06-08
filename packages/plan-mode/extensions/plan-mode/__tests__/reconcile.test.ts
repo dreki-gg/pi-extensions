@@ -10,7 +10,13 @@ import {
   upsertPlanEntry,
   writePlansManifest,
 } from '../storage/plans-manifest.js';
-import { applyReconcile, collectPlanDrift } from '../reconcile.js';
+import { upsertInitiativeEntry, readInitiativesManifest } from '../storage/initiatives-manifest.js';
+import {
+  applyInitiativeReconcile,
+  applyReconcile,
+  collectInitiativeDrift,
+  collectPlanDrift,
+} from '../reconcile.js';
 import type { TaskMeta, TaskRecord, TaskStatus } from '../types.js';
 
 const runPlanIO = makePlanRuntime();
@@ -110,5 +116,36 @@ describe('applyReconcile', () => {
 
     const [entry] = await runPlanIO(readPlansManifest());
     expect(entry.status).toBe('done');
+  });
+});
+
+describe('initiative drift', () => {
+  test('flags an initiative whose members are all closed but registry is in-progress', async () => {
+    await runPlanIO(upsertInitiativeEntry('big', { status: 'in-progress', title: 'Big' }));
+    await runPlanIO(upsertPlanEntry('a', { status: 'done', title: 'A', initiative: 'big' }));
+    await runPlanIO(upsertPlanEntry('b', { status: 'done', title: 'B', initiative: 'big' }));
+
+    const rows = await runPlanIO(collectInitiativeDrift());
+    const big = rows.find((r) => r.name === 'big')!;
+    expect(big.drift).toBe('status');
+    expect(big.derivedStatus).toBe('done');
+    expect(big.members).toBe(2);
+  });
+
+  test('applyInitiativeReconcile repairs initiative status drift', async () => {
+    await runPlanIO(upsertInitiativeEntry('big', { status: 'in-progress', title: 'Big' }));
+    await runPlanIO(upsertPlanEntry('a', { status: 'done', title: 'A', initiative: 'big' }));
+
+    const repaired = await runPlanIO(applyInitiativeReconcile(await runPlanIO(collectInitiativeDrift())));
+    expect(repaired.map((r) => r.name)).toEqual(['big']);
+    const [entry] = await runPlanIO(readInitiativesManifest());
+    expect(entry.status).toBe('done');
+  });
+
+  test('never flags a manually-closed (abandoned) initiative as drift', async () => {
+    await runPlanIO(upsertInitiativeEntry('big', { status: 'abandoned', title: 'Big', reason: 'x' }));
+    await runPlanIO(upsertPlanEntry('a', { status: 'done', title: 'A', initiative: 'big' }));
+    const rows = await runPlanIO(collectInitiativeDrift());
+    expect(rows.find((r) => r.name === 'big')!.drift).toBeUndefined();
   });
 });

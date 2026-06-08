@@ -1,5 +1,18 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.24.0
+
+### Minor Changes
+
+- Add an **initiatives** layer above plans for decomposing large work (beads-style grouping + cross-plan dependencies).
+
+  - New `submit_initiative`, `update_initiative`, and `initiative_status` tools, plus a `/initiatives` command.
+  - `submit_plan` / `revise_plan` gain optional `initiative` and `depends_on_plans` (plan-level dependencies; cross-initiative allowed).
+  - An initiative's status is a projection of its member plans (mirroring how a plan's status projects from its tasks); `done` is derived automatically while `superseded` / `abandoned` stay explicit.
+  - `initiative_status` computes ready-work — which member plans are unblocked (all dependencies `done`) vs blocked-by — so work can be split across sessions or subagents.
+  - `reconcile_plans` now also detects/repairs initiative-level status drift; the `clean` CLI archives closed initiatives alongside closed plans.
+  - New `.plans/initiatives.jsonl` registry and `.plans/<initiative>/INITIATIVE.md` overview. All new fields are optional — existing flat plans are unaffected.
+
 ## 0.23.0
 
 ### Minor Changes

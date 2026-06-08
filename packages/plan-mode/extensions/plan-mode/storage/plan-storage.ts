@@ -75,3 +75,14 @@ export function loadHandoff(planDir: string): Effect.Effect<string | undefined, 
     return Option.getOrUndefined(maybeText);
   });
 }
+
+export function saveInitiative(
+  initiativeDir: string,
+  content: string,
+): Effect.Effect<void, PlanWriteError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    yield* fs.makeDir(initiativeDir);
+    yield* fs.writeFileString(`${initiativeDir}/INITIATIVE.md`, content);
+  });
+}

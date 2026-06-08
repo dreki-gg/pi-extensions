@@ -26,6 +26,8 @@ interface CapturedTool {
         details?: string;
         depends_on?: string[];
       }>;
+      initiative?: string;
+      depends_on_plans?: string[];
     },
   ) => Promise<{ content?: Array<{ text: string }>; details?: unknown }>;
 }
@@ -167,5 +169,41 @@ describe('revise_plan tool', () => {
     const { tool } = setup(undefined);
     const result = await tool.execute('c', { plan: 'ghost', title: 'x' });
     expect((result.details as { error?: string }).error).toBe('not_found');
+  });
+
+  test('re-links the plan to an initiative and persists plan-level deps', async () => {
+    const plan: PlanData = {
+      title: 'P',
+      planName: 'p',
+      handoff: 'h',
+      tasks: [task('t-001')],
+    };
+    await seed(plan);
+    await runPlanIO(upsertPlanEntry('p', { status: 'in-progress', title: 'P' }));
+
+    const { tool } = setup(plan);
+    await tool.execute('c', {
+      plan: 'p',
+      initiative: 'Auth Overhaul',
+      depends_on_plans: ['Schema First'],
+    });
+
+    const [entry] = await runPlanIO(readPlansManifest());
+    expect(entry.initiative).toBe('auth-overhaul');
+    expect(entry.depends_on).toEqual(['schema-first']);
+  });
+
+  test('preserves existing initiative link when not passed', async () => {
+    const plan: PlanData = { title: 'P', planName: 'p', handoff: 'h', tasks: [task('t-001')] };
+    await seed(plan);
+    await runPlanIO(
+      upsertPlanEntry('p', { status: 'in-progress', title: 'P', initiative: 'big' }),
+    );
+
+    const { tool } = setup(plan);
+    await tool.execute('c', { plan: 'p', title: 'P2' });
+
+    const [entry] = await runPlanIO(readPlansManifest());
+    expect(entry.initiative).toBe('big');
   });
 });

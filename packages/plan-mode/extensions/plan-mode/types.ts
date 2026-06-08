@@ -13,6 +13,9 @@ export type TaskOrigin = 'plan' | 'discovered';
  */
 export type PlanStatus = 'in-progress' | 'done' | 'superseded' | 'abandoned';
 
+/** Initiative lifecycle reuses the plan lifecycle literals. */
+export type InitiativeStatus = PlanStatus;
+
 export interface TaskRecord {
   _type: 'task';
   id: string;

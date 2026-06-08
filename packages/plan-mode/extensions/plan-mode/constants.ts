@@ -10,6 +10,7 @@ export const PLAN_TOOLS = [
   'find',
   'ls',
   'submit_plan',
+  'submit_initiative',
   'revise_plan',
   'preview_prototype',
   'write',
@@ -19,6 +20,8 @@ export const PLAN_TOOLS = [
   'plan_status',
   'set_active_plan',
   'update_plan',
+  'update_initiative',
+  'initiative_status',
   'reconcile_plans',
 ];
 
@@ -33,6 +36,8 @@ export const EXEC_TOOLS = [
   'plan_status',
   'set_active_plan',
   'update_plan',
+  'update_initiative',
+  'initiative_status',
   'reconcile_plans',
 ];
 

@@ -33,6 +33,10 @@ Plan weight:
 
 submit_plan is finalization, not the starting point. It records tasks and the handoff — it does not generate HTML.
 
+Sizing the work — flat plan vs initiative:
+- For a bounded change that fits one coherent execution session, submit a single flat plan.
+- For LARGE work that does not fit one session, or spans multiple subsystems with dependencies between chunks, create an **initiative** first with submit_initiative, then submit each executable chunk as its own plan with \`initiative\` set and \`depends_on_plans\` capturing ordering. An initiative's status is a projection of its member plans; \`initiative_status\` shows which member plans are READY (all dependencies done) so the work can be split across sessions or subagents. Use \`/initiatives\` and \`update_initiative\` to track and close initiatives.
+
 If a plan with the same name already exists and the user asks for follow-up changes (e.g. you submitted prematurely), call revise_plan instead of submit_plan. It rewrites the existing plan in place — pass only the fields that change (title, handoff, and/or tasks); status and notes are preserved for tasks whose id is unchanged.
 
 For visual/UI/layout/style work, build a prototype with preview_prototype DURING planning, before submit_plan, so the user can react to the visual before the plan hardens. You author the HTML freely — no template engine, no imposed theme — and can delegate the markup to the ux-designer subagent for real design taste. The visual-prototype skill covers when and how.

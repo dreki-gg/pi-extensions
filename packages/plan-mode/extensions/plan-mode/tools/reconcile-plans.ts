@@ -11,7 +11,14 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
 import type { RunPlanIO } from '../effects/runtime.js';
-import { applyReconcile, collectPlanDrift, type PlanDriftRow } from '../reconcile.js';
+import {
+  applyInitiativeReconcile,
+  applyReconcile,
+  collectInitiativeDrift,
+  collectPlanDrift,
+  type InitiativeDriftRow,
+  type PlanDriftRow,
+} from '../reconcile.js';
 
 function describeRow(row: PlanDriftRow): string {
   const progress = row.hasTasks ? ` (${row.resolved}/${row.total})` : '';
@@ -48,23 +55,37 @@ export function registerReconcilePlansTool(pi: ExtensionAPI, runPlanIO: RunPlanI
 
     async execute(_toolCallId, params) {
       const rows = await runPlanIO(collectPlanDrift());
+      const initiativeRows = await runPlanIO(collectInitiativeDrift());
       const drifted = rows.filter((row) => row.drift);
+      const initiativeDrifted = initiativeRows.filter((row) => row.drift);
 
       let repaired: PlanDriftRow[] = [];
+      let initiativeRepaired: InitiativeDriftRow[] = [];
       if (params.apply) {
         repaired = await runPlanIO(applyReconcile(rows));
+        // Re-collect after plan repairs so initiative projection sees fresh state.
+        initiativeRepaired = await runPlanIO(
+          applyInitiativeReconcile(await runPlanIO(collectInitiativeDrift())),
+        );
       }
 
       const lines = rows.map(describeRow);
+      const initiativeLines = initiativeRows.map(
+        (row) =>
+          row.drift === 'status'
+            ? `  ✗ ${row.name} (initiative, ${row.members} plans) — registry ${row.registryStatus}, plans say ${row.derivedStatus}`
+            : `  ✓ ${row.name} (initiative, ${row.members} plans) — ${row.registryStatus} (in sync)`,
+      );
       const statusDrift = drifted.filter((r) => r.drift === 'status').length;
       const orphans = drifted.filter((r) => r.drift === 'orphan').length;
       const registryOnly = drifted.filter((r) => r.drift === 'registry-only').length;
 
+      const totalDrift = drifted.length + initiativeDrifted.length;
       const header = params.apply
-        ? `Reconciled ${repaired.length} plan(s).`
-        : drifted.length === 0
-          ? 'All plans in sync.'
-          : `${drifted.length} drift issue(s) found (run with apply:true to repair status drift).`;
+        ? `Reconciled ${repaired.length} plan(s) + ${initiativeRepaired.length} initiative(s).`
+        : totalDrift === 0
+          ? 'All plans and initiatives in sync.'
+          : `${totalDrift} drift issue(s) found (run with apply:true to repair status drift).`;
 
       const summary = [
         `status-drift ${statusDrift}`,
@@ -72,7 +93,10 @@ export function registerReconcilePlansTool(pi: ExtensionAPI, runPlanIO: RunPlanI
         `registry-only ${registryOnly}`,
       ].join(', ');
 
-      const text = `${header}\n${summary}\n${lines.join('\n')}`;
+      const initiativeBlock = initiativeLines.length
+        ? `\nInitiatives:\n${initiativeLines.join('\n')}`
+        : '';
+      const text = `${header}\n${summary}\n${lines.join('\n')}${initiativeBlock}`;
       return {
         content: [{ type: 'text' as const, text }],
         details: {
@@ -80,6 +104,9 @@ export function registerReconcilePlansTool(pi: ExtensionAPI, runPlanIO: RunPlanI
           repaired: repaired.map((r) => r.name),
           drift: drifted.map((r) => ({ name: r.name, kind: r.drift })),
           total: rows.length,
+          initiative_repaired: initiativeRepaired.map((r) => r.name),
+          initiative_drift: initiativeDrifted.map((r) => ({ name: r.name, kind: r.drift })),
+          initiative_total: initiativeRows.length,
         },
       };
     },

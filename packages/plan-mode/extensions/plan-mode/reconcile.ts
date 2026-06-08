@@ -22,6 +22,13 @@ import type {
   PlanWriteError,
 } from './errors.js';
 import { readPlansManifest, reconcilePlanStatus } from './storage/plans-manifest.js';
+import { readInitiativesManifest } from './storage/initiatives-manifest.js';
+import {
+  isInitiativeFinalizable,
+  membersOf,
+  reconcileInitiativeForPlan,
+  reconcileInitiativeStatus,
+} from './initiative.js';
 import { readTasksJsonl } from './storage/task-storage.js';
 import { isPlanFinalizable } from './task-status.js';
 import type { PlanStatus } from './types.js';
@@ -121,6 +128,62 @@ export function collectPlanDrift(): Effect.Effect<PlanDriftRow[], CollectError, 
   });
 }
 
+// ── Initiative-level drift ───────────────────────────────────────────────────
+
+export interface InitiativeDriftRow {
+  name: string;
+  registryStatus: PlanStatus;
+  title: string;
+  /** Projected from member plans: `done` when finalizable, else `in-progress`. */
+  derivedStatus: 'in-progress' | 'done';
+  members: number;
+  /** 'status' when the registry status disagrees with the projection. */
+  drift?: 'status';
+}
+
+/** Compare each initiative's registry status against its member-plan projection. */
+export function collectInitiativeDrift(): Effect.Effect<
+  InitiativeDriftRow[],
+  CollectError,
+  FileSystem
+> {
+  return Effect.gen(function* () {
+    const initiatives = yield* readInitiativesManifest();
+    const plans = yield* readPlansManifest();
+    return initiatives.map((entry) => {
+      const derivedStatus: 'in-progress' | 'done' = isInitiativeFinalizable(entry.name, plans)
+        ? 'done'
+        : 'in-progress';
+      // Terminal statuses (superseded/abandoned) are intentional — never drift.
+      const isTerminalManual = entry.status === 'superseded' || entry.status === 'abandoned';
+      const drift = !isTerminalManual && entry.status !== derivedStatus ? ('status' as const) : undefined;
+      return {
+        name: entry.name,
+        registryStatus: entry.status,
+        title: entry.title,
+        derivedStatus,
+        members: membersOf(entry.name, plans).length,
+        drift,
+      };
+    });
+  });
+}
+
+/** Repair `status`-class initiative drift by re-projecting from member plans. */
+export function applyInitiativeReconcile(
+  rows: InitiativeDriftRow[],
+): Effect.Effect<InitiativeDriftRow[], CollectError | PlanWriteError, FileSystem> {
+  return Effect.gen(function* () {
+    const repaired: InitiativeDriftRow[] = [];
+    for (const row of rows) {
+      if (row.drift !== 'status') continue;
+      yield* reconcileInitiativeStatus(row.name);
+      repaired.push(row);
+    }
+    return repaired;
+  });
+}
+
 /**
  * Repair `status`-class drift by projecting derived status into the registry.
  * Orphans and registry-only rows are reported but not auto-fixed (they need a
@@ -134,6 +197,8 @@ export function applyReconcile(
     for (const row of rows) {
       if (row.drift !== 'status' || !row.derivedStatus) continue;
       yield* reconcilePlanStatus(row.name, row.derivedStatus === 'done', row.title);
+      // Repairing a plan's status can flip its parent initiative's projection.
+      yield* reconcileInitiativeForPlan(row.name);
       repaired.push(row);
     }
     return repaired;

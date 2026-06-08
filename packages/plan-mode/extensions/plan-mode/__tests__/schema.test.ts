@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { Either } from 'effect';
 import {
   decodeExecPendingConfig,
+  decodeInitiativeManifestEntry,
   decodePlanManifestEntry,
   decodeTaskMeta,
   decodeTaskRecord,
@@ -208,6 +209,93 @@ describe('plan manifest entry schema', () => {
           completed_at: null,
         },
         decodePlanManifestEntry,
+      ),
+    ).toBe(false);
+  });
+
+  test('accepts optional initiative + plan-level depends_on (forward compat)', () => {
+    expect(
+      isOk(
+        {
+          _type: 'plan',
+          name: 'auth-jwt',
+          status: 'in-progress',
+          title: 'Auth JWT',
+          created_at: now,
+          completed_at: null,
+          initiative: 'auth-overhaul',
+          depends_on: ['auth-schema'],
+        },
+        decodePlanManifestEntry,
+      ),
+    ).toBe(true);
+  });
+
+  test('still accepts a legacy entry without the new optional fields (back compat)', () => {
+    expect(
+      isOk(
+        {
+          _type: 'plan',
+          name: 'legacy',
+          status: 'done',
+          title: 'Legacy',
+          created_at: now,
+          completed_at: now,
+        },
+        decodePlanManifestEntry,
+      ),
+    ).toBe(true);
+  });
+});
+
+describe('initiative manifest entry schema', () => {
+  test('accepts a valid in-progress initiative', () => {
+    expect(
+      isOk(
+        {
+          _type: 'initiative',
+          name: 'auth-overhaul',
+          status: 'in-progress',
+          title: 'Auth Overhaul',
+          created_at: now,
+          completed_at: null,
+        },
+        decodeInitiativeManifestEntry,
+      ),
+    ).toBe(true);
+  });
+
+  test('accepts terminal statuses with a reason', () => {
+    for (const status of ['done', 'superseded', 'abandoned'] as const) {
+      expect(
+        isOk(
+          {
+            _type: 'initiative',
+            name: 'auth-overhaul',
+            status,
+            title: 'Auth Overhaul',
+            created_at: now,
+            completed_at: now,
+            reason: 'shipped',
+          },
+          decodeInitiativeManifestEntry,
+        ),
+      ).toBe(true);
+    }
+  });
+
+  test('rejects a plan _type masquerading as an initiative', () => {
+    expect(
+      isOk(
+        {
+          _type: 'plan',
+          name: 'auth-overhaul',
+          status: 'in-progress',
+          title: 'Auth Overhaul',
+          created_at: now,
+          completed_at: null,
+        },
+        decodeInitiativeManifestEntry,
       ),
     ).toBe(false);
   });

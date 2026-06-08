@@ -39,8 +39,10 @@ import { activeTasksResolved, deferredTasks, isPlanFinalizable } from './task-st
 import { enterPlanMode, exitPlanMode, switchModel } from './phase-transitions.js';
 import { resumePlan, executeInNewSession } from './resume.js';
 import { resolveActivePlan, focusActivePlan } from './resolve-plan.js';
+import { reconcileInitiativeForPlan } from './initiative.js';
 import { collectPlanDrift } from './reconcile.js';
 import { registerSubmitPlanTool } from './tools/submit-plan.js';
+import { registerSubmitInitiativeTool } from './tools/submit-initiative.js';
 import { registerRevisePlanTool } from './tools/revise-plan.js';
 import { registerPreviewPrototypeTool } from './tools/preview-prototype.js';
 import { registerUpdateTaskTool } from './tools/update-task.js';
@@ -49,9 +51,12 @@ import { registerAddTaskTool } from './tools/add-task.js';
 import { registerPlanStatusTool } from './tools/plan-status.js';
 import { registerSetActivePlanTool } from './tools/set-active-plan.js';
 import { registerUpdatePlanTool } from './tools/update-plan.js';
+import { registerUpdateInitiativeTool } from './tools/update-initiative.js';
+import { registerInitiativeStatusTool } from './tools/initiative-status.js';
 import { registerReconcilePlansTool } from './tools/reconcile-plans.js';
 import { isSafeCommand, isPlanPath } from './utils.js';
 import { handleListPlans } from './commands/list-plans.js';
+import { handleListInitiatives } from './commands/list-initiatives.js';
 
 export default function planMode(pi: ExtensionAPI): void {
   const state = new PlanModeState();
@@ -82,6 +87,8 @@ export default function planMode(pi: ExtensionAPI): void {
       state.persist(pi);
     },
   });
+
+  registerSubmitInitiativeTool(pi, runPlanIO);
 
   registerPreviewPrototypeTool(pi, runPlanIO);
 
@@ -120,6 +127,8 @@ export default function planMode(pi: ExtensionAPI): void {
         state.plan.title,
       ),
     );
+    // Project plan status up to its parent initiative (no-op when standalone).
+    await runPlanIO(reconcileInitiativeForPlan(state.plan.planName));
     state.persist(pi);
   };
 
@@ -162,6 +171,7 @@ export default function planMode(pi: ExtensionAPI): void {
           state.plan.title,
         ),
       );
+      await runPlanIO(reconcileInitiativeForPlan(state.plan.planName));
       state.persist(pi);
     },
   });
@@ -186,6 +196,8 @@ export default function planMode(pi: ExtensionAPI): void {
   });
 
   registerUpdatePlanTool(pi, runPlanIO);
+  registerUpdateInitiativeTool(pi, runPlanIO);
+  registerInitiativeStatusTool(pi, runPlanIO);
   registerReconcilePlansTool(pi, runPlanIO);
 
   registerAddTaskTool(pi, {
@@ -214,6 +226,7 @@ export default function planMode(pi: ExtensionAPI): void {
           state.plan.title,
         ),
       );
+      await runPlanIO(reconcileInitiativeForPlan(state.plan.planName));
       state.persist(pi);
     },
   });
@@ -274,6 +287,14 @@ export default function planMode(pi: ExtensionAPI): void {
       'List all plans with filtering and sorting. Usage: /plans [filter] [sort]. Filters: all, in-progress, done, superseded, abandoned. Sorts: newest, oldest, tasks, name.',
     handler: async (args, ctx) => {
       await handleListPlans(ctx, runPlanIO, args);
+    },
+  });
+
+  pi.registerCommand('initiatives', {
+    description:
+      'List all initiatives with member-plan rollup. Usage: /initiatives [filter]. Filters: all, in-progress, done, superseded, abandoned.',
+    handler: async (args, ctx) => {
+      await handleListInitiatives(ctx, runPlanIO, args);
     },
   });
 
@@ -513,6 +534,7 @@ export default function planMode(pi: ExtensionAPI): void {
           await runPlanIO(
             upsertPlanEntry(state.plan.planName, { status: 'done', title: state.plan.title }),
           );
+          await runPlanIO(reconcileInitiativeForPlan(state.plan.planName));
           await runPlanIO(
             writeTasksJsonl(
               state.planDir,

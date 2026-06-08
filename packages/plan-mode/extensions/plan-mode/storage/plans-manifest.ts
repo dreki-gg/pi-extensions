@@ -15,6 +15,10 @@ export interface PlanManifestEntry {
   created_at: string;
   completed_at: string | null;
   reason?: string;
+  /** Parent initiative name (kebab). Absent = standalone flat plan. */
+  initiative?: string;
+  /** Plan-level dependencies (plan names). Cross-initiative allowed. */
+  depends_on?: string[];
 }
 
 /** A status is terminal (closed) when it is anything other than in-progress. */
@@ -69,7 +73,15 @@ export function writePlansManifest(
 
 export function upsertPlanEntry(
   name: string,
-  updates: { status: PlanStatus; title?: string; reason?: string },
+  updates: {
+    status: PlanStatus;
+    title?: string;
+    reason?: string;
+    /** Parent initiative name; preserved when omitted. */
+    initiative?: string;
+    /** Plan-level dependencies (plan names); preserved when omitted. */
+    depends_on?: string[];
+  },
 ): Effect.Effect<void, ReadError | PlanWriteError, FileSystem> {
   return Effect.gen(function* () {
     const entries = yield* readPlansManifest();
@@ -85,6 +97,9 @@ export function upsertPlanEntry(
       // Terminal statuses record a completion timestamp; reopening clears it.
       completed_at: isTerminalStatus(updates.status) ? (existing?.completed_at ?? now) : null,
       reason: updates.reason ?? existing?.reason,
+      // Membership + plan-level deps are preserved across status-only upserts.
+      initiative: updates.initiative ?? existing?.initiative,
+      depends_on: updates.depends_on ?? existing?.depends_on,
     };
     if (index === -1) entries.push(entry);
     else entries[index] = entry;

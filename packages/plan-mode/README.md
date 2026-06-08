@@ -24,6 +24,8 @@ pi install npm:@dreki-gg/pi-questionnaire
 | Command  | `/plan [prompt]` | Enter plan mode, optionally with a starting prompt |
 | Command  | `/plan resume` | Pick up an in-progress plan from disk          |
 | Command  | `/plan focus <name>` | Pin a plan so tracking calls default to it (multi-plan repos) |
+| Command  | `/plans`       | List/filter/sort plans                          |
+| Command  | `/initiatives` | List initiatives with member-plan rollup        |
 | Command  | `/todos`       | Show current plan progress                     |
 | Shortcut | `Ctrl+Alt+P`   | Toggle plan mode                               |
 | Tool     | `revise_plan`  | Rewrite an existing plan in place (title/handoff/tasks) |
@@ -33,7 +35,45 @@ pi install npm:@dreki-gg/pi-questionnaire
 | Tool     | `plan_status`  | Read-only snapshot; progress table when many plans are active |
 | Tool     | `set_active_plan` | Pin a plan as active (tool form of `/plan focus`) so tracking calls target it |
 | Tool     | `update_plan`  | Close/reopen a plan: done, superseded, abandoned, in-progress |
-| Tool     | `reconcile_plans` | Detect & repair drift between tasks.jsonl and the registry |
+| Tool     | `submit_initiative` | Create an initiative that groups multiple plans          |
+| Tool     | `update_initiative` | Close/reopen an initiative: done, superseded, abandoned, in-progress |
+| Tool     | `initiative_status` | Snapshot an initiative: member plans, progress, ready/blocked |
+| Tool     | `reconcile_plans` | Detect & repair drift between tasks.jsonl and the registry (plans **and** initiatives) |
+
+## Initiatives — grouping large work
+
+When a body of work is too large for a single plan, group it under an **initiative**.
+An initiative is one level above a plan; the same projection rule applies one level up:
+
+```
+Initiative  status = projection of its member plans' statuses
+   Plan     status = projection of its tasks' statuses
+      Task  base state
+```
+
+An initiative is `done` when it has ≥1 member plan and every member is terminal
+(`done` / `superseded` / `abandoned`). Member plans link to the initiative by name and
+carry **plan-level** `depends_on` (cross-initiative allowed), so the extension can compute
+*ready work* — plans whose dependencies are all `done`. `initiative_status` surfaces, per
+member plan, whether it is **ready** or **blocked by** which plans — the view you want when
+splitting an initiative across sessions or subagents.
+
+```text
+# 1. Create the initiative
+submit_initiative(name: "auth-overhaul", title: "Auth Overhaul", overview: "...")
+
+# 2. Submit member plans linked + ordered
+submit_plan(name: "auth-schema",  initiative: "auth-overhaul")
+submit_plan(name: "auth-jwt",     initiative: "auth-overhaul", depends_on_plans: ["auth-schema"])
+submit_plan(name: "auth-ui",      initiative: "auth-overhaul", depends_on_plans: ["auth-jwt"])
+
+# 3. See what's ready to pick up
+initiative_status(initiative: "auth-overhaul")
+```
+
+Initiative lifecycle mirrors plans: `done` is projected automatically, while `superseded` /
+`abandoned` (and reopen) are explicit via `update_initiative` with a `reason`. The `clean`
+CLI archives closed initiatives the same way it archives closed plans.
 
 ### Plan lifecycle status
 
@@ -99,10 +139,13 @@ When **Execute Plan** is selected:
 
 ```
 .plans/
-├── plans.json                # Tracking manifest — plan status lifecycle
-└── add-auth-middleware/
-    ├── PLAN.md               # Numbered plan with context
-    ├── START-PROMPT.md       # Self-contained executor handoff prompt
+├── plans.jsonl               # Plan registry — plan status lifecycle
+├── initiatives.jsonl         # Initiative registry — groups member plans
+├── auth-overhaul/            # An initiative directory
+│   └── INITIATIVE.md         # Initiative overview + plan breakdown
+└── auth-jwt/                 # A member plan (linked by name in the registry)
+    ├── HANDOFF.md            # Self-contained executor handoff
+    ├── tasks.jsonl           # Tasks (gains optional initiative + plan-level depends_on)
     └── ...                   # Optional supporting files
 ```
 

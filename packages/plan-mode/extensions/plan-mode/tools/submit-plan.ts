@@ -9,6 +9,8 @@ import { Effect } from 'effect';
 import { saveHandoff } from '../storage/plan-storage.js';
 import { writeTasksJsonl } from '../storage/task-storage.js';
 import { upsertPlanEntry } from '../storage/plans-manifest.js';
+import { readInitiativesManifest } from '../storage/initiatives-manifest.js';
+import { reconcileInitiativeForPlan } from '../initiative.js';
 import type { RunPlanIO } from '../effects/runtime.js';
 import { toKebabCase } from '../utils.js';
 import type { PlanData, TaskMeta, TaskRecord } from '../types.js';
@@ -34,6 +36,7 @@ export function registerSubmitPlanTool(
       'When you are planning and executing yourself (same session), use lightweight checklist-style tasks: just id + description, omit details. Put the real context in the handoff document instead.',
       'The handoff must be thorough enough that both a human reviewer and executor agent with zero prior context can understand the plan.',
       'For visual/UI work, preview a prototype with preview_prototype during planning — before submit_plan, not as part of it.',
+      'For large work split across plans, set `initiative` to the parent initiative (create it first with submit_initiative) and use `depends_on_plans` to order plans against each other — this enables ready-work tracking across sessions and agents.',
     ],
     parameters: Type.Object({
       name: Type.String({
@@ -57,11 +60,26 @@ export function registerSubmitPlanTool(
         }),
         { minItems: 1 },
       ),
+      initiative: Type.Optional(
+        Type.String({
+          description:
+            'Parent initiative name (kebab) when this plan is one chunk of a larger initiative. Create the initiative first with submit_initiative.',
+        }),
+      ),
+      depends_on_plans: Type.Optional(
+        Type.Array(
+          Type.String({
+            description: 'Names of other plans this plan depends on (cross-initiative allowed).',
+          }),
+        ),
+      ),
     }),
 
     async execute(_toolCallId, params) {
       const planName = toKebabCase(params.name);
       const planDir = `.plans/${planName}`;
+      const initiative = params.initiative ? toKebabCase(params.initiative) : undefined;
+      const dependsOnPlans = params.depends_on_plans?.map(toKebabCase);
       const now = new Date().toISOString();
       const meta: TaskMeta = {
         _type: 'meta',
@@ -81,24 +99,39 @@ export function registerSubmitPlanTool(
       }));
       const plan: PlanData = { title: params.title, planName, handoff: params.handoff, tasks };
 
-      await runPlanIO(
+      const unknownInitiative = await runPlanIO(
         Effect.gen(function* () {
           yield* writeTasksJsonl(planDir, meta, tasks);
           yield* saveHandoff(planDir, params.handoff);
-          yield* upsertPlanEntry(planName, { status: 'in-progress', title: params.title });
+          yield* upsertPlanEntry(planName, {
+            status: 'in-progress',
+            title: params.title,
+            initiative,
+            depends_on: dependsOnPlans,
+          });
+          // Keep the parent initiative's projected status in sync.
+          yield* reconcileInitiativeForPlan(planName);
+          if (!initiative) return false;
+          const initiatives = yield* readInitiativesManifest();
+          return !initiatives.some((entry) => entry.name === initiative);
         }),
       );
 
       callbacks.onPlanSubmitted(planDir, plan);
 
+      const linkSuffix = initiative
+        ? ` Linked to initiative "${initiative}"${
+            unknownInitiative ? ' (no initiatives.jsonl entry yet — create it with submit_initiative)' : ''
+          }.`
+        : '';
       return {
         content: [
           {
             type: 'text' as const,
-            text: `Plan "${params.title}" saved with ${tasks.length} tasks in ${planDir}. Execute when ready.`,
+            text: `Plan "${params.title}" saved with ${tasks.length} tasks in ${planDir}. Execute when ready.${linkSuffix}`,
           },
         ],
-        details: { planDir, plan },
+        details: { planDir, plan, initiative, depends_on_plans: dependsOnPlans },
       };
     },
 

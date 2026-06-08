@@ -23,7 +23,9 @@ import {
   reconcilePlanStatus,
   upsertPlanEntry,
 } from '../storage/plans-manifest.js';
+import { reconcileInitiativeForPlan, reconcileInitiativeStatus } from '../initiative.js';
 import { isPlanFinalizable } from '../task-status.js';
+import { toKebabCase } from '../utils.js';
 import type { RunPlanIO } from '../effects/runtime.js';
 import type { PlanData, TaskMeta, TaskRecord } from '../types.js';
 
@@ -47,6 +49,7 @@ export function registerRevisePlanTool(
       'Use revise_plan instead of submit_plan when a plan with the same name already exists and the user asks for follow-up changes.',
       'All content fields are optional — pass only what changes; omitted title/handoff/tasks are left as-is.',
       'When you pass tasks, it fully replaces the task set (tasks you omit are dropped). Status and notes are preserved for any task whose id is unchanged.',
+      'Pass initiative / depends_on_plans to (re)link this plan to an initiative or change its plan-level dependencies; omit them to preserve the existing links.',
     ],
     parameters: Type.Object({
       plan: Type.String({ description: 'Plan name (or .plans/<name>) to revise' }),
@@ -67,6 +70,14 @@ export function registerRevisePlanTool(
             ),
           }),
           { minItems: 1 },
+        ),
+      ),
+      initiative: Type.Optional(
+        Type.String({ description: 'Parent initiative name (kebab); omit to preserve.' }),
+      ),
+      depends_on_plans: Type.Optional(
+        Type.Array(
+          Type.String({ description: 'Plan names this plan depends on (cross-initiative allowed).' }),
         ),
       ),
     }),
@@ -127,6 +138,9 @@ export function registerRevisePlanTool(
       };
       const planDir = `.plans/${plan.planName}`;
 
+      const newInitiative = params.initiative ? toKebabCase(params.initiative) : undefined;
+      const newDependsOn = params.depends_on_plans?.map(toKebabCase);
+
       await runPlanIO(
         Effect.gen(function* () {
           yield* writeTasksJsonl(planDir, meta, tasks);
@@ -135,11 +149,19 @@ export function registerRevisePlanTool(
           // re-derive in-progress ⇄ done (never clobbers superseded/abandoned).
           const manifest = yield* readPlansManifest();
           const current = manifest.find((entry) => entry.name === plan.planName);
+          const oldInitiative = current?.initiative;
           yield* upsertPlanEntry(plan.planName, {
             status: current?.status ?? 'in-progress',
             title: newTitle,
+            initiative: newInitiative,
+            depends_on: newDependsOn,
           });
           yield* reconcilePlanStatus(plan.planName, isPlanFinalizable(tasks), newTitle);
+          // Keep both the new and any vacated initiative projections in sync.
+          yield* reconcileInitiativeForPlan(plan.planName);
+          if (newInitiative && oldInitiative && oldInitiative !== newInitiative) {
+            yield* reconcileInitiativeStatus(oldInitiative);
+          }
         }),
       );
 

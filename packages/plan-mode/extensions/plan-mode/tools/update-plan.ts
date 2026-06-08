@@ -18,6 +18,7 @@ import { Type } from 'typebox';
 import type { PlanStatus } from '../types.js';
 import type { RunPlanIO } from '../effects/runtime.js';
 import { readPlansManifest, upsertPlanEntry } from '../storage/plans-manifest.js';
+import { reconcileInitiativeForPlan } from '../initiative.js';
 
 /** Normalize a plan hint (`my-plan` or `.plans/my-plan`) to a bare name. */
 function normalizeName(hint: string): string {
@@ -72,6 +73,8 @@ export function registerUpdatePlanTool(pi: ExtensionAPI, runPlanIO: RunPlanIO): 
           reason: params.reason,
         }),
       );
+      // A plan-level status change can flip its parent initiative's projection.
+      await runPlanIO(reconcileInitiativeForPlan(name));
 
       const reasonSuffix = params.reason ? ` — ${params.reason}` : '';
       const okDetails: Record<string, unknown> = {
