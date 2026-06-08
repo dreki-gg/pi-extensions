@@ -136,18 +136,29 @@ export async function assertAgentBrowserAvailable(): Promise<void> {
   await agentBrowserAvailabilityCheck;
 }
 
-async function checkAgentBrowserAvailable(): Promise<void> {
-  type DoctorSummary = { fail?: number };
-  type DoctorResponse = { success?: boolean; summary?: DoctorSummary; checks?: unknown[] };
-
+/**
+ * Verify the agent-browser CLI is present and responsive.
+ *
+ * Uses a lightweight `session list` liveness probe rather than the old
+ * `doctor --offline --quick` health check. `doctor` is a leftover from the
+ * pre–agent-browser (Playwright) era and is absent on some shipping builds
+ * (e.g. the native 0.19.x CLI), which made a perfectly working CLI report as
+ * "unavailable" on every web tool call. `session list` is supported across
+ * versions and returns cleanly, so availability tracks reality.
+ *
+ * The `run` parameter is injectable for tests; it defaults to the real JSON
+ * runner. A missing executable (ENOENT) keeps its detailed install message from
+ * the spawn layer; any other probe failure surfaces the install guidance.
+ */
+export async function checkAgentBrowserAvailable(
+  run: (args: string[]) => Promise<unknown> = (args) => runAgentBrowserJson(args),
+): Promise<void> {
   try {
-    const result = await runAgentBrowserJson<DoctorResponse>(['doctor', '--offline', '--quick']);
-    const failCount = result.summary?.fail ?? 0;
-
-    if (result.success === false || failCount > 0) {
-      throw new Error(AGENT_BROWSER_INSTALL_GUIDANCE);
+    await run(['session', 'list']);
+  } catch (error) {
+    if (error instanceof Error && /not found in PATH|ENOENT/iu.test(error.message)) {
+      throw error;
     }
-  } catch {
     throw new Error(AGENT_BROWSER_INSTALL_GUIDANCE);
   }
 }

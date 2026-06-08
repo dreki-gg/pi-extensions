@@ -1,5 +1,11 @@
 # @dreki-gg/pi-browser-tools
 
+## 0.4.1
+
+### Patch Changes
+
+- Fix spurious "agent-browser CLI is unavailable" errors on web tools. The availability check used a `doctor --offline --quick` health probe — a leftover from the pre-agent-browser (Playwright) era — which is absent on some shipping CLI builds (e.g. the native 0.19.x binary), so a perfectly working CLI was reported as missing on every `web_visit`/`web_screenshot`/`web_interact`/`web_console` call. Replaced it with a lightweight `session list` liveness probe that is supported across agent-browser versions. A genuinely missing executable still surfaces the detailed install guidance.
+
 ## 0.4.0
 
 ### Minor Changes
