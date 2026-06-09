@@ -1,5 +1,11 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.25.0
+
+### Minor Changes
+
+- Add `@plan:<slug>` plan references with autocomplete. Type `@plan:` in any message to fuzzy-search and tag a plan (all plans listed, in-progress first), and on send the referenced plan's tasks + handoff are attached as context so the agent understands the reference. Resolution is context-only — it never switches execution mode, tools, or model — and follows first-wins when multiple tokens are present.
+
 ## 0.24.1
 
 ### Patch Changes

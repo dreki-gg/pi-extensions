@@ -57,11 +57,16 @@ import { registerReconcilePlansTool } from './tools/reconcile-plans.js';
 import { isSafeCommand, isPlanPath } from './utils.js';
 import { handleListPlans } from './commands/list-plans.js';
 import { handleListInitiatives } from './commands/list-initiatives.js';
+import { createPlanReferenceIndex } from './references/plan-index.js';
+import { registerPlanReferenceAutocomplete } from './references/autocomplete.js';
+import { registerPlanReferenceContext } from './references/context.js';
 
 export default function planMode(pi: ExtensionAPI): void {
   const state = new PlanModeState();
   // Build the live Effect runtime once; all storage I/O runs through this bridge.
   const runPlanIO = makePlanRuntime();
+  // Cached plan list for `@plan:<slug>` autocomplete; refreshed at session start.
+  const planReferenceIndex = createPlanReferenceIndex(runPlanIO);
 
   // ── Flag ──────────────────────────────────────────────────────────────────
   pi.registerFlag('plan', {
@@ -199,6 +204,9 @@ export default function planMode(pi: ExtensionAPI): void {
   registerUpdateInitiativeTool(pi, runPlanIO);
   registerInitiativeStatusTool(pi, runPlanIO);
   registerReconcilePlansTool(pi, runPlanIO);
+
+  // Attach a referenced plan (`@plan:<slug>`) as context when present in a prompt.
+  registerPlanReferenceContext(pi, runPlanIO);
 
   registerAddTaskTool(pi, {
     resolvePlan: (opts) => resolveActivePlan(state, pi, runPlanIO, opts),
@@ -601,6 +609,10 @@ export default function planMode(pi: ExtensionAPI): void {
     state.restore(
       ctx.sessionManager.getEntries() as Array<{ type: string; customType?: string; data?: any }>,
     );
+
+    // Register `@plan:<slug>` autocomplete and warm its cache.
+    await planReferenceIndex.refresh();
+    registerPlanReferenceAutocomplete(ctx, planReferenceIndex);
 
     // Check for exec-pending handoff from planning session
     const pending = await runPlanIO(readAndClearExecPending());
