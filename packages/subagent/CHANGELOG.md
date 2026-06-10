@@ -1,5 +1,11 @@
 # @dreki-gg/pi-subagent
 
+## 0.9.2
+
+### Patch Changes
+
+- Tighten subagent prompts and the write-an-agent skill. The skill gains a "Prompt hygiene (anti-rot)" section (invariants over incidents, one owner per fact, every line must change behavior) plus matching review-checklist items, and the reviewer/worker/planner prompts state the consult handoff shape once instead of in three duplicated blocks. No behavior change.
+
 ## 0.9.1
 
 ### Patch Changes
