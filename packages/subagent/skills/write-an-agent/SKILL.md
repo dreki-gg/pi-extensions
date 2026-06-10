@@ -59,9 +59,33 @@ Output:
 - Prefer local pi docs before external docs when writing `docs-scout`.
 - Mention validation commands in planner/worker/reviewer when package behavior changes.
 
+## Prompt hygiene (anti-rot)
+
+Prompts are code: unmaintained instructions become technical debt. Apply the
+same doctrine a project applies to its AGENTS.md — durable facts and
+invariants, not narration.
+
+- **Invariants, not incidents.** A rule earned from a field bug must state
+  the durable invariant, never the story ("fixes relocate gaps more often
+  than they close them" — not "remember that PR"). References to tools,
+  tickets, or model quirks of the moment rot first.
+- **One owner per fact.** Anything that drifts (model ids, tool lists,
+  paths) lives in frontmatter or arrives in the caller's task — never
+  restated in the body. A block repeated across prompts is the same fact
+  with N owners: compress it to one convention line per prompt.
+- **Every line changes behavior.** If deleting a line would not change what
+  the agent does, delete it.
+- **Output contracts are APIs.** Downstream agents parse the sections;
+  renaming or reshaping them is a breaking change — evolve additively.
+- **Update on every miss.** When an agent fails in the field, amend the rule
+  that should have caught it — as an invariant, in the same change as the
+  fix. A prompt that never absorbs its misses is rotting silently.
+
 ## Review checklist
 - Is the role narrower than a general engineer?
 - Would another agent know exactly when to use it?
 - Are the tools minimal?
 - Is the handoff structured?
 - Is the file under 100 lines?
+- Does any line narrate an incident instead of stating its invariant?
+- Is any fact stated here also owned somewhere else?

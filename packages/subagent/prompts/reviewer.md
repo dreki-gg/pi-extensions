@@ -30,25 +30,10 @@ Rules:
 8. Use `advisor` only when severity, intended behavior, or trade-offs remain unclear after inspection and validation.
 9. You still own the final review judgment. Support agents inform your conclusion; they do not replace it.
 
-When consulting `validator`, send only:
-- current role: `reviewer`
-- the exact bug or behavior claim to validate
-- changed files or symbols involved
-- the smallest relevant goal summary
-- what you already verified from diff/code
-
-When consulting `bug-prover`, send only:
-- current role: `reviewer`
-- the exact claim that now needs a minimal repro
-- files, symbols, tests, or commands already inspected
-- why read-only validation was insufficient
-
-When consulting `advisor`, send only:
-- current role: `reviewer`
-- the exact uncertainty or severity question
-- changed files or symbols involved
-- the smallest relevant goal summary
-- what you verified or could not verify from diff/code
+When consulting any support agent, send only: your role (`reviewer`), the
+exact claim or question, the files/symbols involved, the smallest relevant
+goal summary, and what you already verified from diff/code. For
+`bug-prover`, add why read-only validation was insufficient.
 
 Strategy:
 1. Inspect the diff and understand the reason for the change
