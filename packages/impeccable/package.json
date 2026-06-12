@@ -1,0 +1,71 @@
+{
+  "name": "@dreki-gg/pi-impeccable",
+  "version": "0.1.0",
+  "description": "Design guidance + deterministic anti-pattern detection for pi — a native port of impeccable (the design language for AI coding agents)",
+  "keywords": [
+    "pi-package",
+    "design",
+    "frontend",
+    "ux",
+    "anti-patterns",
+    "accessibility"
+  ],
+  "author": "Juan Albarran <jalbarrandev@gmail.com>",
+  "license": "Apache-2.0",
+  "files": [
+    "extensions",
+    "skills",
+    "README.md",
+    "CHANGELOG.md",
+    "NOTICE",
+    "package.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dreki-gg/pi-extensions",
+    "directory": "packages/impeccable"
+  },
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "lint": "oxlint extensions test --ignore-pattern 'extensions/impeccable/detector/**'",
+    "format": "oxfmt --write extensions test",
+    "format:check": "oxfmt --check extensions test"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/impeccable"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "bun-types": "latest",
+    "oxfmt": "^0.43.0",
+    "oxlint": "^1.58.0",
+    "typescript": "^6.0.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-ai": {
+      "optional": true
+    },
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
+    },
+    "typebox": {
+      "optional": true
+    }
+  }
+}

@@ -187,6 +187,29 @@
         "typebox",
       ],
     },
+    "packages/impeccable": {
+      "name": "@dreki-gg/pi-impeccable",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/node": "24",
+        "bun-types": "latest",
+        "oxfmt": "^0.43.0",
+        "oxlint": "^1.58.0",
+        "typescript": "^6.0.0",
+      },
+      "peerDependencies": {
+        "@earendil-works/pi-ai": "*",
+        "@earendil-works/pi-coding-agent": "*",
+        "@earendil-works/pi-tui": "*",
+        "typebox": "*",
+      },
+      "optionalPeers": [
+        "@earendil-works/pi-ai",
+        "@earendil-works/pi-coding-agent",
+        "@earendil-works/pi-tui",
+        "typebox",
+      ],
+    },
     "packages/lsp": {
       "name": "@dreki-gg/pi-lsp",
       "version": "0.4.0",
@@ -375,7 +398,7 @@
     },
     "packages/stacked-prs": {
       "name": "@dreki-gg/pi-stacked-prs",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "devDependencies": {
         "@types/node": "24",
         "bun-types": "^1.3.14",
@@ -599,6 +622,8 @@
     "@dreki-gg/pi-datadog": ["@dreki-gg/pi-datadog@workspace:packages/datadog"],
 
     "@dreki-gg/pi-firestore": ["@dreki-gg/pi-firestore@workspace:packages/firestore"],
+
+    "@dreki-gg/pi-impeccable": ["@dreki-gg/pi-impeccable@workspace:packages/impeccable"],
 
     "@dreki-gg/pi-lsp": ["@dreki-gg/pi-lsp@workspace:packages/lsp"],
 

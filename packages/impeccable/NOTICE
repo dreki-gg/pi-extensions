@@ -1,0 +1,18 @@
+@dreki-gg/pi-impeccable
+Copyright (c) 2026 Juan Albarran
+
+This product includes software developed as part of the "impeccable" project:
+
+    impeccable — The design language that makes your AI harness better at design.
+    Copyright (c) 2026 Paul Bakaus
+    https://github.com/pbakaus/impeccable
+    Licensed under the Apache License, Version 2.0.
+
+The anti-pattern detection engine under extensions/impeccable/detector/ and the
+design-guidance skill content under skills/impeccable/ are derived from impeccable
+and remain under the Apache License, Version 2.0. Original copyright headers are
+preserved in the ported source files.
+
+You may obtain a copy of the Apache License, Version 2.0 at:
+
+    http://www.apache.org/licenses/LICENSE-2.0

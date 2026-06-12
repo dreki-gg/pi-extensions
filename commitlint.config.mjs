@@ -9,6 +9,7 @@ export default {
         'ask-mode',
         'browser-tools',
         'context7',
+        'impeccable',
         'lsp',
         'modes',
         'plan-mode',
