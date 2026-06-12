@@ -2,10 +2,9 @@
  * Execute a confirmed split: create a branch per layer, stage that layer's
  * files, commit, and chain each layer onto the previous one.
  *
- * This intentionally uses plain git (the stack CLI's "agent happy path"): we
- * build the branch chain, then `stack sync --apply` infers and records the
- * stack and opens/retargets PRs. We do NOT open PRs ourselves to avoid
- * duplicating the stack CLI's provider logic.
+ * We build the branch chain with plain git, push each branch, and open a PR per
+ * layer against its parent (root against trunk) via `gh pr create`. The engine's
+ * `applySync` then records the stack and refreshes PR description blocks.
  */
 import type { ExecFn } from '../cli/runner';
 import type { ProposedLayer } from './analyzer';
@@ -48,14 +47,29 @@ export function planExecution(layers: ProposedLayer[], opts: ExecuteOptions): Ex
       command: 'git',
       args: ['commit', '-m', layer.title],
     });
+    steps.push({
+      description: `Push ${branch}`,
+      command: 'git',
+      args: ['push', '--set-upstream', 'origin', branch],
+    });
+    steps.push({
+      description: `Open PR for ${branch} -> ${parent}`,
+      command: 'gh',
+      args: [
+        'pr',
+        'create',
+        '--head',
+        branch,
+        '--base',
+        parent,
+        '--title',
+        layer.title,
+        '--body',
+        layer.rationale,
+      ],
+    });
     parent = branch;
   }
-
-  steps.push({
-    description: 'Infer, record, and publish the stack',
-    command: 'stack',
-    args: ['sync', '--apply'],
-  });
 
   return steps;
 }

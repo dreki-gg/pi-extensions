@@ -1,11 +1,11 @@
 ---
 name: stacked-prs
 description: >-
-  Manage stacked pull/merge requests with the @kitlangton/stack CLI. Use when a
-  change is large or spans multiple subsystems and should be split into a chain
-  of small, independently reviewable PRs, or when maintaining/merging/repairing
-  an existing stack after squash-merges. Triggers on "stack this", "stacked
-  PRs", "split this PR", "split into a stack", or /stack commands.
+  Manage stacked GitHub pull requests with a self-contained git + gh engine. Use
+  when a change is large or spans multiple subsystems and should be split into a
+  chain of small, independently reviewable PRs, or when maintaining / merging /
+  repairing an existing stack after squash-merges. Triggers on "stack this",
+  "stacked PRs", "split this PR", "split into a stack", or /stack commands.
 ---
 
 # Stacked PRs
@@ -14,9 +14,10 @@ A **stack** is a chain of PRs where each PR targets the branch of the PR below
 it, ultimately landing on trunk (`main`/`dev`). Stacks let you keep building
 while lower layers are still in review, and keep each diff small and focused.
 
-This skill wraps the agent-first **`@kitlangton/stack`** CLI. You do normal code
-work with plain `git`; `stack` handles inference, repair after squash-merges,
-retargeting, description blocks, and undo.
+This is powered by a **self-contained engine** bundled in the extension — it
+shells out only to `git` and the GitHub CLI (`gh`). No external stacking CLI is
+required. The engine handles inference, repair after squash-merges, retargeting,
+PR description blocks, and undo. **GitHub only.**
 
 ## When to stack
 
@@ -36,11 +37,10 @@ Good layer boundaries, ordered so lower layers can land first:
 
 ## Prerequisites
 
-- `stack` CLI installed: `npm install -g @kitlangton/stack`
-- A host CLI authenticated: `gh auth login` (GitHub) or `glab auth login` (GitLab)
-- Enterprise hosts: `git config stack.codeHost github` (or `gitlab`)
+- `git` (assumed present inside a repo)
+- GitHub CLI authenticated: `gh auth login`
 
-The `/stack` commands check this automatically and tell you what is missing.
+The `/stack` commands check `gh` automatically and tell you what is missing.
 
 ## Happy path
 
@@ -48,30 +48,28 @@ The `/stack` commands check this automatically and tell you what is missing.
    the previous one.
 2. Open the **root** PR/MR against trunk (`main`/`dev`).
 3. Open each **child** PR/MR against **its parent branch**.
-4. Preview: `stack sync` → review the inferred tree and planned repairs.
-5. Apply: `stack sync --apply` → records stack intent in
-   `.git/stack/state.json`, retargets PRs, refreshes stack blocks.
-6. Merge from the root when ready: `stack merge` (dry-run) → `stack merge --apply`.
-   Use `stack merge --auto` to let the host wait for merge requirements, then
-   repair descendants automatically after the root lands.
+4. Preview + apply maintenance with `/stack sync` (always previews first).
+5. Merge from the root with `/stack merge` when ready.
+
+State is recorded under `<git-dir>/pi-stack/state.json`; an undo journal is saved
+to `<git-dir>/pi-stack/undo.json` before every mutation.
 
 In pi, prefer the guarded commands which always preview before applying:
 - `/stack split` — analyze working changes, propose a layered split, and (after
-  you confirm) create the branch chain and run `stack sync --apply`.
+  you confirm) create + push the branch chain, open a PR per layer, and record
+  the stack.
 - `/stack status` — render the current stack tree.
-- `/stack sync` — preview then apply stack maintenance.
+- `/stack sync` — preview then apply stack maintenance (repair + refresh blocks).
 - `/stack merge` — preview then merge the root and repair descendants.
+- `/stack undo` — preview then restore branch tips and PR bases from the journal.
 
 ## Splitting an existing big diff into a stack
 
-1. Run `/stack split` (or do it manually): group changed files into ordered
-   layers, foundational first.
-2. For each layer in order: `git checkout -b <layer> <parent>`, stage only that
-   layer's files, commit. The first layer branches off trunk; each next layer
-   branches off the previous.
-3. Push branches and open PRs (root→trunk, child→parent), or let
-   `stack sync --apply` open/retarget them.
-4. `stack sync --apply` to record and publish the stack.
+1. Run `/stack split`: group changed files into ordered layers, foundational
+   first, confirm, and let it build the stack.
+2. Manual equivalent: for each layer in order `git checkout -b <layer> <parent>`,
+   stage only that layer's files, commit, push, and open a PR (root→trunk,
+   child→parent). Then `/stack sync` to record and refresh.
 
 When refining the auto-proposal, keep each layer **independently compilable and
 reviewable** — never split a function from its only caller across a boundary if
@@ -79,36 +77,35 @@ the lower layer would not build.
 
 ## Maintenance & recovery
 
-- `stack sync --apply` is the routine maintenance command after any parent moves
-  or lands — it repairs descendants and retargets PRs.
-- `stack doctor` — inspect repo, host, metadata, and journal health.
-- `stack history` — show the last saved mutation journal.
-- `stack undo` → `stack undo --apply` — restore branch tips, PR targets, and
-  metadata if a repair went wrong. Every mutation saves `.git/stack/undo.json`
-  first, so undo is safe.
-- `stack sync --apply --keep-going` — process independent stacks and report
-  failures instead of stopping at the first.
+- `/stack sync` is the routine maintenance command after any parent moves or
+  lands — it repairs descendants and retargets PRs.
+- `/stack undo` — restore branch tips and PR bases from the journal if a repair
+  went wrong. Every mutation saves the undo journal first, so undo is safe.
+- After a squash-merge that deletes a branch, run `/stack sync` to repair the
+  rest of the stack rather than rebasing by hand.
+
+## How repair stays safe
+
+- Before any mutation the engine **snapshots** branch tips + PR bases. The
+  remembered tip (`lastKnownTip`) is what lets a child rebase correctly after its
+  parent branch is squash-merged and deleted.
+- On a rebase conflict the engine **aborts and rolls back** automatically — it
+  never attempts to auto-resolve. Resolve the conflict manually, then re-run.
 
 ## Safety rules
 
-- **Always preview before `--apply`.** Never run a mutating stack command blind.
-- **Do not force-push** branches outside the stack repair flow — let
-  `stack sync` do rebases so descendants stay consistent.
-- After a squash-merge that deletes a branch, run `stack sync --apply` to repair
-  the rest of the stack rather than rebasing by hand.
-- If anything looks wrong, stop and run `stack doctor` / `stack history` before
-  mutating further.
+- **Always review the preview** the guarded commands print before confirming.
+- **Do not force-push** branches by hand outside `/stack sync` — let the engine
+  do rebases so descendants stay consistent.
+- If a conflict halts a sync, the stack was rolled back; fix the conflict and
+  re-run `/stack sync`.
 
-## CLI reference (quick)
+## Commands (quick)
 
 ```
-stack status                  inspect the relevant local stack
-stack guide                   print the agent/human happy path
-stack sync [--apply] [branch] preview / apply inference + repairs
-stack sync --apply --keep-going  process independent stacks, report failures
-stack doctor                  health check
-stack merge [--apply|--auto]  dry-run / merge root + repair descendants
-stack merge --auto --through <branch-or-change>  bounded auto-merge
-stack history                 last mutation journal
-stack undo [--apply]          preview / restore previous state
+/stack status   render the current stack tree
+/stack split    propose a layered split, then build + record the stack
+/stack sync     preview then apply inference + repairs + description blocks
+/stack merge    preview then merge the root and repair descendants
+/stack undo     preview then restore branch tips and PR bases
 ```

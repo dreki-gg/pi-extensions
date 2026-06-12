@@ -1,14 +1,13 @@
 {
   "name": "@dreki-gg/pi-stacked-prs",
-  "version": "0.2.0",
-  "description": "Stacked PR workflow for pi — skill + /stack commands wrapping the @kitlangton/stack CLI for squash-safe stacked pull/merge requests",
+  "version": "1.0.0",
+  "description": "Self-contained stacked PR workflow for pi — skill + /stack commands with a bundled git + gh engine for squash-safe stacked GitHub pull requests",
   "keywords": [
     "pi-package",
     "pi",
     "stacked-prs",
     "stacking",
     "github",
-    "gitlab",
     "pull-request"
   ],
   "author": "Juan Albarran <jalbarrandev@gmail.com>",

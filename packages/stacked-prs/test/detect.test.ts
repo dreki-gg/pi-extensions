@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { detectStack } from '../extensions/stacked-prs/cli/detect';
+import { detectGitHub } from '../extensions/stacked-prs/cli/detect';
 import type { ExecResult } from '../extensions/stacked-prs/cli/runner';
 
 function fakeExec(map: Record<string, number>) {
@@ -10,34 +10,15 @@ function fakeExec(map: Record<string, number>) {
   };
 }
 
-describe('detectStack', () => {
-  it('reports missing stack CLI', async () => {
-    const res = await detectStack(fakeExec({}));
-    expect(res.stackInstalled).toBe(false);
-    expect(res.hostAuthenticated).toBe(false);
-    expect(res.message).toContain('stack` CLI');
+describe('detectGitHub', () => {
+  it('is ready when gh is authenticated', async () => {
+    const res = await detectGitHub(fakeExec({ 'gh auth status': 0 }));
+    expect(res.ready).toBe(true);
   });
 
-  it('detects github auth', async () => {
-    const res = await detectStack(
-      fakeExec({ 'stack --version': 0, 'gh auth status': 0 }),
-    );
-    expect(res.stackInstalled).toBe(true);
-    expect(res.hostAuthenticated).toBe(true);
-    expect(res.host).toBe('github');
-  });
-
-  it('falls back to gitlab auth', async () => {
-    const res = await detectStack(
-      fakeExec({ 'stack --version': 0, 'gh auth status': 1, 'glab auth status': 0 }),
-    );
-    expect(res.host).toBe('gitlab');
-  });
-
-  it('reports stack present but no host auth', async () => {
-    const res = await detectStack(fakeExec({ 'stack --version': 0 }));
-    expect(res.stackInstalled).toBe(true);
-    expect(res.hostAuthenticated).toBe(false);
-    expect(res.message).toContain('auth login');
+  it('is not ready and explains when gh is missing/unauthenticated', async () => {
+    const res = await detectGitHub(fakeExec({}));
+    expect(res.ready).toBe(false);
+    expect(res.message).toContain('gh auth login');
   });
 });

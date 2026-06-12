@@ -22,7 +22,7 @@ describe('parseNumstat', () => {
 });
 
 describe('planExecution', () => {
-  it('chains branches off each other and ends with stack sync', () => {
+  it('chains branches off each other and opens a PR per layer', () => {
     const layers = proposeSplit([
       { path: 'db/schema.sql' },
       { path: 'server/s.ts' },
@@ -38,8 +38,14 @@ describe('planExecution', () => {
       'feat/layer-schema',
     ]);
 
-    const last = steps[steps.length - 1]!;
-    expect(last.command).toBe('stack');
-    expect(last.args).toEqual(['sync', '--apply']);
+    // Each layer pushes and opens a PR against its parent.
+    const prCreates = steps.filter((s) => s.command === 'gh' && s.args[1] === 'create');
+    expect(prCreates).toHaveLength(2);
+    expect(prCreates[0]!.args).toContain('feat/layer-schema');
+    expect(prCreates[0]!.args).toContain('main');
+    expect(prCreates[1]!.args).toContain('feat/layer-backend');
+    expect(prCreates[1]!.args).toContain('feat/layer-schema');
+    // No external stack CLI step.
+    expect(steps.some((s) => s.command === 'stack')).toBe(false);
   });
 });

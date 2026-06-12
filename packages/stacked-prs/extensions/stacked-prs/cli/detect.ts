@@ -1,48 +1,27 @@
 /**
- * Detect whether the stacking toolchain is available and authenticated.
+ * Detect whether the GitHub toolchain is available and authenticated.
+ *
+ * The engine is fully self-contained — it shells out only to `git` and `gh`,
+ * both of which are normally already present. We just verify `gh` is
+ * authenticated; `git` is assumed available inside a repo.
  */
 import type { ExecFn } from './runner';
 
 export interface DetectResult {
-  /** `stack` CLI is installed and runnable. */
-  stackInstalled: boolean;
-  /** A host CLI (`gh` or `glab`) is authenticated. */
-  hostAuthenticated: boolean;
-  /** Which host CLI was detected as authenticated, if any. */
-  host?: 'github' | 'gitlab';
+  /** `gh` CLI is installed and authenticated. */
+  ready: boolean;
   /** Human-readable guidance when something is missing. */
   message?: string;
 }
 
-const INSTALL_HINT =
-  'Install it with `npm install -g @kitlangton/stack`, then authenticate a host CLI (`gh auth login` or `glab auth login`).';
-
-/** Probe `stack`, `gh`, and `glab` availability. */
-export async function detectStack(exec: ExecFn): Promise<DetectResult> {
-  const stackInstalled = await isRunnable(exec, 'stack', ['--version']);
-  if (!stackInstalled) {
-    return {
-      stackInstalled: false,
-      hostAuthenticated: false,
-      message: `The \`stack\` CLI was not found. ${INSTALL_HINT}`,
-    };
-  }
-
-  const ghAuthed = await isRunnable(exec, 'gh', ['auth', 'status']);
-  if (ghAuthed) {
-    return { stackInstalled: true, hostAuthenticated: true, host: 'github' };
-  }
-
-  const glabAuthed = await isRunnable(exec, 'glab', ['auth', 'status']);
-  if (glabAuthed) {
-    return { stackInstalled: true, hostAuthenticated: true, host: 'gitlab' };
-  }
-
+/** Probe `gh auth status`. */
+export async function detectGitHub(exec: ExecFn): Promise<DetectResult> {
+  const authed = await isRunnable(exec, 'gh', ['auth', 'status']);
+  if (authed) return { ready: true };
   return {
-    stackInstalled: true,
-    hostAuthenticated: false,
+    ready: false,
     message:
-      'No authenticated host CLI found. Run `gh auth login` (GitHub) or `glab auth login` (GitLab).',
+      'GitHub CLI is not available or not authenticated. Install https://cli.github.com/ and run `gh auth login`.',
   };
 }
 
