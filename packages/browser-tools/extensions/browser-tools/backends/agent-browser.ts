@@ -7,6 +7,7 @@ import {
   viewportFor,
 } from './agent-browser-cli.js';
 import { resolveTargetRef } from './resolve-target.js';
+import { downscalePng } from '../image/png.js';
 import type {
   BrowserBackend,
   BrowserInteractParams,
@@ -405,7 +406,10 @@ class AgentBrowserBackend implements BrowserBackend {
     try {
       await runAgentBrowserJson(['screenshot', screenshotPath]);
       const png = await readFile(screenshotPath);
-      return png.toString('base64');
+      // Cap dimensions so retina/full-page captures stay under Anthropic's
+      // 2000px many-image limit (and cost fewer image tokens).
+      const resized = downscalePng(new Uint8Array(png.buffer, png.byteOffset, png.byteLength));
+      return Buffer.from(resized).toString('base64');
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

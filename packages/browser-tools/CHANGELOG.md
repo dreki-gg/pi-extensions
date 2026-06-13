@@ -1,5 +1,15 @@
 # @dreki-gg/pi-browser-tools
 
+## 0.4.2
+
+### Patch Changes
+
+- Downscale browser screenshots so their longest edge stays at most 1568px before
+  they reach the model. Retina and full-page captures previously exceeded
+  Anthropic's 2000px "many-image" limit, hard-failing long browsing sessions with
+  `image dimensions exceed max allowed size`. Capping the dimensions fixes that and
+  also reduces image tokens.
+
 ## 0.4.1
 
 ### Patch Changes
