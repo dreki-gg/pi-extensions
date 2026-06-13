@@ -3,6 +3,7 @@ import { createPiAiChatFn } from './ai/pi-ai-adapter';
 import { createWsBridge, type WsBridge } from './server/ws-bridge';
 import { createServerManager, resolveAppDir, type ServerManager } from './server/manager';
 import { createMessageHandlers } from './server/handlers';
+import { openUrlCommand } from './open-url';
 
 const WS_PORT = 3001;
 const APP_PORT = 3000;
@@ -79,8 +80,8 @@ export function registerPrCanvasCommands(pi: ExtensionAPI) {
     }
 
     // 4. Open browser
-    const openCmd = process.platform === 'darwin' ? 'open' : 'xdg-open';
-    await pi.exec(openCmd, [`http://localhost:${APP_PORT}`]);
+    const open = openUrlCommand(`http://localhost:${APP_PORT}`);
+    await pi.exec(open.command, open.args);
 
     ctx.ui.setStatus('pr-canvas', `✅ Running on localhost:${APP_PORT}`);
     ctx.ui.notify(`PR Canvas running at http://localhost:${APP_PORT}`, 'info');
@@ -141,8 +142,8 @@ export function registerPrCanvasCommands(pi: ExtensionAPI) {
           const url = prNumber
             ? `http://localhost:${APP_PORT}/pr/${prNumber}`
             : `http://localhost:${APP_PORT}`;
-          const openCmd = process.platform === 'darwin' ? 'open' : 'xdg-open';
-          await pi.exec(openCmd, [url]);
+          const open = openUrlCommand(url);
+          await pi.exec(open.command, open.args);
           ctx.ui.notify(`Opened ${url}`, 'info');
           break;
         }

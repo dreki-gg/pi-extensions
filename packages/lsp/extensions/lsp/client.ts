@@ -6,7 +6,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 
 import { LspConnection } from './protocol';
 import type {
@@ -246,7 +246,7 @@ export class LspClient {
           symbol: {},
         },
       },
-      workspaceFolders: [{ uri: rootUri, name: this.rootPath.split('/').pop() || 'workspace' }],
+      workspaceFolders: [{ uri: rootUri, name: basename(this.rootPath) || 'workspace' }],
       initializationOptions: this.config.initializationOptions,
     })) as { capabilities?: Record<string, unknown> } | null;
 
