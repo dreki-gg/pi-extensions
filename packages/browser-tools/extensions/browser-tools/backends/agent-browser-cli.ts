@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { runProcess } from '../process/run-process.js';
 import type { ViewportPreset } from './types.js';
 
 const AGENT_BROWSER_BIN = 'agent-browser';
@@ -46,48 +46,27 @@ export function viewportFor(
 
 export async function runAgentBrowser(
   args: string[],
-  options: { expectJson?: boolean; cwd?: string } = {},
+  options: { expectJson?: boolean; cwd?: string; timeoutMs?: number } = {},
 ): Promise<AgentBrowserCommandResult> {
   const finalArgs = withSessionAndJson(args, options.expectJson ?? false);
 
-  return new Promise<AgentBrowserCommandResult>((resolve, reject) => {
-    const child = spawn(AGENT_BROWSER_BIN, finalArgs, {
+  let result: AgentBrowserCommandResult;
+  try {
+    result = await runProcess({
+      command: AGENT_BROWSER_BIN,
+      args: finalArgs,
       cwd: options.cwd,
-      env: process.env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: process.platform === 'win32',
+      timeoutMs: options.timeoutMs,
     });
+  } catch (error) {
+    throw createSpawnError(finalArgs, error);
+  }
 
-    let stdout = '';
-    let stderr = '';
+  if (result.exitCode !== 0) {
+    throw createCommandError(finalArgs, result);
+  }
 
-    child.stdout.on('data', (chunk: Buffer | string) => {
-      stdout += String(chunk);
-    });
-
-    child.stderr.on('data', (chunk: Buffer | string) => {
-      stderr += String(chunk);
-    });
-
-    child.on('error', (error) => {
-      reject(createSpawnError(finalArgs, error));
-    });
-
-    child.on('close', (exitCode) => {
-      const result = {
-        stdout,
-        stderr,
-        exitCode: exitCode ?? 1,
-      } satisfies AgentBrowserCommandResult;
-
-      if (result.exitCode !== 0) {
-        reject(createCommandError(finalArgs, result));
-        return;
-      }
-
-      resolve(result);
-    });
-  });
+  return result;
 }
 
 export async function runAgentBrowserJson<T>(
@@ -199,6 +178,17 @@ function createSpawnError(args: string[], error: unknown): Error {
           ? ['  brew install agent-browser && agent-browser install']
           : []),
         '  npm install -g agent-browser && agent-browser install',
+      ].join('\n'),
+    );
+  }
+
+  if (error instanceof Error && /timed out/iu.test(error.message)) {
+    return new Error(
+      [
+        `agent-browser command timed out: ${command}`,
+        error.message,
+        'The browser may be stuck. Try `agent-browser close --all` and retry,',
+        'and confirm the browser is installed with `agent-browser install`.',
       ].join('\n'),
     );
   }
