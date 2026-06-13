@@ -41,6 +41,8 @@ export type BrowserInteractParams = {
 
 export type BrowserScreenshotResult = {
   imageBase64: string;
+  /** Mime type of the encoded image (JPEG after compression, PNG on fallback). */
+  mimeType: 'image/jpeg' | 'image/png';
   url: string | null;
   viewport: { width: number; height: number } | null;
 };

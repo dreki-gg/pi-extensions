@@ -7,7 +7,7 @@ import {
   viewportFor,
 } from './agent-browser-cli.js';
 import { resolveTargetRef } from './resolve-target.js';
-import { downscalePng } from '../image/png.js';
+import { encodeScreenshot } from '../image/screenshot.js';
 import type {
   BrowserBackend,
   BrowserInteractParams,
@@ -158,11 +158,12 @@ class AgentBrowserBackend implements BrowserBackend {
         await this.waitForPage(options?.waitMs ?? DEFAULT_WAIT_MS);
       }
 
-      const imageBase64 = await this.captureScreenshotBase64();
+      const captured = await this.captureScreenshot();
       await this.refreshUrl(options?.url);
 
       return {
-        imageBase64,
+        imageBase64: captured.base64,
+        mimeType: captured.mimeType,
         url: this.status.url,
         viewport: this.status.viewport,
       };
@@ -399,17 +400,17 @@ class AgentBrowserBackend implements BrowserBackend {
     }
   }
 
-  private async captureScreenshotBase64(): Promise<string> {
+  private async captureScreenshot(): Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' }> {
     const tempDir = await mkdtemp(join(tmpdir(), 'pi-browser-tools-agent-browser-'));
     const screenshotPath = join(tempDir, 'screenshot.png');
 
     try {
       await runAgentBrowserJson(['screenshot', screenshotPath]);
       const png = await readFile(screenshotPath);
-      // Cap dimensions so retina/full-page captures stay under Anthropic's
-      // 2000px many-image limit (and cost fewer image tokens).
-      const resized = downscalePng(new Uint8Array(png.buffer, png.byteOffset, png.byteLength));
-      return Buffer.from(resized).toString('base64');
+      // Cap dimensions (retina/full-page captures can exceed Anthropic's 2000px
+      // many-image limit) and re-encode to JPEG so a long session of
+      // screenshots stays under the total request-size limit.
+      return encodeScreenshot(new Uint8Array(png.buffer, png.byteOffset, png.byteLength));
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

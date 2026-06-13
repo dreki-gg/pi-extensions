@@ -21,12 +21,40 @@ const PNG_SIGNATURE = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
 /** Anthropic's recommended max long edge; also keeps us under the 2000px cap. */
 export const MAX_EDGE = 1568;
 
-type DecodedImage = {
+export type DecodedImage = {
   width: number;
   height: number;
   /** Always normalized to RGBA, 4 bytes per pixel. */
   rgba: Uint8Array;
 };
+
+/**
+ * Decode a PNG and downscale it to RGBA pixels whose longest edge is at most
+ * `maxEdge`. Returns `null` for unsupported PNGs so callers can fall back to the
+ * original bytes. Unlike {@link downscalePng}, this returns raw pixels (handy
+ * for re-encoding to another format such as JPEG).
+ */
+export function decodeToCappedRgba(
+  input: Uint8Array,
+  maxEdge: number = MAX_EDGE,
+): DecodedImage | null {
+  let decoded: DecodedImage;
+  try {
+    decoded = decodePng(input);
+  } catch {
+    return null;
+  }
+
+  const longest = Math.max(decoded.width, decoded.height);
+  if (longest <= maxEdge) {
+    return decoded;
+  }
+
+  const scale = maxEdge / longest;
+  const targetWidth = Math.max(1, Math.round(decoded.width * scale));
+  const targetHeight = Math.max(1, Math.round(decoded.height * scale));
+  return resampleArea(decoded, targetWidth, targetHeight);
+}
 
 /**
  * Downscale a PNG so neither dimension exceeds `maxEdge`, preserving aspect

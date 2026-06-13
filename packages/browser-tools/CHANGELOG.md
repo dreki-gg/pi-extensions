@@ -1,5 +1,15 @@
 # @dreki-gg/pi-browser-tools
 
+## 0.4.4
+
+### Patch Changes
+
+- 270f5c3: Encode browser screenshots as JPEG instead of PNG. PNG screenshots are large,
+  and a long browsing session accumulates enough of them to exceed the API's total
+  request-size limit (HTTP 413). Re-encoding to JPEG (quality 80, after the
+  existing dimension cap) shrinks each screenshot substantially — full-page
+  captures drop from megabytes to tens of KB — while keeping UI text crisp.
+
 ## 0.4.3
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-browser-tools",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Browser automation and web research tools for pi — search, visit, screenshot, interact, and inspect console output",
   "keywords": [
     "pi-package",
@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
+    "jpeg-js": "^0.4.4",
     "linkedom": "^0.18.12",
     "pako": "^2.1.0",
     "turndown": "^7.2.1"

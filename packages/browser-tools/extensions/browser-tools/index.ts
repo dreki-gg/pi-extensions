@@ -181,6 +181,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
         const analysis = await analyzeScreenshot({
           modelRegistry: ctx.modelRegistry,
           imageBase64: screenshot.imageBase64,
+          mimeType: screenshot.mimeType,
           prompt: params.analyze_prompt,
           signal,
           env,
@@ -201,7 +202,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
           {
             type: 'image',
             data: screenshot.imageBase64,
-            mimeType: 'image/png',
+            mimeType: screenshot.mimeType,
           },
         ],
         details: {
@@ -272,6 +273,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
         const analysis = await analyzeScreenshot({
           modelRegistry: ctx.modelRegistry,
           imageBase64: screenshot.imageBase64,
+          mimeType: screenshot.mimeType,
           prompt: params.analyze_prompt,
           signal,
           env,
@@ -300,7 +302,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
           {
             type: 'image',
             data: screenshot.imageBase64,
-            mimeType: 'image/png',
+            mimeType: screenshot.mimeType,
           },
         ],
         details: {
