@@ -5,9 +5,37 @@ description: Publish extension packages to the local Verdaccio npm registry at l
 
 # Deploy to Local Registry
 
-This monorepo uses a local [Verdaccio](https://verdaccio.org/) registry at `http://localhost:4873` for publishing `@dreki-gg/*` packages so they can be installed via npm/bun without pushing to the public registry.
+This monorepo uses a local [Verdaccio](https://verdaccio.org/) registry at `http://127.0.0.1:4873` for publishing `@dreki-gg/*` packages so they can be installed via npm/bun without pushing to the public registry.
 
-## Quick start
+> **Windows / PowerShell:** use the `.ps1` scripts below. macOS/Linux use the `bun run deploy:local*` / launchctl flow further down. On Windows, always address the registry as `http://127.0.0.1:4873` — `localhost` may resolve to IPv6 `::1`, which Verdaccio does not bind.
+
+## Windows (PowerShell)
+
+One-time setup is already done: Verdaccio + jq installed, config at `scripts/verdaccio/config.yaml`, scope routing (`@dreki-gg:registry`) and an auth token in `~/.npmrc`.
+
+```powershell
+# Start / stop / check the registry
+bun run registry:start      # or: pwsh -File ./scripts/local-registry.ps1 start
+bun run registry:status
+bun run registry:stop
+
+# Publish
+bun run deploy:local:win        # version (changesets) + publish changed packages
+bun run deploy:local:win:force  # republish everything
+bun run deploy:local:win:dry    # preview only
+
+# Auto-start at logon (registers a hidden Scheduled Task 'DrekiLocalVerdaccio')
+bun run registry:autostart
+bun run registry:autostart:remove
+```
+
+Auto-start uses a per-user Scheduled Task triggered **at logon** (no admin needed, runs hidden). For a machine-wide service that starts before login, install via NSSM/node-windows instead.
+
+- Registry runs detached; pid in `scripts/verdaccio/verdaccio.pid`, logs in `scripts/verdaccio/verdaccio.log`.
+- Storage lives under `scripts/verdaccio/storage/`. Wipe it + run `deploy:local:win:force` to fully reseed.
+- If publish returns `ENEEDAUTH`, the token in `~/.npmrc` (`//127.0.0.1:4873/:_authToken=`) is missing — recreate it by PUTting to `http://127.0.0.1:4873/-/user/org.couchdb.user:dreki`.
+
+## macOS / Linux quick start
 
 ```bash
 # Preview what will be versioned and published

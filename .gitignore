@@ -28,3 +28,11 @@ packages/*/extensions/*/config.json
 bun.lockb
 .plans/
 .handoffs/
+
+# Local Verdaccio registry runtime artifacts
+scripts/verdaccio/storage/
+scripts/verdaccio/plugins/
+scripts/verdaccio/*.log
+scripts/verdaccio/*.log.err
+scripts/verdaccio/*.pid
+scripts/verdaccio/htpasswd
