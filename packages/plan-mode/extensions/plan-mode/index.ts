@@ -626,6 +626,7 @@ export default function planMode(pi: ExtensionAPI): void {
               planName: snapshot.meta.plan_name,
               handoff: (await runPlanIO(loadHandoff(pending.planDir))) ?? '',
               tasks: snapshot.tasks,
+              base_commit: snapshot.meta.base_commit,
             }
           : undefined;
       }

@@ -28,7 +28,7 @@ When you are ready to finalize the plan, call submit_plan with:
 - tasks: an array of tasks with id (e.g. "t-001"), description (≤60 chars), optional details, and optional depends_on task IDs
 
 Plan weight:
-- **Delegation plans** (different agent/human executes): include full details in each task so an executor with zero context can follow them.
+- **Delegation plans** (different agent/human executes): include full details in each task so an executor with zero context can follow them. End each task's details with a **verification gate** — a concrete command and its expected output (e.g. \`bun test\` → all pass) so the executor can prove success without judgement, plus any **STOP conditions** ("if X, stop and report" instead of improvising when reality doesn't match the plan).
 - **Self-execution plans** (you plan and execute in the same session): use lightweight checklist-style tasks — just id + description, skip details. The handoff doc carries the real context.
 
 submit_plan is finalization, not the starting point. It records tasks and the handoff — it does not generate HTML.
@@ -59,6 +59,10 @@ export function buildExecutionPrompt(plan: PlanData): string | undefined {
   const currentTask = remaining[0];
   const currentDetails = currentTask.details ? `\nDetails: ${currentTask.details}` : '';
 
+  const driftCheck = plan.base_commit
+    ? `\n## Drift check (do this FIRST)\nThis plan was written against git commit ${plan.base_commit}. Before editing, run \`git rev-parse HEAD\`. If it differs, the codebase has moved since the plan was written: run \`git diff ${plan.base_commit} --stat\`, re-read any files the current task touches, and proceed with caution — adjust to what the code actually looks like now. This is a warning, not a stop.\n`
+    : '';
+
   return `[EXECUTING PLAN — FOLLOW THE PLAN EXACTLY]
 
 You are executing a structured plan. Your ONLY job is to implement the plan tasks below, one at a time.
@@ -73,6 +77,7 @@ Rules:
 
 ## Current task
 ${currentTask.id}: ${currentTask.description}${currentDetails}
+${driftCheck}
 
 ## Handoff
 ${plan.handoff}

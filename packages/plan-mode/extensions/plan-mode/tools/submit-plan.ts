@@ -13,6 +13,7 @@ import { readInitiativesManifest } from '../storage/initiatives-manifest.js';
 import { reconcileInitiativeForPlan } from '../initiative.js';
 import type { RunPlanIO } from '../effects/runtime.js';
 import { toKebabCase } from '../utils.js';
+import { readHeadCommit } from '../git.js';
 import type { PlanData, TaskMeta, TaskRecord } from '../types.js';
 
 export interface SubmitPlanCallbacks {
@@ -33,6 +34,7 @@ export function registerSubmitPlanTool(
       'Only call submit_plan after shared understanding has been reached with the user.',
       'Each task needs an id like t-001, a short description, and optional depends_on task IDs.',
       "When a different agent or human will execute the plan, include detailed implementation instructions in each task's details field.",
+      "For delegation tasks (those with details), end the details with a verification gate: a concrete command and its expected output, plus any STOP conditions, so a zero-context executor can prove success without judgement.",
       'When you are planning and executing yourself (same session), use lightweight checklist-style tasks: just id + description, omit details. Put the real context in the handoff document instead.',
       'The handoff must be thorough enough that both a human reviewer and executor agent with zero prior context can understand the plan.',
       'For visual/UI work, preview a prototype with preview_prototype during planning — before submit_plan, not as part of it.',
@@ -81,11 +83,13 @@ export function registerSubmitPlanTool(
       const initiative = params.initiative ? toKebabCase(params.initiative) : undefined;
       const dependsOnPlans = params.depends_on_plans?.map(toKebabCase);
       const now = new Date().toISOString();
+      const baseCommit = await readHeadCommit();
       const meta: TaskMeta = {
         _type: 'meta',
         title: params.title,
         plan_name: planName,
         created_at: now,
+        base_commit: baseCommit,
       };
       const tasks: TaskRecord[] = params.tasks.map((task) => ({
         _type: 'task',
@@ -97,7 +101,13 @@ export function registerSubmitPlanTool(
         created_at: now,
         updated_at: now,
       }));
-      const plan: PlanData = { title: params.title, planName, handoff: params.handoff, tasks };
+      const plan: PlanData = {
+        title: params.title,
+        planName,
+        handoff: params.handoff,
+        tasks,
+        base_commit: baseCommit,
+      };
 
       const unknownInitiative = await runPlanIO(
         Effect.gen(function* () {

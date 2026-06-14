@@ -57,6 +57,7 @@ async function attach(
     planName: snapshot.meta.plan_name,
     handoff: (await runPlanIO(loadHandoff(dir))) ?? '',
     tasks: snapshot.tasks,
+    base_commit: snapshot.meta.base_commit,
   };
   state.plan = plan;
   state.planDir = dir;

@@ -47,6 +47,13 @@ describe('tasks.jsonl storage', () => {
     await expect(run(readTasksJsonl(dir))).resolves.toEqual({ meta, tasks: [task] });
   });
 
+  test('round trips base_commit on the meta record', async () => {
+    const metaWithCommit: TaskMeta = { ...meta, base_commit: 'deadbeefcafe' };
+    await run(writeTasksJsonl(dir, metaWithCommit, [task]));
+    const result = await run(readTasksJsonl(dir));
+    expect(result?.meta.base_commit).toBe('deadbeefcafe');
+  });
+
   test('round trips tasks without details (lightweight checklist)', async () => {
     const lightweight: TaskRecord = {
       _type: 'task',

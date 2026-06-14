@@ -1,5 +1,18 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.26.0
+
+### Minor Changes
+
+- Make plans more executable by zero-context executors. Plans now stamp the git
+  commit they were written against (`base_commit`), and the execution prompt runs
+  a drift check — if HEAD has moved, the executor is told to diff, re-read the
+  affected files, and proceed with caution. Planning guidance also now asks
+  delegation tasks to end their details with a verification gate (a concrete
+  command + expected output) and STOP conditions, so success is machine-checkable.
+  Fully backward-compatible: older plans without `base_commit` simply skip the
+  drift check.
+
 ## 0.25.0
 
 ### Minor Changes

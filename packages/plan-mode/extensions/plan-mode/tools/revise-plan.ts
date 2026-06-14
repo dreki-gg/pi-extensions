@@ -129,12 +129,14 @@ export function registerRevisePlanTool(
         title: newTitle,
         plan_name: plan.planName,
         created_at: plan.tasks[0]?.created_at ?? now,
+        base_commit: plan.base_commit,
       };
       const revised: PlanData = {
         title: newTitle,
         planName: plan.planName,
         handoff: newHandoff,
         tasks,
+        base_commit: plan.base_commit,
       };
       const planDir = `.plans/${plan.planName}`;
 

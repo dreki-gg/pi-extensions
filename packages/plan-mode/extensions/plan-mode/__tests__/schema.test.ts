@@ -113,6 +113,21 @@ describe('task meta schema', () => {
     ).toBe(true);
   });
 
+  test('accepts a meta record with base_commit', () => {
+    expect(
+      isOk(
+        { _type: 'meta', title: 'Refactor', plan_name: 'refactor', created_at: now, base_commit: 'abc123' },
+        decodeTaskMeta,
+      ),
+    ).toBe(true);
+  });
+
+  test('accepts a meta record without base_commit (back-compat)', () => {
+    expect(
+      isOk({ _type: 'meta', title: 'Refactor', plan_name: 'refactor', created_at: now }, decodeTaskMeta),
+    ).toBe(true);
+  });
+
   test('rejects malformed meta records', () => {
     expect(isOk({ _type: 'meta', title: 'Refactor' }, decodeTaskMeta)).toBe(false);
     expect(

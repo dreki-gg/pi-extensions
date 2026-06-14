@@ -82,6 +82,7 @@ export async function resumePlan(
     planName: snapshot.meta.plan_name,
     handoff: (await runPlanIO(loadHandoff(dir))) ?? '',
     tasks: snapshot.tasks,
+    base_commit: snapshot.meta.base_commit,
   };
 
   const doneCount = state.plan.tasks.filter(

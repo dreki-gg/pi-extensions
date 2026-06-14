@@ -31,6 +31,8 @@ export const TaskMetaSchema = Schema.Struct({
   title: Schema.String,
   plan_name: Schema.String,
   created_at: Schema.String,
+  /** Optional git commit the plan was written against (back-compat: absent on older plans). */
+  base_commit: Schema.optional(Schema.String),
 });
 
 /** A single tasks.jsonl line is either the meta record or a task record. */

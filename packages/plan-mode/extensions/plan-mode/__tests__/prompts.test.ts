@@ -23,6 +23,11 @@ describe('buildPlanModePrompt', () => {
     expect(prompt).toContain('technical-options');
   });
 
+  test('instructs delegation tasks to include a verification gate', () => {
+    expect(prompt).toContain('verification gate');
+    expect(prompt).toContain('STOP conditions');
+  });
+
   test('mentions handoff instead of context and risks', () => {
     expect(prompt).toContain('handoff');
     expect(prompt).not.toContain('- risks:');
@@ -70,6 +75,24 @@ describe('buildExecutionPrompt', () => {
     };
     const prompt = buildExecutionPrompt(plan)!;
     expect(prompt).toContain('Details: Full instructions here');
+  });
+
+  test('includes a drift check when base_commit is present', () => {
+    const plan: PlanData = {
+      title: 'Test',
+      planName: 'test',
+      handoff: '# H',
+      tasks: [makeTask()],
+      base_commit: 'deadbeef',
+    };
+    const prompt = buildExecutionPrompt(plan)!;
+    expect(prompt).toContain('Drift check');
+    expect(prompt).toContain('deadbeef');
+  });
+
+  test('omits the drift check when base_commit is absent', () => {
+    const plan: PlanData = { title: 'Test', planName: 'test', handoff: '# H', tasks: [makeTask()] };
+    expect(buildExecutionPrompt(plan)!).not.toContain('Drift check');
   });
 
   test('returns undefined when no pending tasks', () => {

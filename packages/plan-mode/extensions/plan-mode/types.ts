@@ -35,6 +35,12 @@ export interface TaskMeta {
   title: string;
   plan_name: string;
   created_at: string;
+  /**
+   * Git commit (HEAD) the plan was written against, captured at submit time.
+   * Optional for back-compat: older tasks.jsonl files predate this field, and
+   * it stays undefined when git metadata is unavailable (no repo, no commits).
+   */
+  base_commit?: string;
 }
 
 export interface PlanData {
@@ -42,6 +48,8 @@ export interface PlanData {
   planName: string;
   handoff: string;
   tasks: TaskRecord[];
+  /** Git commit the plan was written against; powers the executor drift check. */
+  base_commit?: string;
 }
 
 export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
