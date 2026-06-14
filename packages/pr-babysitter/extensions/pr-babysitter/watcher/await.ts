@@ -110,6 +110,15 @@ export async function awaitPrResult(deps: AwaitPrDeps): Promise<PrReport> {
     const state = await fetchPrState(deps.exec, deps.pr);
     if (state === 'MERGED') return report('merged');
     if (state === 'CLOSED') return report('closed');
+    if (state === null) {
+      // gh call failed or timed out — don't trust check data this round, and
+      // don't let an empty result masquerade as `no_checks`. Retry next poll.
+      const elapsed = now() - start;
+      deps.onUpdate?.(`⏳ PR #${deps.pr}: waiting (gh unavailable) (${formatElapsed(elapsed)} elapsed)`);
+      if (elapsed >= deps.timeoutMs) return report('timeout');
+      await sleep(deps.intervalMs, deps.signal);
+      continue;
+    }
 
     const [checks, comments] = await Promise.all([
       fetchChecks(deps.exec, deps.pr),

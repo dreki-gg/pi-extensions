@@ -45,7 +45,8 @@ structured verdict once the checks settle, the PR merges/closes, or it times out
 |---|---|---|
 | `pr` | current branch's PR | PR number to wait on |
 | `pollSeconds` | 15 | internal poll interval |
-| `timeoutSeconds` | 1200 | max wait before returning `timeout` |
+| `timeoutSeconds` | 1200 | max total wait before returning `timeout` |
+| `callTimeoutSeconds` | 30 | per-`gh`-call timeout; bounds a single hung call |
 
 Outcomes: `passing`, `failing` (with failing check names), `merged`, `closed`,
 `timeout`, `no_checks`, `cancelled` (Esc). New review/bot comments seen during

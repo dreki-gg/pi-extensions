@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Type } from 'typebox';
-import type { ExecFn, ExecResult } from './cli/runner';
+import { GH_CALL_TIMEOUT_MS, type ExecFn, type ExecResult } from './cli/runner';
 import { fetchSelfLogin, resolveCurrentPr } from './engine/gh';
 import { awaitPrResult, formatReport } from './watcher/await';
 
@@ -14,8 +14,6 @@ const NO_CHECKS_GRACE_S = 60;
  * sleep-and-poll by hand.
  */
 export function registerBabysitTool(pi: ExtensionAPI) {
-  const exec: ExecFn = (command, args) => pi.exec(command, args) as Promise<ExecResult>;
-
   pi.registerTool({
     name: 'babysit_pr',
     label: 'Babysit PR',
@@ -36,8 +34,19 @@ export function registerBabysitTool(pi: ExtensionAPI) {
       pollSeconds: Type.Optional(
         Type.Number({ description: `Poll interval in seconds (default ${DEFAULT_POLL_S})` }),
       ),
+      callTimeoutSeconds: Type.Optional(
+        Type.Number({
+          description: `Per-\`gh\`-call timeout in seconds; bounds a single hung call (default ${GH_CALL_TIMEOUT_MS / 1000})`,
+        }),
+      ),
     }),
     async execute(_toolCallId, params, signal, onUpdate) {
+      // Bound every gh call by a timeout and wire Esc through, so a hung call
+      // cannot block the wait past one timeout window.
+      const callTimeoutMs = (params.callTimeoutSeconds ?? GH_CALL_TIMEOUT_MS / 1000) * 1000;
+      const exec: ExecFn = (command, args) =>
+        pi.exec(command, args, { timeout: callTimeoutMs, signal }) as Promise<ExecResult>;
+
       const pr = params.pr ?? (await resolveCurrentPr(exec))?.number;
       if (!pr) {
         return {

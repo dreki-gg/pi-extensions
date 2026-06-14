@@ -2,7 +2,7 @@ import type {
   ExtensionAPI,
   ExtensionCommandContext,
 } from '@earendil-works/pi-coding-agent';
-import type { ExecFn, ExecResult } from './cli/runner';
+import { GH_CALL_TIMEOUT_MS, type ExecFn, type ExecResult } from './cli/runner';
 import { Babysitter } from './watcher/poller';
 import type { SeenState } from './watcher/state';
 
@@ -14,7 +14,8 @@ const USAGE = 'Usage: /babysit start | stop | status';
  * instance so the extension entrypoint can drive its session lifecycle.
  */
 export function registerBabysitterCommand(pi: ExtensionAPI): Babysitter {
-  const exec: ExecFn = (command, args) => pi.exec(command, args) as Promise<ExecResult>;
+  const exec: ExecFn = (command, args) =>
+    pi.exec(command, args, { timeout: GH_CALL_TIMEOUT_MS }) as Promise<ExecResult>;
 
   // ctx.ui is captured per command call into this holder so the polling timer
   // (which runs outside any handler) can still surface status/notifications.

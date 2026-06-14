@@ -3,9 +3,12 @@ import type { ExecResult } from '../extensions/pr-babysitter/cli/runner';
 import { awaitPrResult, formatReport } from '../extensions/pr-babysitter/watcher/await';
 
 const ok = (stdout: string): ExecResult => ({ stdout, stderr: '', code: 0 });
+const err = (): ExecResult => ({ stdout: '', stderr: 'timed out', code: 124, killed: true });
 
 interface Frame {
   state?: string;
+  /** Simulate a failed/timed-out `gh pr view --json state` call. */
+  stateErr?: boolean;
   checks?: Array<{ name: string; bucket: string }>;
   comments?: Array<{ id: string; author: string; body: string }>;
 }
@@ -22,7 +25,8 @@ function run(frames: Frame[], opts: { timeoutMs?: number; noChecksGraceMs?: numb
   const exec = async (_c: string, args: string[]): Promise<ExecResult> => {
     const f = frames[Math.min(idx, frames.length - 1)] ?? {};
     const a = args.join(' ');
-    if (a.endsWith('--json state')) return ok(JSON.stringify({ state: f.state ?? 'OPEN' }));
+    if (a.endsWith('--json state'))
+      return f.stateErr ? err() : ok(JSON.stringify({ state: f.state ?? 'OPEN' }));
     if (a.includes('pr checks')) return ok(JSON.stringify(f.checks ?? []));
     if (a.includes('comments,reviews'))
       return ok(JSON.stringify({ comments: (f.comments ?? []).map((c) => ({ id: c.id, author: { login: c.author }, body: c.body })), reviews: [] }));
@@ -97,6 +101,13 @@ describe('awaitPrResult', () => {
   test('gives up with no_checks when none register within the grace window', async () => {
     const r = await run([{ checks: [] }], { noChecksGraceMs: 0 });
     expect(r.outcome).toBe('no_checks');
+  });
+
+  test('a timed-out poll is not mistaken for no_checks; it retries and recovers', async () => {
+    const r = await run([{ stateErr: true, checks: [] }, { checks: [{ name: 'b', bucket: 'pass' }] }], {
+      noChecksGraceMs: 0,
+    });
+    expect(r.outcome).toBe('passing');
   });
 
   test('heartbeats onUpdate between polls so the wait looks alive', async () => {

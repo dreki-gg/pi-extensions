@@ -15,3 +15,7 @@ export interface ExecResult {
 }
 
 export type ExecFn = (command: string, args: string[]) => Promise<ExecResult>;
+
+/** Per-`gh`-call timeout. Bounds a single hung invocation so a stalled network
+ * call cannot freeze a poll loop indefinitely. */
+export const GH_CALL_TIMEOUT_MS = 30_000;

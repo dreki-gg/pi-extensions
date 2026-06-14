@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-pr-babysitter",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "In-session pi extension that babysits the current branch's PR — polls gh for new check failures and review/bot comments and wakes the agent (observe-only).",
   "keywords": [
     "pi-package",
