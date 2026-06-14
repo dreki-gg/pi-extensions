@@ -361,9 +361,9 @@ function createResolveTool(name: string, description: string, promptVisible: boo
     ...(promptVisible
       ? {
           promptSnippet:
-            'Resolve a library or package name to a Context7 library ID before fetching docs when the exact ID is unknown.',
+            'Pin an ambiguous library name to one exact Context7 ID before fetching its docs.',
           promptGuidelines: [
-            'Use context7_resolve_library_id when the user asks for library documentation and you do not already know the exact Context7 library ID.',
+            'Reach for context7_resolve_library_id only when context7_get_library_docs reports an ambiguous match or you must pick one library among several — for the common case let context7_get_library_docs resolve the name itself.',
           ],
         }
       : {}),
@@ -406,10 +406,10 @@ function createDocsTool(
     ...(promptVisible
       ? {
           promptSnippet:
-            'Fetch curated, up-to-date Context7 docs for a library by ID or by name. Equivalent to Context7 MCP get-library-docs/query-docs.',
+            'Pull current, version-accurate library docs before coding against a third-party API instead of trusting trained-in memory.',
           promptGuidelines: [
-            'Prefer context7_get_library_docs over raw cached docs retrieval; use it first for normal documentation lookup.',
-            'If you only know the library name, pass libraryName to context7_get_library_docs and let it auto-resolve.',
+            'Call context7_get_library_docs before writing or editing code that imports, configures, or calls a third-party library — treat your trained-in knowledge of its API as stale until confirmed, especially for versioned or recently changed surfaces.',
+            'Pass libraryName and let context7_get_library_docs auto-resolve in a single call; only fall back to context7_resolve_library_id when the match comes back ambiguous.',
           ],
         }
       : {}),
@@ -477,10 +477,10 @@ function createRawDocsTool() {
     description:
       'Read the raw cached Context7 document for a previous docs fetch. Prefer context7_get_library_docs first.',
     promptSnippet:
-      'Read the full raw cached Context7 document by docRef or semantic lookup when curated docs were insufficient.',
+      'Open the full raw cached document when a curated Context7 excerpt dropped detail you still need.',
     promptGuidelines: [
-      'Use context7_get_cached_doc_raw only after context7_get_library_docs when you need the full cached raw documentation.',
-      'When calling context7_get_cached_doc_raw, prefer docRef from an earlier tool result. If semantic lookup matches multiple cached docs, the tool will not guess.',
+      'Use context7_get_cached_doc_raw only after context7_get_library_docs, when the curated excerpt omitted detail you need — pass the docRef it returned rather than re-describing the lookup.',
+      'Semantic lookup that matches several cached docs returns the candidates instead of guessing; narrow it with docRef or version.',
     ],
     parameters: Type.Object({
       docRef: Type.Optional(
@@ -598,7 +598,7 @@ export function registerContext7Tools(pi: ExtensionAPI) {
   pi.registerTool(
     createResolveTool(
       'context7_resolve_library_id',
-      'Resolve a library or package name to a Context7 library ID. Pi-native equivalent of Context7 MCP resolve-library-id.',
+      'Resolve a library or package name to one exact Context7 library ID when the name is ambiguous. Most callers should skip this and pass a name straight to context7_get_library_docs.',
       true,
     ),
   );
@@ -606,7 +606,7 @@ export function registerContext7Tools(pi: ExtensionAPI) {
   pi.registerTool(
     createDocsTool(
       'context7_get_library_docs',
-      'Fetch curated, up-to-date Context7 docs by library ID or library name. Pi-native equivalent of Context7 MCP get-library-docs / query-docs.',
+      'Fetch current, version-accurate library documentation from Context7 by name or ID. Use before coding against a third-party API instead of relying on trained-in memory.',
       true,
     ),
   );

@@ -1,5 +1,17 @@
 # @dreki-gg/pi-context7
 
+## 0.2.0
+
+### Minor Changes
+
+- Rework the model-facing prompts so agents actually reach for the docs tools.
+  `context7_get_library_docs` is now framed as a proactive step — consult it
+  before writing or editing code against a third-party library rather than only
+  when a user explicitly asks for documentation — and its one-call auto-resolve
+  path is emphasized. `context7_resolve_library_id` is demoted to the
+  ambiguous-match exception, and tool descriptions lead with behavior instead of
+  "MCP equivalent" narration.
+
 ## 0.1.9
 
 ### Patch Changes
