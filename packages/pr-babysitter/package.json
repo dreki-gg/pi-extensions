@@ -1,0 +1,55 @@
+{
+  "name": "@dreki-gg/pi-pr-babysitter",
+  "version": "0.4.0",
+  "description": "In-session pi extension that babysits the current branch's PR — polls gh for new check failures and review/bot comments and wakes the agent (observe-only).",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pr-babysitter",
+    "github",
+    "pull-request",
+    "ci",
+    "code-review"
+  ],
+  "author": "Juan Albarran <jalbarrandev@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dreki-gg/pi-extensions",
+    "directory": "packages/pr-babysitter"
+  },
+  "type": "module",
+  "files": [
+    "extensions",
+    "README.md",
+    "CHANGELOG.md",
+    "package.json"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "lint": "oxlint extensions",
+    "format": "oxfmt --write extensions",
+    "format:check": "oxfmt --check extensions"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/pr-babysitter"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "bun-types": "^1.3.14",
+    "oxfmt": "^0.43.0",
+    "oxlint": "^1.58.0",
+    "typescript": "^6.0.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    }
+  }
+}

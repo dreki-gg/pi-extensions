@@ -41,7 +41,7 @@
     },
     "packages/browser-tools": {
       "name": "@dreki-gg/pi-browser-tools",
-      "version": "0.4.3",
+      "version": "0.4.4",
       "dependencies": {
         "@mozilla/readability": "^0.6.0",
         "jpeg-js": "^0.4.4",
@@ -69,7 +69,7 @@
     },
     "packages/code-reviewer": {
       "name": "@dreki-gg/pi-code-reviewer",
-      "version": "0.6.2",
+      "version": "0.7.0",
       "dependencies": {
         "effect": "^3.21.2",
       },
@@ -129,7 +129,7 @@
     },
     "packages/context7": {
       "name": "@dreki-gg/pi-context7",
-      "version": "0.1.9",
+      "version": "0.2.0",
       "devDependencies": {
         "@types/node": "24",
         "oxfmt": "^0.43.0",
@@ -305,7 +305,7 @@
     },
     "packages/plan-mode": {
       "name": "@dreki-gg/pi-plan-mode",
-      "version": "0.25.0",
+      "version": "0.26.0",
       "bin": {
         "pi-plan-mode": "./bin/clean-plans.js",
       },
@@ -327,6 +327,23 @@
       "optionalPeers": [
         "@earendil-works/pi-coding-agent",
         "@earendil-works/pi-tui",
+      ],
+    },
+    "packages/pr-babysitter": {
+      "name": "@dreki-gg/pi-pr-babysitter",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/node": "24",
+        "bun-types": "^1.3.14",
+        "oxfmt": "^0.43.0",
+        "oxlint": "^1.58.0",
+        "typescript": "^6.0.0",
+      },
+      "peerDependencies": {
+        "@earendil-works/pi-coding-agent": "*",
+      },
+      "optionalPeers": [
+        "@earendil-works/pi-coding-agent",
       ],
     },
     "packages/pr-canvas": {
@@ -637,6 +654,8 @@
     "@dreki-gg/pi-past-chats": ["@dreki-gg/pi-past-chats@workspace:packages/past-chats"],
 
     "@dreki-gg/pi-plan-mode": ["@dreki-gg/pi-plan-mode@workspace:packages/plan-mode"],
+
+    "@dreki-gg/pi-pr-babysitter": ["@dreki-gg/pi-pr-babysitter@workspace:packages/pr-babysitter"],
 
     "@dreki-gg/pi-pr-canvas": ["@dreki-gg/pi-pr-canvas@workspace:packages/pr-canvas"],
 

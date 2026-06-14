@@ -1,0 +1,42 @@
+# @dreki-gg/pi-pr-babysitter
+
+## 0.4.0
+
+### Minor Changes
+
+- Add the PR babysitter extension. `/babysit start` watches the current branch's
+  open PR and, every 60 seconds, wakes the agent whenever a check newly fails or a
+  new review / bot (e.g. Cursor bugbot) comment lands. It is observe-only — it
+  surfaces activity into the session but never pushes commits or posts PR
+  comments. Checks use a tri-state health model (passing / pending / not passing):
+  the agent is woken only on the transition into not-passing (including
+  cancelled/timed-out checks), never on pending, and status shows all three
+  counts. When the PR leaves OPEN, the babysitter wakes the agent one last time
+  (merged vs. closed-unmerged) and stops watching automatically. Seen-state is
+  persisted so reload/resume never re-fires previously seen checks or comments.
+  `/babysit stop` and `/babysit status` manage the watch.
+
+## 0.3.0
+
+### Minor Changes
+
+- Add the PR babysitter extension. `/babysit start` watches the current branch's
+  open PR and, every 60 seconds, wakes the agent whenever a check newly fails or a
+  new review / bot (e.g. Cursor bugbot) comment lands. It is observe-only — it
+  surfaces activity into the session but never pushes commits or posts PR
+  comments. Checks use a tri-state health model (passing / pending / not passing):
+  the agent is woken only on the transition into not-passing (including
+  cancelled/timed-out checks), never on pending, and status shows all three
+  counts. Seen-state is persisted so reload/resume never re-fires previously seen
+  checks or comments. `/babysit stop` and `/babysit status` manage the watch.
+
+## 0.2.0
+
+### Minor Changes
+
+- Add the PR babysitter extension. `/babysit start` watches the current branch's
+  open PR and, every 60 seconds, wakes the agent whenever a check newly fails or a
+  new review / bot (e.g. Cursor bugbot) comment lands. It is observe-only — it
+  surfaces activity into the session but never pushes commits or posts PR
+  comments. Seen-state is persisted so reload/resume never re-fires previously
+  seen checks or comments. `/babysit stop` and `/babysit status` manage the watch.
