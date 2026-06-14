@@ -44,23 +44,43 @@ export interface AwaitPrDeps {
   noChecksGraceMs: number;
   signal?: AbortSignal;
   now?: () => number;
-  sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
+  sleep?: (ms: number, signal?: AbortSignal, onTick?: () => void) => Promise<void>;
   onUpdate?: (status: string) => void;
 }
 
-function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
+const HEARTBEAT_MS = 1000;
+
+/**
+ * Sleep for `ms`, firing `onTick` roughly every second so a long wait stays
+ * visibly alive (the elapsed counter ticks even between gh polls). Resolves
+ * early on abort.
+ */
+function defaultSleep(ms: number, signal?: AbortSignal, onTick?: () => void): Promise<void> {
   return new Promise((resolve) => {
     if (signal?.aborted) return resolve();
-    const timer = setTimeout(resolve, ms);
+    let elapsed = 0;
+    const interval = setInterval(() => {
+      elapsed += HEARTBEAT_MS;
+      if (elapsed >= ms) {
+        clearInterval(interval);
+        resolve();
+        return;
+      }
+      onTick?.();
+    }, HEARTBEAT_MS);
     signal?.addEventListener(
       'abort',
       () => {
-        clearTimeout(timer);
+        clearInterval(interval);
         resolve();
       },
       { once: true },
     );
   });
+}
+
+function statusLine(pr: number, counts: HealthCounts, elapsedMs: number): string {
+  return `⏳ PR #${pr}: ${formatCounts(counts)} (${formatElapsed(elapsedMs)} elapsed)`;
 }
 
 /** Poll the PR until its checks settle, it leaves OPEN, or we time out. */
@@ -109,7 +129,7 @@ export async function awaitPrResult(deps: AwaitPrDeps): Promise<PrReport> {
     counts = countHealth(checks);
     failing = failingCheckNames(checks);
     const elapsed = now() - start;
-    deps.onUpdate?.(`⏳ PR #${deps.pr}: ${formatCounts(counts)} (${formatElapsed(elapsed)} elapsed)`);
+    deps.onUpdate?.(statusLine(deps.pr, counts, elapsed));
 
     if (checks.length === 0) {
       if (elapsed >= deps.noChecksGraceMs) return report('no_checks');
@@ -118,7 +138,9 @@ export async function awaitPrResult(deps: AwaitPrDeps): Promise<PrReport> {
     }
 
     if (elapsed >= deps.timeoutMs) return report('timeout');
-    await sleep(deps.intervalMs, deps.signal);
+    await sleep(deps.intervalMs, deps.signal, () =>
+      deps.onUpdate?.(statusLine(deps.pr, counts, now() - start)),
+    );
   }
 }
 

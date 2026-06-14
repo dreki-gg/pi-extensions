@@ -99,6 +99,42 @@ describe('awaitPrResult', () => {
     expect(r.outcome).toBe('no_checks');
   });
 
+  test('heartbeats onUpdate between polls so the wait looks alive', async () => {
+    const updates: string[] = [];
+    let clock = 0;
+    let polls = 0;
+    const exec = async (_c: string, args: string[]): Promise<ExecResult> => {
+      const a = args.join(' ');
+      if (a.endsWith('--json state')) return ok(JSON.stringify({ state: 'OPEN' }));
+      if (a.includes('pr checks')) {
+        polls += 1;
+        return ok(JSON.stringify([{ name: 'b', bucket: polls >= 2 ? 'pass' : 'pending' }]));
+      }
+      if (a.includes('comments,reviews')) return ok(JSON.stringify({ comments: [], reviews: [] }));
+      if (a.startsWith('api repos')) return ok(JSON.stringify([]));
+      return ok('');
+    };
+    const r = await awaitPrResult({
+      exec,
+      pr: 7,
+      intervalMs: 3000,
+      timeoutMs: 60_000,
+      noChecksGraceMs: 60_000,
+      now: () => clock,
+      sleep: async (ms, _sig, onTick) => {
+        for (let t = 1000; t < ms; t += 1000) {
+          clock += 1000;
+          onTick?.();
+        }
+      },
+      onUpdate: (s) => updates.push(s),
+    });
+    expect(r.outcome).toBe('passing');
+    // first poll status + 2 heartbeats + second poll status
+    expect(updates.length).toBeGreaterThanOrEqual(3);
+    expect(updates.every((u) => u.includes('elapsed'))).toBe(true);
+  });
+
   test('returns cancelled when the signal is already aborted', async () => {
     const r = await run([{ checks: [{ name: 'b', bucket: 'pending' }] }], {
       signal: AbortSignal.abort(),
