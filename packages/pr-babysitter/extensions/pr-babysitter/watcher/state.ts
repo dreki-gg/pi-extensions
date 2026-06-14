@@ -67,6 +67,20 @@ export function countHealth(checks: CheckRun[]): HealthCounts {
   return counts;
 }
 
+/** Compact "2 passing, 1 pending, 1 not passing" summary (drops zero buckets). */
+export function formatCounts(counts: HealthCounts): string {
+  const parts: string[] = [];
+  if (counts.passing) parts.push(`${counts.passing} passing`);
+  if (counts.pending) parts.push(`${counts.pending} pending`);
+  if (counts.failing) parts.push(`${counts.failing} not passing`);
+  return parts.length > 0 ? parts.join(', ') : 'none';
+}
+
+/** Names of checks currently in the failing state. */
+export function failingCheckNames(checks: CheckRun[]): string[] {
+  return checks.filter((c) => deriveHealth(c.bucket) === 'failing').map((c) => c.name);
+}
+
 /**
  * Diff a fresh snapshot against what we have already seen.
  * - A check fires only on the transition *into* `failing` (not every poll while

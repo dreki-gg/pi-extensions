@@ -1,8 +1,10 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { registerBabysitterCommand, restoreSeenState } from './command';
+import { registerBabysitTool } from './tool';
 
 export default function prBabysitterExtension(pi: ExtensionAPI) {
   const babysitter = registerBabysitterCommand(pi);
+  registerBabysitTool(pi);
 
   // Re-seed seen-state after reload/resume so previously seen checks/comments
   // never re-fire when the human restarts the watch.

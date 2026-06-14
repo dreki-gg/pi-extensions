@@ -15,11 +15,11 @@ import {
   type PrRef,
 } from '../engine/gh';
 import { formatLifecycleMessage, formatWakeMessage } from './message';
-import type { HealthCounts } from './state';
 import {
   computeNewActivity,
   countHealth,
   emptyState,
+  formatCounts,
   hasActivity,
   mergeState,
   type PollSnapshot,
@@ -27,15 +27,6 @@ import {
 } from './state';
 
 export const DEFAULT_INTERVAL_MS = 60_000;
-
-/** Compact "2 passing, 1 pending, 1 not passing" summary (drops zero buckets). */
-export function formatCounts(counts: HealthCounts): string {
-  const parts: string[] = [];
-  if (counts.passing) parts.push(`${counts.passing} passing`);
-  if (counts.pending) parts.push(`${counts.pending} pending`);
-  if (counts.failing) parts.push(`${counts.failing} not passing`);
-  return parts.length > 0 ? parts.join(', ') : 'none';
-}
 
 export interface BabysitterDeps {
   exec: ExecFn;
