@@ -25,6 +25,7 @@ function config(overrides: Partial<ReviewPipelineConfig>): ReviewPipelineConfig 
     concurrency: 4,
     temperature: 0.4,
     maxFindings: 50,
+    recordRejections: true,
     ...overrides,
   };
 }

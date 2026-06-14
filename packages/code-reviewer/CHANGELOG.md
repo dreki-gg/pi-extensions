@@ -1,5 +1,17 @@
 # @dreki-gg/pi-code-reviewer
 
+## 0.7.0
+
+### Minor Changes
+
+- Add recorded rejections to the review pipeline. Validator false-positives are
+  now persisted to `.code-review/rejections.jsonl`, and on later runs any finding
+  that matches a past rejection is downranked and tagged `⟲ previously rejected`
+  — never hidden, so resurfaced false-positives sink below fresh findings without
+  silently suppressing anything. The store dedupes and is capped, and persistence
+  is best-effort (an FS error never breaks a review). Toggle with
+  `review.recordRejections` (default true); path via `rejectionsFile`.
+
 ## 0.6.2
 
 ### Patch Changes

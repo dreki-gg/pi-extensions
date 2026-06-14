@@ -270,6 +270,7 @@ export function renderPipelineReport(result: PipelineResult, diff: DiffSource): 
       `${Math.round(finding.confidence * 100)}% conf`,
       finding.category,
       multiModel && finding.models.length > 0 ? `models: ${finding.models.join(', ')}` : undefined,
+      finding.previouslyRejected ? '⟲ previously rejected' : undefined,
     ]
       .filter(Boolean)
       .join(', ');

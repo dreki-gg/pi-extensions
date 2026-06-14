@@ -54,6 +54,14 @@ multi-stage pipeline modeled on Cursor's Bugbot:
    candidate and drops false positives. It **fails open** — if the validator
    errors, candidates are surfaced unvalidated rather than silently lost.
 
+4. **Recorded rejections.** The candidates the validator refutes are appended to
+   `.code-review/rejections.jsonl`. On later runs, any finding that matches a
+   past rejection is **downranked and tagged** `⟲ previously rejected` — never
+   hidden, so nothing is silently suppressed, but resurfaced false-positives
+   sink below fresh findings. The store dedupes and is capped. Persisting is
+   best-effort: an FS error never breaks a review. Disable with
+   `review.recordRejections: false`.
+
 The tool returns finished, validated findings as a Markdown report (vote count,
 confidence, validator justification) plus structured `details`.
 
@@ -140,6 +148,8 @@ Run `/review-init` to scaffold these (customized for your project's tools) into 
 | `review.concurrency` | `= passes` | Max passes run concurrently. |
 | `review.temperature` | `0.4` | Base sampling temperature; each pass adds a small jitter so passes diverge. |
 | `review.maxFindings` | `50` | Hard cap on findings returned. |
+| `review.recordRejections` | `true` | Persist validator false-positives and downrank+tag matches on later runs. |
+| `rejectionsFile` | `.code-review/rejections.jsonl` | Path (relative to cwd) of the recorded-rejections store. |
 | `review.passModel` | session model | Model for ALL passes: a spec string (`"provider/id"`, bare id, or name) or `{ "model", "reasoning" }`. |
 | `review.passModels` | — | List of models **rotated round-robin across passes** — a bake-off in one run. Overrides `passModel`. |
 | `review.validateModel` | session model | Model for the validator stage (string or `{ "model", "reasoning" }`). |

@@ -10,6 +10,12 @@ import { discoverLenses, getLensContent } from '../lenses';
 import { resolveModelPlan } from '../model-plan';
 import { runPipeline } from '../passes';
 import {
+  appendRejections,
+  applyRejections,
+  loadRejections,
+  toRejectionRecords,
+} from '../rejections';
+import {
   buildLensResult,
   buildPipelineResult,
   buildReviewBasePrompt,
@@ -176,6 +182,15 @@ export function registerReviewTool(pi: ExtensionAPI) {
           const allPassesFailed =
             config.review.passes > 0 && pipeline.telemetry.failedPasses >= config.review.passes;
           if (!allPassesFailed) {
+            // Recorded rejections: downrank+tag findings the validator refuted on
+            // a previous run, then persist this run's false-positives. All FS is
+            // best-effort — it must never break a completed review.
+            if (config.review.recordRejections) {
+              const rejectionsPath = join(cwd, config.rejectionsFile);
+              const past = await loadRejections(rejectionsPath);
+              pipeline.findings = applyRejections(pipeline.findings, past);
+              await appendRejections(rejectionsPath, toRejectionRecords(pipeline.rejected));
+            }
             return buildPipelineResult(
               {
                 pipeline,

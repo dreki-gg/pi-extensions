@@ -20,6 +20,7 @@ describe('loadConfigEffect', () => {
     concurrency: 5,
     temperature: 0.4,
     maxFindings: 50,
+    recordRejections: true,
   };
 
   const DEFAULTS = {
@@ -28,6 +29,7 @@ describe('loadConfigEffect', () => {
     toolTimeoutMs: 60_000,
     toolConcurrency: 4,
     review: DEFAULT_PIPELINE,
+    rejectionsFile: '.code-review/rejections.jsonl',
   };
 
   test('returns defaults when no config file exists', async () => {

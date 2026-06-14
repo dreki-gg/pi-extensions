@@ -56,6 +56,9 @@ export type ValidatedFinding = CandidateFinding & {
   /** Validator confidence in `verdict`, 0..1. */
   confidence: number;
   justification?: string;
+  /** True when this finding matches a previously-recorded rejection. Downranked
+   *  and tagged in the report; never hidden. */
+  previouslyRejected?: boolean;
   /** Distinct model keys whose passes contributed to this finding (for the
    *  model bake-off: "which model caught this"). */
   models: string[];
@@ -106,7 +109,22 @@ export type PipelineTelemetry = {
 
 export type PipelineResult = {
   findings: ValidatedFinding[];
+  /** Candidates the validator refuted this run. Surfaced (not just counted) so
+   *  the command layer can persist them as recorded rejections. */
+  rejected: CandidateFinding[];
   telemetry: PipelineTelemetry;
+};
+
+/** A persisted record of a validator-refuted finding, matched against future
+ *  runs so a refuted finding that resurfaces is downranked and tagged. */
+export type RejectionRecord = {
+  file: string;
+  line?: number;
+  severity: LensSeverity;
+  message: string;
+  justification?: string;
+  /** ISO timestamp the rejection was recorded. */
+  recorded_at: string;
 };
 
 /** Tunables for the self-driving pipeline (all overridable in config). */
@@ -126,6 +144,8 @@ export type ReviewPipelineConfig = {
   temperature: number;
   /** Hard cap on findings returned (safety valve against runaway output). */
   maxFindings: number;
+  /** Persist validator false-positives and downrank+tag matches on later runs. */
+  recordRejections: boolean;
   /** Model for ALL passes — a spec string or `{ model, reasoning }`. Omitted →
    *  session model. Overridden per-pass by {@link passModels}. */
   passModel?: ModelStepConfig;
@@ -153,4 +173,6 @@ export type ReviewConfig = {
   toolConcurrency: number;
   /** Self-driving pipeline tunables (see {@link ReviewPipelineConfig}). */
   review: ReviewPipelineConfig;
+  /** Path (relative to cwd) of the recorded-rejections JSONL store. */
+  rejectionsFile: string;
 };

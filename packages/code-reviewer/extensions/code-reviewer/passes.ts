@@ -17,6 +17,7 @@
 import { Effect } from 'effect';
 
 import { causeMessage } from './errors';
+import { sameBug, tokenize } from './similarity';
 import { type ModelResolution, Reviewer, makeReviewerService } from './effects/model';
 import type {
   CandidateFinding,
@@ -85,95 +86,6 @@ const VALIDATOR_SYSTEM_PROMPT = [
   '[{ "id": 0, "verdict": "real|false-positive", "confidence": 0.0, "justification": "..." }]',
 ].join('\n');
 
-const STOPWORDS = new Set([
-  'the',
-  'and',
-  'for',
-  'with',
-  'that',
-  'this',
-  'when',
-  'from',
-  'into',
-  'will',
-  'would',
-  'could',
-  'should',
-  'have',
-  'has',
-  'not',
-  'but',
-  'are',
-  'was',
-  'were',
-  'its',
-  'his',
-  'her',
-  'than',
-  'then',
-  'which',
-  'what',
-  'where',
-  'while',
-  'use',
-  'used',
-  'using',
-  'can',
-  'may',
-  'might',
-  'a',
-  'an',
-  'is',
-  'of',
-  'to',
-  'in',
-  'on',
-  'it',
-  'be',
-  'as',
-  'at',
-  'or',
-  'if',
-  'so',
-]);
-
-/** Tokenize a finding message for similarity comparison. */
-function tokenize(message: string): Set<string> {
-  const tokens = message
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .split(' ')
-    .filter((token) => token.length > 2 && !STOPWORDS.has(token));
-  return new Set(tokens);
-}
-
-function jaccard(left: Set<string>, right: Set<string>): number {
-  if (left.size === 0 && right.size === 0) return 1;
-  let intersection = 0;
-  for (const token of left) if (right.has(token)) intersection += 1;
-  const union = left.size + right.size - intersection;
-  return union === 0 ? 0 : intersection / union;
-}
-
-/** Two findings are "the same bug" when they touch the same file and either sit
- *  within a few lines (a strong co-location signal, so only a MODEST text
- *  overlap is needed to fuse paraphrases) or — when a line is missing — read
- *  clearly similar. The lower co-located bar matters: independent passes word
- *  the same defect very differently, and Bugbot leans on an LLM to merge them;
- *  co-location is our deterministic stand-in for that judgment. */
-function sameBug(
-  candidate: { file: string; line?: number; tokens: Set<string> },
-  bucket: { file: string; line?: number; tokens: Set<string> },
-): boolean {
-  if (candidate.file !== bucket.file) return false;
-  const similarity = jaccard(candidate.tokens, bucket.tokens);
-  if (candidate.line !== undefined && bucket.line !== undefined) {
-    if (Math.abs(candidate.line - bucket.line) > 3) return false;
-    return similarity >= 0.25;
-  }
-  // One side has no line to anchor on — demand a clearer textual match.
-  return similarity >= 0.5;
-}
 
 type WorkingBucket = {
   file: string;
@@ -468,9 +380,13 @@ export function validateCandidatesEffect(
   candidates: CandidateFinding[],
   plan: ModelPlan,
   signal?: AbortSignal,
-): Effect.Effect<{ findings: ValidatedFinding[]; droppedFalsePositives: number }, never, Reviewer> {
+): Effect.Effect<
+  { findings: ValidatedFinding[]; droppedFalsePositives: number; rejected: CandidateFinding[] },
+  never,
+  Reviewer
+> {
   return Effect.gen(function* () {
-    if (candidates.length === 0) return { findings: [], droppedFalsePositives: 0 };
+    if (candidates.length === 0) return { findings: [], droppedFalsePositives: 0, rejected: [] };
     const reviewer = yield* Reviewer;
 
     const result = yield* reviewer
@@ -494,17 +410,17 @@ export function validateCandidatesEffect(
         justification: '(validator unavailable — surfaced unvalidated)',
         models: contributingModels(candidate.passIndices, plan),
       }));
-      return { findings, droppedFalsePositives: 0 };
+      return { findings, droppedFalsePositives: 0, rejected: [] };
     }
 
     const verdicts = parseVerdicts(result.right);
     const findings: ValidatedFinding[] = [];
-    let droppedFalsePositives = 0;
+    const rejected: CandidateFinding[] = [];
     candidates.forEach((candidate, index) => {
       const verdict = verdicts.get(index);
       // A candidate with no verdict returned is kept (fail open), not dropped.
       if (verdict && verdict.verdict === 'false-positive') {
-        droppedFalsePositives += 1;
+        rejected.push(candidate);
         return;
       }
       findings.push({
@@ -515,7 +431,7 @@ export function validateCandidatesEffect(
         models: contributingModels(candidate.passIndices, plan),
       });
     });
-    return { findings, droppedFalsePositives };
+    return { findings, droppedFalsePositives: rejected.length, rejected };
   });
 }
 
@@ -541,11 +457,13 @@ export function runPipelineEffect(
 
     let validated: ValidatedFinding[];
     let droppedFalsePositives = 0;
+    let rejected: CandidateFinding[] = [];
     if (config.validate) {
       hooks.onStage?.(`validating ${kept.length} candidates`);
       const outcome = yield* validateCandidatesEffect(basePrompt, kept, plan, signal);
       validated = outcome.findings;
       droppedFalsePositives = outcome.droppedFalsePositives;
+      rejected = outcome.rejected;
     } else {
       validated = kept.map((candidate) => ({
         ...candidate,
@@ -571,7 +489,7 @@ export function runPipelineEffect(
       passModels: plan.passes.map((assignment) => assignment.label),
       validatorModel: plan.validator.label,
     };
-    return { findings: capped, telemetry };
+    return { findings: capped, rejected, telemetry };
   });
 }
 

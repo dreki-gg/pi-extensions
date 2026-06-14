@@ -18,6 +18,7 @@ const CONFIG_FILE = '.code-review.json';
 const DEFAULT_LENS_DIR = '.code-review/lenses';
 const DEFAULT_TOOL_TIMEOUT_MS = 60_000;
 const DEFAULT_TOOL_CONCURRENCY = 4;
+const DEFAULT_REJECTIONS_FILE = '.code-review/rejections.jsonl';
 
 const DEFAULT_PIPELINE: ReviewPipelineConfig = {
   passes: 5,
@@ -26,6 +27,7 @@ const DEFAULT_PIPELINE: ReviewPipelineConfig = {
   concurrency: 5,
   temperature: 0.4,
   maxFindings: 50,
+  recordRejections: true,
 };
 
 function defaultConfig(): ReviewConfig {
@@ -35,6 +37,7 @@ function defaultConfig(): ReviewConfig {
     toolTimeoutMs: DEFAULT_TOOL_TIMEOUT_MS,
     toolConcurrency: DEFAULT_TOOL_CONCURRENCY,
     review: { ...DEFAULT_PIPELINE },
+    rejectionsFile: DEFAULT_REJECTIONS_FILE,
   };
 }
 
@@ -91,6 +94,10 @@ function parsePipeline(raw: unknown): ReviewPipelineConfig {
     concurrency: positiveIntOr(review.concurrency, Math.max(1, passes)),
     temperature: clampNumberOr(review.temperature, DEFAULT_PIPELINE.temperature, 0, 2),
     maxFindings: positiveIntOr(review.maxFindings, DEFAULT_PIPELINE.maxFindings),
+    recordRejections:
+      typeof review.recordRejections === 'boolean'
+        ? review.recordRejections
+        : DEFAULT_PIPELINE.recordRejections,
     passModel: parseModelStep(review.passModel),
     passModels: parseModelStepArray(review.passModels),
     validateModel: parseModelStep(review.validateModel),
@@ -118,6 +125,10 @@ export function loadConfigEffect(cwd: string): Effect.Effect<ReviewConfig, never
         toolTimeoutMs: positiveIntOr(parsed.toolTimeoutMs, DEFAULT_TOOL_TIMEOUT_MS),
         toolConcurrency: positiveIntOr(parsed.toolConcurrency, DEFAULT_TOOL_CONCURRENCY),
         review: parsePipeline((parsed as { review?: unknown }).review),
+        rejectionsFile:
+          typeof parsed.rejectionsFile === 'string' && parsed.rejectionsFile.trim()
+            ? parsed.rejectionsFile.trim()
+            : DEFAULT_REJECTIONS_FILE,
       };
     } catch {
       // Malformed config — fall back to defaults.

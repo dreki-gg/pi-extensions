@@ -24,6 +24,7 @@ const PIPELINE: ReviewPipelineConfig = {
   concurrency: 4,
   temperature: 0.4,
   maxFindings: 50,
+  recordRejections: true,
 };
 
 const PLAN: ModelPlan = defaultModelPlan(PIPELINE.passes);

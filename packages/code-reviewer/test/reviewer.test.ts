@@ -49,7 +49,10 @@ function telemetry(over: Partial<PipelineTelemetry> = {}): PipelineTelemetry {
 
 describe('renderPipelineReport', () => {
   test('clean run (no failures, no findings) shows the green check', () => {
-    const report = renderPipelineReport({ findings: [], telemetry: telemetry() }, diffSource);
+    const report = renderPipelineReport(
+      { findings: [], rejected: [], telemetry: telemetry() },
+      diffSource,
+    );
     expect(report).toContain('✅');
     expect(report).not.toContain('Inconclusive');
   });
@@ -58,6 +61,7 @@ describe('renderPipelineReport', () => {
     const report = renderPipelineReport(
       {
         findings: [],
+        rejected: [],
         telemetry: telemetry({ failedPasses: 5, passErrorSample: 'model x unavailable' }),
       },
       diffSource,
@@ -69,7 +73,7 @@ describe('renderPipelineReport', () => {
 
   test('partial failure with no findings is flagged as partial, not clean', () => {
     const report = renderPipelineReport(
-      { findings: [], telemetry: telemetry({ failedPasses: 2, passErrorSample: 'timeout' }) },
+      { findings: [], rejected: [], telemetry: telemetry({ failedPasses: 2, passErrorSample: 'timeout' }) },
       diffSource,
     );
     expect(report).not.toContain('✅');
@@ -93,12 +97,37 @@ describe('renderPipelineReport', () => {
     const report = renderPipelineReport(
       {
         findings: [finding],
+        rejected: [],
         telemetry: telemetry({ failedPasses: 1, buckets: 1, candidates: 1, validated: 1 }),
       },
       diffSource,
     );
     expect(report).toContain('## Findings');
     expect(report).toContain('Partial');
+  });
+
+  test('tags a previously-rejected finding in the report', () => {
+    const finding: ValidatedFinding = {
+      file: 'a.ts',
+      line: 1,
+      severity: 'warning',
+      message: 'bug',
+      votes: 2,
+      passIndices: [0, 1],
+      verdict: 'real',
+      confidence: 0.8,
+      models: ['default'],
+      previouslyRejected: true,
+    };
+    const report = renderPipelineReport(
+      {
+        findings: [finding],
+        rejected: [],
+        telemetry: telemetry({ buckets: 1, candidates: 1, validated: 1 }),
+      },
+      diffSource,
+    );
+    expect(report).toContain('previously rejected');
   });
 });
 
@@ -344,7 +373,11 @@ const validatedFinding: ValidatedFinding = {
 };
 
 const pipelineArgs = {
-  pipeline: { findings: [validatedFinding], telemetry: telemetry({ buckets: 1, candidates: 1, validated: 1 }) },
+  pipeline: {
+    findings: [validatedFinding],
+    rejected: [],
+    telemetry: telemetry({ buckets: 1, candidates: 1, validated: 1 }),
+  },
   diff: diffSource,
   basePrompt: '## diff + lens context',
   lensNames: ['code-quality'],
