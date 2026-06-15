@@ -4,11 +4,11 @@ import { chdir } from 'node:process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { FileSystem, nodeFileSystemService } from '../effects/filesystem.js';
-import { makePlanRuntime } from '../effects/runtime.js';
-import { upsertPlanEntry } from '../storage/plans-manifest.js';
-import { upsertInitiativeEntry } from '../storage/initiatives-manifest.js';
-import { writeTasksJsonl } from '../storage/task-storage.js';
+import { FileSystem, nodeFileSystemService } from '@dreki-gg/taskman';
+import { makePlanRuntime } from '@dreki-gg/taskman';
+import { upsertPlanEntry } from '@dreki-gg/taskman';
+import { upsertInitiativeEntry } from '@dreki-gg/taskman';
+import { writeTasksJsonl } from '@dreki-gg/taskman';
 import type { TaskRecord } from '../types.js';
 import { registerInitiativeStatusTool } from '../tools/initiative-status.js';
 

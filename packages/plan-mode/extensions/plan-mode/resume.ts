@@ -9,13 +9,14 @@ import type {
 } from '@earendil-works/pi-coding-agent';
 import type { PlanModeState } from './state.js';
 import type { PlanData } from './types.js';
-import type { RunPlanIO } from './effects/runtime.js';
+import type { RunPlanIO } from '@dreki-gg/taskman';
 import { EXEC_THINKING, EXEC_MODEL_OPTIONS } from './constants.js';
-import { readPlansManifest } from './storage/plans-manifest.js';
-import { loadHandoff, writeExecPending } from './storage/plan-storage.js';
-import { readTasksJsonl, writeTasksJsonl } from './storage/task-storage.js';
+import { readPlansManifest } from '@dreki-gg/taskman';
+import { loadHandoff } from '@dreki-gg/taskman';
+import { writeExecPending } from './exec-pending.js';
+import { readTasksJsonl, writeTasksJsonl } from '@dreki-gg/taskman';
 import { enterPlanMode } from './phase-transitions.js';
-import { reactivateForExecution } from './task-status.js';
+import { reactivateForExecution } from '@dreki-gg/taskman';
 
 export async function pickExecutionModel(
   ctx: ExtensionContext,

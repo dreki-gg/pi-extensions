@@ -6,17 +6,15 @@ import { tmpdir } from 'node:os';
 import { makePlanRuntime } from '../effects/runtime.js';
 import { upsertPlanEntry } from '../storage/plans-manifest.js';
 import { writeTasksJsonl } from '../storage/task-storage.js';
-import type { TaskMeta, TaskRecord, PlanStatus } from '../types.js';
+import type { TaskMeta, TaskRecord } from '../types.js';
 import {
   filterPlans,
   sortPlans,
   formatPlanList,
-  parseArgs,
+  parseListArgs,
   loadPlanListItems,
   type PlanListItem,
-  type SortField,
-  type StatusFilter,
-} from '../commands/list-plans.js';
+} from '../listing/plans.js';
 
 const runPlanIO = makePlanRuntime();
 const originalCwd = process.cwd();
@@ -148,7 +146,9 @@ describe('formatPlanList', () => {
   });
 
   test('includes plan details in output', () => {
-    const plans = [makePlanItem({ name: 'alpha', title: 'Alpha Plan', totalTasks: 5, doneTasks: 3 })];
+    const plans = [
+      makePlanItem({ name: 'alpha', title: 'Alpha Plan', totalTasks: 5, doneTasks: 3 }),
+    ];
     const output = formatPlanList(plans, 'all', 'date-desc');
     expect(output).toContain('alpha');
     expect(output).toContain('Alpha Plan');
@@ -163,33 +163,33 @@ describe('formatPlanList', () => {
   });
 });
 
-// ── parseArgs ────────────────────────────────────────────────────────────────
+// ── parseListArgs ────────────────────────────────────────────────────────────────
 
-describe('parseArgs', () => {
+describe('parseListArgs', () => {
   test('parses filter only', () => {
-    expect(parseArgs('done')).toEqual({ filter: 'done', sort: 'date-desc' });
+    expect(parseListArgs('done')).toEqual({ filter: 'done', sort: 'date-desc' });
   });
 
   test('parses sort only', () => {
-    expect(parseArgs('oldest')).toEqual({ filter: 'all', sort: 'date-asc' });
+    expect(parseListArgs('oldest')).toEqual({ filter: 'all', sort: 'date-asc' });
   });
 
   test('parses filter and sort together', () => {
-    expect(parseArgs('in-progress tasks')).toEqual({ filter: 'in-progress', sort: 'tasks' });
+    expect(parseListArgs('in-progress tasks')).toEqual({ filter: 'in-progress', sort: 'tasks' });
   });
 
   test('accepts aliases', () => {
-    expect(parseArgs('pending newest')).toEqual({ filter: 'in-progress', sort: 'date-desc' });
-    expect(parseArgs('active oldest')).toEqual({ filter: 'in-progress', sort: 'date-asc' });
-    expect(parseArgs('completed name')).toEqual({ filter: 'done', sort: 'name' });
+    expect(parseListArgs('pending newest')).toEqual({ filter: 'in-progress', sort: 'date-desc' });
+    expect(parseListArgs('active oldest')).toEqual({ filter: 'in-progress', sort: 'date-asc' });
+    expect(parseListArgs('completed name')).toEqual({ filter: 'done', sort: 'name' });
   });
 
   test('defaults to all + date-desc for unknown tokens', () => {
-    expect(parseArgs('unknown gibberish')).toEqual({ filter: 'all', sort: 'date-desc' });
+    expect(parseListArgs('unknown gibberish')).toEqual({ filter: 'all', sort: 'date-desc' });
   });
 
   test('is case-insensitive', () => {
-    expect(parseArgs('DONE TASKS')).toEqual({ filter: 'done', sort: 'tasks' });
+    expect(parseListArgs('DONE TASKS')).toEqual({ filter: 'done', sort: 'tasks' });
   });
 });
 
@@ -231,9 +231,7 @@ describe('loadPlanListItems', () => {
   test('loads multiple plans', async () => {
     await runPlanIO(upsertPlanEntry('alpha', { status: 'in-progress', title: 'Alpha' }));
     await runPlanIO(upsertPlanEntry('beta', { status: 'done', title: 'Beta' }));
-    await runPlanIO(
-      writeTasksJsonl('.plans/alpha', meta('alpha'), [task('t-001', 'pending')]),
-    );
+    await runPlanIO(writeTasksJsonl('.plans/alpha', meta('alpha'), [task('t-001', 'pending')]));
     await runPlanIO(
       writeTasksJsonl('.plans/beta', meta('beta'), [task('t-001', 'done'), task('t-002', 'done')]),
     );

@@ -12,12 +12,12 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
 import { Effect } from 'effect';
-import type { RunPlanIO } from '../effects/runtime.js';
-import { FileSystem } from '../effects/filesystem.js';
-import { readPlansManifest, type PlanManifestEntry } from '../storage/plans-manifest.js';
-import { readInitiativesManifest } from '../storage/initiatives-manifest.js';
-import { readTasksJsonl } from '../storage/task-storage.js';
-import { initiativeRollup, membersOf, type InitiativeRollup } from '../initiative.js';
+import type { RunPlanIO } from '@dreki-gg/taskman';
+import { FileSystem } from '@dreki-gg/taskman';
+import { readPlansManifest, type PlanManifestEntry } from '@dreki-gg/taskman';
+import { readInitiativesManifest } from '@dreki-gg/taskman';
+import { readTasksJsonl } from '@dreki-gg/taskman';
+import { initiativeRollup, membersOf, type InitiativeRollup } from '@dreki-gg/taskman';
 
 /** Normalize an initiative hint (`x` or `.plans/x`) to a bare name. */
 function normalizeName(hint: string): string {

@@ -122,7 +122,16 @@ export function initiativeRollup(
     return row;
   });
 
-  return { name: initiative, total: members.length, done, closed, inProgress, ready, blocked, members: rows };
+  return {
+    name: initiative,
+    total: members.length,
+    done,
+    closed,
+    inProgress,
+    ready,
+    blocked,
+    members: rows,
+  };
 }
 
 // ── IO: keep initiative registry status a projection of member plans ─────────

@@ -17,10 +17,10 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import type { PlanModeState } from './state.js';
 import type { PlanData } from './types.js';
-import type { RunPlanIO } from './effects/runtime.js';
-import { readPlansManifest } from './storage/plans-manifest.js';
-import { readTasksJsonl } from './storage/task-storage.js';
-import { loadHandoff } from './storage/plan-storage.js';
+import type { RunPlanIO } from '@dreki-gg/taskman';
+import { readPlansManifest } from '@dreki-gg/taskman';
+import { readTasksJsonl } from '@dreki-gg/taskman';
+import { loadHandoff } from '@dreki-gg/taskman';
 
 export interface ResolvedPlan {
   /** The attached plan, when resolvable. Already written into `state`. */

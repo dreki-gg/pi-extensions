@@ -10,7 +10,7 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
-import type { RunPlanIO } from '../effects/runtime.js';
+import type { RunPlanIO } from '@dreki-gg/taskman';
 import {
   applyInitiativeReconcile,
   applyReconcile,
@@ -18,7 +18,7 @@ import {
   collectPlanDrift,
   type InitiativeDriftRow,
   type PlanDriftRow,
-} from '../reconcile.js';
+} from '@dreki-gg/taskman';
 
 function describeRow(row: PlanDriftRow): string {
   const progress = row.hasTasks ? ` (${row.resolved}/${row.total})` : '';

@@ -3,11 +3,11 @@ import { chdir } from 'node:process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { makePlanRuntime } from '../effects/runtime.js';
+import { makePlanRuntime } from '@dreki-gg/taskman';
 import {
   readInitiativesManifest,
   upsertInitiativeEntry,
-} from '../storage/initiatives-manifest.js';
+} from '@dreki-gg/taskman';
 import { registerUpdateInitiativeTool } from '../tools/update-initiative.js';
 
 const runPlanIO = makePlanRuntime();

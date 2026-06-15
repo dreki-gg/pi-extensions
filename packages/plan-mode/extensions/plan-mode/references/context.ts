@@ -10,12 +10,12 @@
 
 import { Effect } from 'effect';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import type { FileSystem } from '../effects/filesystem.js';
-import type { RunPlanIO } from '../effects/runtime.js';
+import type { FileSystem } from '@dreki-gg/taskman';
+import type { RunPlanIO } from '@dreki-gg/taskman';
 import type { PlanStatus, TaskRecord, TaskStatus } from '../types.js';
-import { readPlansManifest } from '../storage/plans-manifest.js';
-import { readTasksJsonl } from '../storage/task-storage.js';
-import { loadHandoff } from '../storage/plan-storage.js';
+import { readPlansManifest } from '@dreki-gg/taskman';
+import { readTasksJsonl } from '@dreki-gg/taskman';
+import { loadHandoff } from '@dreki-gg/taskman';
 import { firstPlanReference } from './tokens.js';
 
 export interface ResolvedPlanReference {

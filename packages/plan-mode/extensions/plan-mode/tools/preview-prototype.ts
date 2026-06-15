@@ -12,10 +12,10 @@ import { Type } from 'typebox';
 import { Effect } from 'effect';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
-import { FileSystem } from '../effects/filesystem.js';
-import type { RunPlanIO } from '../effects/runtime.js';
+import { FileSystem } from '@dreki-gg/taskman';
+import type { RunPlanIO } from '@dreki-gg/taskman';
 import { buildPrototypeDocument } from '../html/render.js';
-import { toKebabCase } from '../utils.js';
+import { toKebabCase } from '@dreki-gg/taskman';
 
 const PREVIEW_DIR = '.plans/_prototypes';
 

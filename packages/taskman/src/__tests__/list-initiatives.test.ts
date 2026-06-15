@@ -10,8 +10,8 @@ import {
   filterInitiatives,
   formatInitiativeList,
   loadInitiativeListItems,
-  parseFilter,
-} from '../commands/list-initiatives.js';
+  parseInitiativeFilter,
+} from '../listing/initiatives.js';
 
 const runPlanIO = makePlanRuntime();
 
@@ -27,17 +27,22 @@ afterEach(async () => {
 });
 
 describe('list-initiatives', () => {
-  test('parseFilter maps aliases', () => {
-    expect(parseFilter('done')).toBe('done');
-    expect(parseFilter('active')).toBe('in-progress');
-    expect(parseFilter('whatever')).toBe('all');
+  test('parseInitiativeFilter maps aliases', () => {
+    expect(parseInitiativeFilter('done')).toBe('done');
+    expect(parseInitiativeFilter('active')).toBe('in-progress');
+    expect(parseInitiativeFilter('whatever')).toBe('all');
   });
 
   test('rolls up member-plan progress and readiness', async () => {
     await runPlanIO(upsertInitiativeEntry('big', { status: 'in-progress', title: 'Big' }));
     await runPlanIO(upsertPlanEntry('a', { status: 'done', title: 'A', initiative: 'big' }));
     await runPlanIO(
-      upsertPlanEntry('b', { status: 'in-progress', title: 'B', initiative: 'big', depends_on: ['a'] }),
+      upsertPlanEntry('b', {
+        status: 'in-progress',
+        title: 'B',
+        initiative: 'big',
+        depends_on: ['a'],
+      }),
     );
 
     const items = await runPlanIO(loadInitiativeListItems());

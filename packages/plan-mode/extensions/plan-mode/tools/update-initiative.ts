@@ -12,11 +12,11 @@ import { StringEnum } from '@earendil-works/pi-ai';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
 import type { InitiativeStatus } from '../types.js';
-import type { RunPlanIO } from '../effects/runtime.js';
+import type { RunPlanIO } from '@dreki-gg/taskman';
 import {
   readInitiativesManifest,
   upsertInitiativeEntry,
-} from '../storage/initiatives-manifest.js';
+} from '@dreki-gg/taskman';
 
 /** Normalize an initiative hint (`x` or `.plans/x`) to a bare name. */
 function normalizeName(hint: string): string {

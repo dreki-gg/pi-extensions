@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { isSafeCommand, isPlanPath, nextTaskId } from '../utils.js';
+import { isSafeCommand, isPlanPath } from '../utils.js';
+import { nextTaskId } from '@dreki-gg/taskman';
 
 describe('nextTaskId', () => {
   test('increments the max numeric suffix', () => {

@@ -12,10 +12,10 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
 import { Effect } from 'effect';
-import { saveInitiative } from '../storage/plan-storage.js';
-import { upsertInitiativeEntry } from '../storage/initiatives-manifest.js';
-import type { RunPlanIO } from '../effects/runtime.js';
-import { toKebabCase } from '../utils.js';
+import { saveInitiative } from '@dreki-gg/taskman';
+import { upsertInitiativeEntry } from '@dreki-gg/taskman';
+import type { RunPlanIO } from '@dreki-gg/taskman';
+import { toKebabCase } from '@dreki-gg/taskman';
 
 export function registerSubmitInitiativeTool(pi: ExtensionAPI, runPlanIO: RunPlanIO): void {
   pi.registerTool({

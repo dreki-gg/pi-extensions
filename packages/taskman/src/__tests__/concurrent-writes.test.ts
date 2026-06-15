@@ -14,10 +14,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { FileSystem, nodeFileSystemService } from '../effects/filesystem.js';
 import { readPlansManifest, upsertPlanEntry } from '../storage/plans-manifest.js';
-import {
-  readInitiativesManifest,
-  upsertInitiativeEntry,
-} from '../storage/initiatives-manifest.js';
+import { readInitiativesManifest, upsertInitiativeEntry } from '../storage/initiatives-manifest.js';
 import { writeTasksJsonl, readTasksJsonl, updateTask } from '../storage/task-storage.js';
 import type { TaskMeta, TaskRecord } from '../types.js';
 
@@ -75,9 +72,7 @@ describe('concurrent registry writes', () => {
     }));
     await run(writeTasksJsonl(planDir, meta, tasks));
 
-    await Promise.all(
-      tasks.map((t) => run(updateTask(planDir, t.id, { status: 'done' }))),
-    );
+    await Promise.all(tasks.map((t) => run(updateTask(planDir, t.id, { status: 'done' }))));
 
     const snapshot = await run(readTasksJsonl(planDir));
     expect(snapshot?.tasks.every((t) => t.status === 'done')).toBe(true);

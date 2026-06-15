@@ -3,11 +3,11 @@ import { chdir } from 'node:process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { makePlanRuntime } from '../effects/runtime.js';
+import { makePlanRuntime } from '@dreki-gg/taskman';
 import { registerRevisePlanTool } from '../tools/revise-plan.js';
-import { readTasksJsonl, writeTasksJsonl } from '../storage/task-storage.js';
-import { saveHandoff, loadHandoff } from '../storage/plan-storage.js';
-import { readPlansManifest, upsertPlanEntry } from '../storage/plans-manifest.js';
+import { readTasksJsonl, writeTasksJsonl } from '@dreki-gg/taskman';
+import { saveHandoff, loadHandoff } from '@dreki-gg/taskman';
+import { readPlansManifest, upsertPlanEntry } from '@dreki-gg/taskman';
 import type { PlanData, TaskRecord } from '../types.js';
 
 const runPlanIO = makePlanRuntime();

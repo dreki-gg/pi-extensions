@@ -175,7 +175,8 @@ export function collectInitiativeDrift(): Effect.Effect<
         : 'in-progress';
       // Terminal statuses (superseded/abandoned) are intentional — never drift.
       const isTerminalManual = entry.status === 'superseded' || entry.status === 'abandoned';
-      const drift = !isTerminalManual && entry.status !== derivedStatus ? ('status' as const) : undefined;
+      const drift =
+        !isTerminalManual && entry.status !== derivedStatus ? ('status' as const) : undefined;
       return {
         name: entry.name,
         registryStatus: entry.status,

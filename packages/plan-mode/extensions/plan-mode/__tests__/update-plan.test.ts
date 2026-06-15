@@ -3,8 +3,8 @@ import { chdir } from 'node:process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { makePlanRuntime } from '../effects/runtime.js';
-import { readPlansManifest, upsertPlanEntry } from '../storage/plans-manifest.js';
+import { makePlanRuntime } from '@dreki-gg/taskman';
+import { readPlansManifest, upsertPlanEntry } from '@dreki-gg/taskman';
 import { registerUpdatePlanTool } from '../tools/update-plan.js';
 
 const runPlanIO = makePlanRuntime();

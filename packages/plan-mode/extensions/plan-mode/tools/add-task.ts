@@ -11,7 +11,7 @@ import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
 import type { TaskRecord } from '../types.js';
 import type { ResolvedPlan } from '../resolve-plan.js';
-import { nextTaskId } from '../utils.js';
+import { nextTaskId } from '@dreki-gg/taskman';
 
 export interface AddTaskCallbacks {
   /** Resolve the active plan, attaching from disk when none is in memory. */

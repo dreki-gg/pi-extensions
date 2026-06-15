@@ -1,0 +1,51 @@
+{
+  "name": "@dreki-gg/taskman",
+  "version": "0.2.0",
+  "description": "Standalone task-management engine + CLI over a .plans/ JSONL ledger — the plan-mode core, usable from any Node harness",
+  "keywords": [
+    "tasks",
+    "planning",
+    "cli"
+  ],
+  "author": "Juan Albarran <jalbarrandev@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dreki-gg/pi-extensions.git",
+    "directory": "packages/taskman"
+  },
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "bin": {
+    "taskman": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src",
+    "format": "oxfmt --write src",
+    "format:check": "oxfmt --check src"
+  },
+  "dependencies": {
+    "commander": "^15.0.0",
+    "effect": "^3.21.2"
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "bun-types": "latest",
+    "oxfmt": "^0.43.0",
+    "oxlint": "^1.58.0",
+    "tsdown": "^0.22.0",
+    "typescript": "^6.0.0"
+  }
+}

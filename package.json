@@ -13,7 +13,7 @@
     "format": "bun run --filter '*' format",
     "changeset": "changeset",
     "version": "changeset version",
-    "build": "bun run --filter '@dreki-gg/pi-command-sandbox' build",
+    "build": "bun run --filter '@dreki-gg/pi-command-sandbox' build && bun run --filter '@dreki-gg/taskman' build",
     "publish": "bun run build && changeset publish",
     "deploy:local": "./scripts/deploy-local.sh",
     "deploy:local:force": "./scripts/deploy-local.sh --force",

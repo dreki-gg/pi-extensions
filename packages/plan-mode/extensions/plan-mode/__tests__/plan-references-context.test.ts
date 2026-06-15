@@ -3,10 +3,10 @@ import { chdir } from 'node:process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { makePlanRuntime } from '../effects/runtime.js';
-import { upsertPlanEntry } from '../storage/plans-manifest.js';
-import { writeTasksJsonl } from '../storage/task-storage.js';
-import { saveHandoff } from '../storage/plan-storage.js';
+import { makePlanRuntime } from '@dreki-gg/taskman';
+import { upsertPlanEntry } from '@dreki-gg/taskman';
+import { writeTasksJsonl } from '@dreki-gg/taskman';
+import { saveHandoff } from '@dreki-gg/taskman';
 import type { TaskMeta, TaskRecord } from '../types.js';
 import { buildPlanContextPack, resolvePlanReference } from '../references/context.js';
 

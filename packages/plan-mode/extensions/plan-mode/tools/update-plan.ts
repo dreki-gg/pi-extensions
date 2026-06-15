@@ -16,9 +16,9 @@ import { StringEnum } from '@earendil-works/pi-ai';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
 import type { PlanStatus } from '../types.js';
-import type { RunPlanIO } from '../effects/runtime.js';
-import { readPlansManifest, upsertPlanEntry } from '../storage/plans-manifest.js';
-import { reconcileInitiativeForPlan } from '../initiative.js';
+import type { RunPlanIO } from '@dreki-gg/taskman';
+import { readPlansManifest, upsertPlanEntry } from '@dreki-gg/taskman';
+import { reconcileInitiativeForPlan } from '@dreki-gg/taskman';
 
 /** Normalize a plan hint (`my-plan` or `.plans/my-plan`) to a bare name. */
 function normalizeName(hint: string): string {

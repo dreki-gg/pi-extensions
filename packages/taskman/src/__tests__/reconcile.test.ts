@@ -127,9 +127,7 @@ describe('applyReconcile', () => {
 
   test('a done plan with incomplete tasks is flagged downgrade and NOT auto-repaired', async () => {
     // Work merged but tasks never marked done: registry done, tasks in-progress.
-    await runPlanIO(
-      writeTasksJsonl('.plans/merged', meta('merged'), [task('t-001', 'pending')]),
-    );
+    await runPlanIO(writeTasksJsonl('.plans/merged', meta('merged'), [task('t-001', 'pending')]));
     await runPlanIO(
       writePlansManifest([
         {
@@ -173,14 +171,18 @@ describe('initiative drift', () => {
     await runPlanIO(upsertInitiativeEntry('big', { status: 'in-progress', title: 'Big' }));
     await runPlanIO(upsertPlanEntry('a', { status: 'done', title: 'A', initiative: 'big' }));
 
-    const repaired = await runPlanIO(applyInitiativeReconcile(await runPlanIO(collectInitiativeDrift())));
+    const repaired = await runPlanIO(
+      applyInitiativeReconcile(await runPlanIO(collectInitiativeDrift())),
+    );
     expect(repaired.map((r) => r.name)).toEqual(['big']);
     const [entry] = await runPlanIO(readInitiativesManifest());
     expect(entry.status).toBe('done');
   });
 
   test('never flags a manually-closed (abandoned) initiative as drift', async () => {
-    await runPlanIO(upsertInitiativeEntry('big', { status: 'abandoned', title: 'Big', reason: 'x' }));
+    await runPlanIO(
+      upsertInitiativeEntry('big', { status: 'abandoned', title: 'Big', reason: 'x' }),
+    );
     await runPlanIO(upsertPlanEntry('a', { status: 'done', title: 'A', initiative: 'big' }));
     const rows = await runPlanIO(collectInitiativeDrift());
     expect(rows.find((r) => r.name === 'big')!.drift).toBeUndefined();

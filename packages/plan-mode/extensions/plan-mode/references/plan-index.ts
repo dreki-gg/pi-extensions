@@ -7,7 +7,7 @@
  * per-keystroke disk hit.
  */
 
-import type { RunPlanIO } from '../effects/runtime.js';
+import type { RunPlanIO } from '@dreki-gg/taskman';
 import { loadPlanListItems, type PlanListItem } from '../commands/list-plans.js';
 
 const DEFAULT_TTL_MS = 2_000;

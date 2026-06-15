@@ -1,5 +1,17 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.26.1
+
+### Patch Changes
+
+- Internal refactor: the task-management engine (storage, schema, reconcile,
+  initiative projection, task-status, plan resolution) now lives in the new
+  `@dreki-gg/taskman` package, which plan-mode depends on. No behavior change —
+  the same tools, commands, and `.plans/` layout, with the engine shared so other
+  harnesses can drive the same ledger via the `taskman` CLI.
+- Updated dependencies
+  - @dreki-gg/taskman@0.2.0
+
 ## 0.26.0
 
 ### Minor Changes

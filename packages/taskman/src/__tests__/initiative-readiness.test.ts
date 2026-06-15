@@ -13,10 +13,7 @@ import {
   reconcileInitiativeStatus,
 } from '../initiative.js';
 import { upsertPlanEntry, type PlanManifestEntry } from '../storage/plans-manifest.js';
-import {
-  readInitiativesManifest,
-  upsertInitiativeEntry,
-} from '../storage/initiatives-manifest.js';
+import { readInitiativesManifest, upsertInitiativeEntry } from '../storage/initiatives-manifest.js';
 
 const run = <A, E>(program: Effect.Effect<A, E, FileSystem>): Promise<A> =>
   Effect.runPromise(program.pipe(Effect.provideService(FileSystem, nodeFileSystemService)));

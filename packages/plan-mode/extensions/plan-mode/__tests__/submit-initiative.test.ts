@@ -3,8 +3,8 @@ import { chdir } from 'node:process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { makePlanRuntime } from '../effects/runtime.js';
-import { readInitiativesManifest } from '../storage/initiatives-manifest.js';
+import { makePlanRuntime } from '@dreki-gg/taskman';
+import { readInitiativesManifest } from '@dreki-gg/taskman';
 import { registerSubmitInitiativeTool } from '../tools/submit-initiative.js';
 
 const runPlanIO = makePlanRuntime();

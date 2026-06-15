@@ -16,17 +16,17 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
 import { Effect } from 'effect';
-import { saveHandoff } from '../storage/plan-storage.js';
-import { writeTasksJsonl } from '../storage/task-storage.js';
+import { saveHandoff } from '@dreki-gg/taskman';
+import { writeTasksJsonl } from '@dreki-gg/taskman';
 import {
   readPlansManifest,
   reconcilePlanStatus,
   upsertPlanEntry,
-} from '../storage/plans-manifest.js';
-import { reconcileInitiativeForPlan, reconcileInitiativeStatus } from '../initiative.js';
-import { isPlanFinalizable } from '../task-status.js';
-import { toKebabCase } from '../utils.js';
-import type { RunPlanIO } from '../effects/runtime.js';
+} from '@dreki-gg/taskman';
+import { reconcileInitiativeForPlan, reconcileInitiativeStatus } from '@dreki-gg/taskman';
+import { isPlanFinalizable } from '@dreki-gg/taskman';
+import { toKebabCase } from '@dreki-gg/taskman';
+import type { RunPlanIO } from '@dreki-gg/taskman';
 import type { PlanData, TaskMeta, TaskRecord } from '../types.js';
 
 export interface RevisePlanCallbacks {
