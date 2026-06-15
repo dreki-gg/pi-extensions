@@ -1,11 +1,12 @@
 {
   "name": "@dreki-gg/taskman",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Standalone task-management engine + CLI over a .plans/ JSONL ledger — the plan-mode core, usable from any Node harness",
   "keywords": [
     "tasks",
     "planning",
-    "cli"
+    "cli",
+    "tanstack-intent"
   ],
   "author": "Juan Albarran <jalbarrandev@gmail.com>",
   "license": "MIT",
@@ -26,11 +27,14 @@
     "taskman": "./dist/cli.mjs"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "skills"
   ],
   "scripts": {
     "build": "tsdown",
     "test": "bun test",
+    "intent:validate": "intent validate",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src",
     "format": "oxfmt --write src",
@@ -41,6 +45,7 @@
     "effect": "^3.21.2"
   },
   "devDependencies": {
+    "@tanstack/intent": "^0.1.0",
     "@types/node": "24",
     "bun-types": "latest",
     "oxfmt": "^0.43.0",
