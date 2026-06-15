@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/taskman",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Standalone task-management engine + CLI over a .plans/ JSONL ledger — the plan-mode core, usable from any Node harness",
   "keywords": [
     "tasks",

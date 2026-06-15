@@ -1,5 +1,13 @@
 # @dreki-gg/taskman
 
+## 0.2.2
+
+### Patch Changes
+
+- Fix `taskman -V` / `--version` reporting a stale hardcoded version. The CLI now
+  reads the version from the shipped `package.json` at runtime, so it always
+  matches the installed package.
+
 ## 0.2.1
 
 ### Patch Changes

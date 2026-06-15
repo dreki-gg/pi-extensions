@@ -5,8 +5,20 @@
  * module under `cli/commands/`. Human text by default; `--json` for machines.
  */
 
+import { readFileSync } from 'node:fs';
 import { Command } from 'commander';
 import { CliError } from './cli/runtime.js';
+
+/** Read the shipped package version (dist/cli.mjs → ../package.json). */
+function packageVersion(): string {
+  try {
+    const pkgUrl = new URL('../package.json', import.meta.url);
+    const pkg = JSON.parse(readFileSync(pkgUrl, 'utf-8')) as { version?: string };
+    return pkg.version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
 import { statusCommand } from './cli/commands/status.js';
 import { listPlansCommand, listInitiativesCommand } from './cli/commands/list.js';
 import { initiativeStatusCommand } from './cli/commands/initiative-status.js';
@@ -20,7 +32,7 @@ export function buildProgram(): Command {
   program
     .name('taskman')
     .description('Task-management engine over a .plans/ JSONL ledger')
-    .version('0.1.0');
+    .version(packageVersion());
 
   program
     .command('status')

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { N as readInitiativesManifest, P as upsertInitiativeEntry, S as initiativeRollup, T as reconcileInitiativeForPlan, V as upsertPlanEntry, X as makePlanRuntime, _ as applyInitiativeReconcile, a as filterPlans, b as collectPlanDrift, d as setTaskStatus, g as resolvePlanByName, i as loadInitiativeListItems, l as sortPlans, m as loadPlanData, n as formatInitiativeList, o as formatPlanList, s as loadPlanListItems, t as filterInitiatives, u as appendDeferredTask, v as applyReconcile, y as collectInitiativeDrift, z as readPlansManifest } from "./initiatives-Ij_teFl_.mjs";
 import { Effect } from "effect";
+import { readFileSync } from "node:fs";
 import { Command } from "commander";
 //#region src/cli/runtime.ts
 /**
@@ -259,9 +260,18 @@ async function closeInitiativeCommand(status, name, opts) {
 * Thin Commander wiring over the engine: each subcommand delegates to an action
 * module under `cli/commands/`. Human text by default; `--json` for machines.
 */
+/** Read the shipped package version (dist/cli.mjs → ../package.json). */
+function packageVersion() {
+	try {
+		const pkgUrl = new URL("../package.json", import.meta.url);
+		return JSON.parse(readFileSync(pkgUrl, "utf-8")).version ?? "0.0.0";
+	} catch {
+		return "0.0.0";
+	}
+}
 function buildProgram() {
 	const program = new Command();
-	program.name("taskman").description("Task-management engine over a .plans/ JSONL ledger").version("0.1.0");
+	program.name("taskman").description("Task-management engine over a .plans/ JSONL ledger").version(packageVersion());
 	program.command("status").description("Progress + task ids/statuses for the active plan").option("--plan <name>", "plan name (or .plans/<name>) to inspect").option("--json", "machine-readable JSON output").action((opts) => statusCommand(opts));
 	program.command("list").description("List plans").option("--status <status>", "all|in-progress|done|superseded|abandoned").option("--sort <field>", "name|date-asc|date-desc|tasks").option("--json", "machine-readable JSON output").action((opts) => listPlansCommand(opts));
 	program.command("initiatives").description("List initiatives").option("--status <status>", "all|in-progress|done|superseded|abandoned").option("--json", "machine-readable JSON output").action((opts) => listInitiativesCommand(opts));
