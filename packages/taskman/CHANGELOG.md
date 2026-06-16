@@ -1,5 +1,24 @@
 # @dreki-gg/taskman
 
+## 0.3.1
+
+### Patch Changes
+
+- Document the `create-plan` and `create-handoff` CLI commands in the taskman
+  skill and README, including the "create plans from any harness" pattern
+  (inline / `--*-file` / stdin payloads) and how plan setup differs from the
+  deferred `add-task` follow-up flow.
+
+## 0.3.0
+
+### Minor Changes
+
+- Add `taskman create-plan` and `taskman create-handoff` CLI commands so any
+  external harness can create a plan (tasks.jsonl + HANDOFF.md + registry entry,
+  with optional initiative linking) or write a plan's HANDOFF.md without going
+  through the plan-mode extension. Handoff and task payloads can be passed inline,
+  from a file, or piped on stdin.
+
 ## 0.2.2
 
 ### Patch Changes

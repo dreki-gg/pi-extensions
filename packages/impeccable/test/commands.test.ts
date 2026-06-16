@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import {
   IMPECCABLE_COMMANDS,
   IMPECCABLE_COMMAND_NAMES,
+  getCommandCompletions,
 } from '../extensions/impeccable/commands-meta';
 import { loadReference } from '../extensions/impeccable/reference';
 import { loadProjectContext } from '../extensions/impeccable/context';
@@ -24,6 +25,35 @@ describe('commands-meta', () => {
       expect(typeof c.argumentHint).toBe('string');
       expect(c.description.length).toBeGreaterThan(10);
     }
+  });
+});
+
+describe('getCommandCompletions', () => {
+  test('lists every command for an empty prefix', () => {
+    const items = getCommandCompletions('');
+    expect(items).not.toBeNull();
+    expect(items!.length).toBe(IMPECCABLE_COMMANDS.length);
+    expect(items!.map((i) => i.value)).toContain('audit');
+  });
+
+  test('filters by the typed prefix, case-insensitively', () => {
+    const items = getCommandCompletions('CR');
+    expect(items!.map((i) => i.value).sort()).toEqual(['craft', 'critique']);
+  });
+
+  test('includes description and category in the item', () => {
+    const items = getCommandCompletions('audit');
+    expect(items!.length).toBe(1);
+    expect(items![0].value).toBe('audit');
+    expect(items![0].description).toBeTruthy();
+  });
+
+  test('returns null once a command and trailing space were typed (completing the target)', () => {
+    expect(getCommandCompletions('audit ')).toBeNull();
+  });
+
+  test('returns an empty list when nothing matches', () => {
+    expect(getCommandCompletions('zzz')).toEqual([]);
   });
 });
 

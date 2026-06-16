@@ -2,13 +2,14 @@
 name: taskman/core
 description: >
   Drive the taskman CLI and engine over a .plans/ JSONL ledger — plans,
-  initiatives, and tasks. Load when running `taskman` commands (status, list,
-  update-task, add-task, reconcile, close), tracking plan/task progress across
-  sessions or harnesses, or calling @dreki-gg/taskman as a library. Covers the
-  status-is-a-projection model, stateless plan resolution, and reconcile.
+  initiatives, and tasks. Load when running `taskman` commands (create-plan,
+  create-handoff, status, list, update-task, add-task, reconcile, close),
+  tracking plan/task progress across sessions or harnesses, or calling
+  @dreki-gg/taskman as a library. Covers the status-is-a-projection model,
+  stateless plan resolution, and reconcile.
 type: core
 library: "@dreki-gg/taskman"
-library_version: "0.2.1"
+library_version: "0.3.1"
 sources:
   - "dreki-gg/pi-extensions:packages/taskman/README.md"
   - "dreki-gg/pi-extensions:packages/taskman/src/cli.ts"
@@ -64,6 +65,23 @@ taskman update-task t-003 done  # mark progress; plan status re-derived
 taskman add-task "handle empty input" --reason "found gap while implementing"
 taskman reconcile --apply       # repair safe (in-progress→done) drift
 ```
+
+### Creating plans from any harness
+
+Plans don't have to originate in plan-mode's `submit_plan` tool. The CLI creates
+the same durable artifacts (tasks.jsonl + HANDOFF.md + registry entry) so a
+foreign harness can seed the ledger directly. Handoff/task payloads accept an
+inline value, a `--*-file <path>`, or piped stdin.
+
+```bash
+echo "$MARKDOWN" | taskman create-plan --name my-plan --title "My Plan" \
+  --handoff-file - --tasks '[{"description":"do it"}]'   # tasks get t-NNN ids
+taskman create-handoff --plan my-plan --file HANDOFF.md   # write/replace prose
+```
+
+Use `--initiative <name>` to link the plan (create the initiative first) and
+`--depends-on a,b` for plan-level ordering. Task creation here is plan setup —
+distinct from `add-task`, which records a *deferred* follow-up (see below).
 
 ### Machine-readable output
 

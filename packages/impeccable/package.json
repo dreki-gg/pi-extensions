@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-impeccable",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Design guidance + deterministic anti-pattern detection for pi — a native port of impeccable (the design language for AI coding agents)",
   "keywords": [
     "pi-package",

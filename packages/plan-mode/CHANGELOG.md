@@ -1,5 +1,12 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.26.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @dreki-gg/taskman@0.3.0
+
 ## 0.26.1
 
 ### Patch Changes

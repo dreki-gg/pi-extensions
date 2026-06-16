@@ -13,6 +13,7 @@ import { inferStacks } from './engine/inference';
 import { reconcile } from './engine/reconcile';
 import { loadState } from './engine/state';
 import { loadJournal, restore } from './engine/undo';
+import { getStackCompletions } from './completions';
 import type { StackNode } from './stack/parser';
 import type { Stack } from './engine/types';
 
@@ -227,6 +228,7 @@ export function registerStackedPrsCommands(pi: ExtensionAPI) {
 
   pi.registerCommand('stack', {
     description: `Manage stacked PRs. ${USAGE}`,
+    getArgumentCompletions: (argumentPrefix) => getStackCompletions(argumentPrefix),
     handler: async (args, ctx) => {
       const sub = (args?.trim() || '').split(/\s+/)[0] || '';
       switch (sub) {

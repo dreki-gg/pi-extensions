@@ -4,6 +4,7 @@ import { loadProjectContext } from '../context';
 import {
   IMPECCABLE_COMMANDS,
   IMPECCABLE_COMMAND_NAMES,
+  getCommandCompletions,
   type ImpeccableCategory,
 } from '../commands-meta';
 import { loadReference } from '../reference';
@@ -76,6 +77,7 @@ export function registerImpeccableCommand(pi: ExtensionAPI) {
   pi.registerCommand('impeccable', {
     description:
       'Design with impeccable. Usage: /impeccable [command] [target]. Run with no args for a context-aware menu.',
+    getArgumentCompletions: (argumentPrefix) => getCommandCompletions(argumentPrefix),
     handler: async (args, ctx) => {
       const input = (args ?? '').trim();
       const { product, design } = await loadProjectContext(ctx.cwd);

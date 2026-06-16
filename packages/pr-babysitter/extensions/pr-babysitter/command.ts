@@ -5,6 +5,7 @@ import type {
 import { GH_CALL_TIMEOUT_MS, type ExecFn, type ExecResult } from './cli/runner';
 import { Babysitter } from './watcher/poller';
 import type { SeenState } from './watcher/state';
+import { getBabysitCompletions } from './completions';
 
 const STATUS_KEY = 'pr-babysitter';
 const USAGE = 'Usage: /babysit start | stop | status';
@@ -31,6 +32,7 @@ export function registerBabysitterCommand(pi: ExtensionAPI): Babysitter {
 
   pi.registerCommand('babysit', {
     description: `Babysit the current branch's PR (observe-only). ${USAGE}`,
+    getArgumentCompletions: (argumentPrefix) => getBabysitCompletions(argumentPrefix),
     handler: async (args, ctx) => {
       ui = ctx.ui;
       const sub = (args?.trim() || '').split(/\s+/)[0] || '';

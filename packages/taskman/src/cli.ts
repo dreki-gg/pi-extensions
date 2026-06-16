@@ -26,6 +26,8 @@ import { updateTaskCommand } from './cli/commands/update-task.js';
 import { addTaskCommand } from './cli/commands/add-task.js';
 import { reconcileCommand } from './cli/commands/reconcile.js';
 import { closePlanCommand, closeInitiativeCommand } from './cli/commands/close.js';
+import { createPlanCommand } from './cli/commands/create-plan.js';
+import { createHandoffCommand } from './cli/commands/create-handoff.js';
 
 export function buildProgram(): Command {
   const program = new Command();
@@ -89,6 +91,29 @@ export function buildProgram(): Command {
     .option('--apply', 'repair safe in-progress→done drift')
     .option('--json', 'machine-readable JSON output')
     .action((opts) => reconcileCommand(opts));
+
+  program
+    .command('create-plan')
+    .description('Create a plan (tasks.jsonl + HANDOFF.md + registry entry) from any harness')
+    .requiredOption('--name <name>', 'short kebab-case plan name')
+    .requiredOption('--title <title>', 'human-readable plan title')
+    .option('--handoff <text>', 'HANDOFF.md markdown (inline)')
+    .option('--handoff-file <path>', 'read HANDOFF.md markdown from a file ("-" for stdin)')
+    .option('--tasks <json>', 'tasks as an inline JSON array of { description, ... }')
+    .option('--tasks-file <path>', 'read the tasks JSON array from a file ("-" for stdin)')
+    .option('--initiative <name>', 'parent initiative name to link this plan to')
+    .option('--depends-on <names>', 'comma-separated plan names this plan depends on')
+    .option('--json', 'machine-readable JSON output')
+    .action((opts) => createPlanCommand(opts));
+
+  program
+    .command('create-handoff')
+    .description('Write/replace HANDOFF.md for a plan from any harness')
+    .argument('[content]', 'HANDOFF.md markdown (inline); else use --file or stdin')
+    .option('--plan <name>', 'plan to target')
+    .option('--file <path>', 'read markdown from a file ("-" for stdin)')
+    .option('--json', 'machine-readable JSON output')
+    .action((content, opts) => createHandoffCommand(content, opts));
 
   program
     .command('close')

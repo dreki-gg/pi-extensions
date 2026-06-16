@@ -2,6 +2,7 @@ import type { ExtensionAPI, ExtensionCommandContext } from '@earendil-works/pi-c
 import { addFolder, removeFolder, saveConfig } from './config';
 import { buildContextPack, getSummaryForItem } from './summary';
 import type { PastChatsRuntimeState } from './types';
+import { getPastChatsCompletions } from './completions';
 
 function splitArgs(args: string): [string, string] {
   const trimmed = args.trim();
@@ -67,6 +68,7 @@ export function registerCommands(
 ): void {
   pi.registerCommand('past-chats', {
     description: 'Manage @chat/@session references (list, add, remove, refresh, summarize).',
+    getArgumentCompletions: (argumentPrefix) => getPastChatsCompletions(argumentPrefix),
     handler: async (args, ctx) => {
       const [command, rest] = splitArgs(args);
 

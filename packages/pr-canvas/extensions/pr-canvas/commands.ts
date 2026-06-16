@@ -4,6 +4,7 @@ import { createWsBridge, type WsBridge } from './server/ws-bridge';
 import { createServerManager, resolveAppDir, type ServerManager } from './server/manager';
 import { createMessageHandlers } from './server/handlers';
 import { openUrlCommand } from './open-url';
+import { getPrCanvasCompletions } from './completions';
 
 const WS_PORT = 3001;
 const APP_PORT = 3000;
@@ -107,6 +108,7 @@ export function registerPrCanvasCommands(pi: ExtensionAPI) {
   pi.registerCommand('pr-canvas', {
     description:
       'Manage the PR Canvas server. Usage: /pr-canvas start | stop | open [number] | status',
+    getArgumentCompletions: (argumentPrefix) => getPrCanvasCompletions(argumentPrefix),
     handler: async (args, ctx) => {
       const parts = (args?.trim() || '').split(/\s+/);
       const subcommand = parts[0] || '';

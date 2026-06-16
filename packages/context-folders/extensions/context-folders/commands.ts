@@ -4,6 +4,7 @@ import { saveConfig, CONFIG_FILE } from './config';
 import { buildFolderListDisplay } from './prompt';
 import type { ContextFoldersConfig, ResolvedFolder } from './types';
 import fs from 'node:fs';
+import { getContextFoldersCompletions } from './completions';
 
 interface UI {
   setStatus(key: string, value: string | undefined): void;
@@ -18,6 +19,7 @@ interface State {
 
 export function registerCommands(pi: ExtensionAPI, getState: () => State): void {
   pi.registerCommand('context-folders', {
+    getArgumentCompletions: (argumentPrefix) => getContextFoldersCompletions(argumentPrefix),
     description:
       'Manage context folders. Subcommands: list, add <path> [label], remove <path-or-label>, init',
     handler: async (args, ctx) => {

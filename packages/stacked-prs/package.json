@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-stacked-prs",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Self-contained stacked PR workflow for pi — skill + /stack commands with a bundled git + gh engine for squash-safe stacked GitHub pull requests",
   "keywords": [
     "pi-package",

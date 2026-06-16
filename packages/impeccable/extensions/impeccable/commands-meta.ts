@@ -169,3 +169,27 @@ export const IMPECCABLE_COMMANDS: ImpeccableCommand[] = [
 ];
 
 export const IMPECCABLE_COMMAND_NAMES = new Set(IMPECCABLE_COMMANDS.map((c) => c.command));
+
+export interface CommandCompletionItem {
+  value: string;
+  label: string;
+  description?: string;
+}
+
+/**
+ * Argument completions for `/impeccable`. Completes the sub-command name while
+ * the user is still typing the first token. Returns `null` once a command and a
+ * trailing space have been typed (the rest is a freeform target we cannot
+ * usefully complete).
+ */
+export function getCommandCompletions(argumentPrefix: string): CommandCompletionItem[] | null {
+  // A space means the first token is finished — we are now in target text.
+  if (/\s/.test(argumentPrefix)) return null;
+
+  const prefix = argumentPrefix.toLowerCase();
+  return IMPECCABLE_COMMANDS.filter((c) => c.command.startsWith(prefix)).map((c) => ({
+    value: c.command,
+    label: c.argumentHint ? `${c.command} ${c.argumentHint}` : c.command,
+    description: `${c.category} — ${c.description}`,
+  }));
+}

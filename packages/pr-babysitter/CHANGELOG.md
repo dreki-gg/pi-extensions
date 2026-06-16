@@ -1,5 +1,14 @@
 # @dreki-gg/pi-pr-babysitter
 
+## 0.8.0
+
+### Minor Changes
+
+- Add argument autocompletion to slash commands. Typing after `/impeccable`,
+  `/stack`, `/babysit`, `/pr-canvas`, `/context-folders`, or `/past-chats` now
+  suggests the available sub-commands (filtered by prefix, with descriptions),
+  so you no longer have to remember the exact verb to type.
+
 ## 0.7.0
 
 ### Minor Changes
