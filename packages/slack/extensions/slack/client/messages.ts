@@ -19,6 +19,13 @@ export interface EditMessageResult {
   channel: string;
 }
 
+export interface DeleteMessageResult {
+  /** Timestamp of the deleted message. */
+  ts: string;
+  /** Channel the message lived in. */
+  channel: string;
+}
+
 // ---------------------------------------------------------------------------
 // Effects
 // ---------------------------------------------------------------------------
@@ -61,5 +68,19 @@ export function editMessage(params: { channel: string; ts: string; text: string 
       ts: resp.ts,
       channel: resp.channel,
     } satisfies EditMessageResult;
+  });
+}
+
+export function deleteMessage(params: { channel: string; ts: string }) {
+  return Effect.gen(function* () {
+    const resp = yield* slackPost<{ ok: true; ts: string; channel: string }>('chat.delete', {
+      channel: params.channel,
+      ts: params.ts,
+    });
+
+    return {
+      ts: resp.ts,
+      channel: resp.channel,
+    } satisfies DeleteMessageResult;
   });
 }

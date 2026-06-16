@@ -33,10 +33,11 @@ function loadExtension() {
   return { tools, commands, events };
 }
 
-test('registers all seven tools, command, and session_start handler', () => {
+test('registers all eight tools, command, and session_start handler', () => {
   const { tools, commands, events } = loadExtension();
 
   expect(tools.map((t) => t.name).sort()).toEqual([
+    'slack_delete_message',
     'slack_download_file',
     'slack_edit_message',
     'slack_list_channels',
@@ -101,6 +102,27 @@ test('edit message tool errors gracefully when SLACK_BOT_TOKEN is missing', asyn
     const result = await edit.execute(
       'id',
       { channel: 'C123', ts: '1700000000.000100', text: 'updated' },
+      undefined,
+      undefined,
+      { cwd: process.cwd() },
+    );
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('SLACK_BOT_TOKEN');
+  } finally {
+    if (orig) process.env.SLACK_BOT_TOKEN = orig;
+  }
+});
+
+test('delete message tool errors gracefully when SLACK_BOT_TOKEN is missing', async () => {
+  const orig = process.env.SLACK_BOT_TOKEN;
+  delete process.env.SLACK_BOT_TOKEN;
+
+  try {
+    const { tools } = loadExtension();
+    const del = tools.find((t) => t.name === 'slack_delete_message')!;
+    const result = await del.execute(
+      'id',
+      { channel: 'C123', ts: '1700000000.000100' },
       undefined,
       undefined,
       { cwd: process.cwd() },

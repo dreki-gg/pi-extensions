@@ -13,6 +13,7 @@ export const TOOL_GUIDELINES = [
   'Use `slack_download_file` to download images or files shared in Slack. The tool saves files to a temp directory and returns the path — use `read` to view images.',
   'Use `slack_post_message` to send a message to a channel or reply in a thread. The bot token must have the `chat:write` scope and the bot must be a member of the target channel.',
   'Use `slack_edit_message` to edit a message the bot previously posted. Pass the channel ID and the message `ts` (returned by `slack_post_message`). Bots can only edit their own messages.',
+  'Use `slack_delete_message` to delete a message the bot previously posted. Pass the channel ID and the message `ts`. Bots can only delete their own messages.',
   'When messages reference files or images (shown with 📎), download them with `slack_download_file` using the file ID to get visual context.',
   'Channel IDs look like C0123ABC456. Thread timestamps look like 1512085950.000216.',
 ];
@@ -145,5 +146,14 @@ export const editMessageParams = Type.Object({
   }),
   text: Type.String({
     description: 'New message text. Supports Slack mrkdwn formatting.',
+  }),
+});
+
+export const deleteMessageParams = Type.Object({
+  channel: Type.String({
+    description: 'Channel ID (e.g. C0123ABC456) where the message lives.',
+  }),
+  ts: Type.String({
+    description: 'Timestamp of the message to delete (the `ts` returned by slack_post_message).',
   }),
 });

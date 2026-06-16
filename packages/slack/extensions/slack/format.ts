@@ -1,7 +1,11 @@
 import type { SlackChannel, SlackMessage, ReadMessagesResult } from './client/channels.js';
 import type { SearchResult } from './client/search.js';
 import type { DownloadedFile, SlackFileInfo } from './client/files.js';
-import type { PostMessageResult, EditMessageResult } from './client/messages.js';
+import type {
+  PostMessageResult,
+  EditMessageResult,
+  DeleteMessageResult,
+} from './client/messages.js';
 
 // ---------------------------------------------------------------------------
 // Channels
@@ -92,6 +96,10 @@ export function formatPostedMessage(result: PostMessageResult, threadTs?: string
 
 export function formatEditedMessage(result: EditMessageResult): string {
   return `✏️ Message edited in ${result.channel} (ts: ${result.ts})`;
+}
+
+export function formatDeletedMessage(result: DeleteMessageResult): string {
+  return `🗑️ Message deleted in ${result.channel} (ts: ${result.ts})`;
 }
 
 // ---------------------------------------------------------------------------

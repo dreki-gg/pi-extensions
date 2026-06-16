@@ -1,5 +1,14 @@
 # @dreki-gg/pi-slack
 
+## 0.4.0
+
+### Minor Changes
+
+- Add a `slack_delete_message` tool that deletes a message the bot previously
+  posted via Slack's `chat.delete` API. Pass the channel ID and the message `ts`;
+  bots can only delete their own messages. No new scope is required — it uses the
+  existing `chat:write` permission.
+
 ## 0.3.0
 
 ### Minor Changes
