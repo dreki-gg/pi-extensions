@@ -10,12 +10,21 @@ import {
 } from './analysis/gemini.js';
 import { fetchAsMarkdown, renderedPageToMarkdown } from './markdown.js';
 import { webSearch } from './search.js';
+import { resolveCdpTarget } from './backends/resolve-cdp-target.js';
 
 const TOOL_GUIDELINES = [
   'Use `web_search` to find information online, then `web_visit` to read specific pages.',
   'Use `web_screenshot` and `web_interact` for visual verification and page interaction.',
   '`web_visit` returns markdown by default without launching a browser. Use `render: true` only for JavaScript-heavy SPAs.',
+  'To drive an already-running, authenticated Chrome, start it with `--remote-debugging-port=9222` and pass `cdp: "localhost:9222"` to `web_screenshot`/`web_visit` (or set `PI_BROWSER_CDP`). The connected browser is never auto-closed.',
 ];
+
+const CDP_PARAM = Type.Optional(
+  Type.String({
+    description:
+      'Connect to a running browser via CDP instead of launching one. Accepts a port ("9222"), host:port ("localhost:9222"), or ws/http URL. Binds once per session; the connected browser is not closed on shutdown. Defaults to PI_BROWSER_CDP.',
+  }),
+);
 const env =
   (
     globalThis as typeof globalThis & {
@@ -102,13 +111,15 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
     parameters: Type.Object({
       url: Type.String({ description: 'URL to fetch' }),
       render: Type.Optional(Type.Boolean({ description: 'Force browser rendering' })),
+      cdp: CDP_PARAM,
     }),
     async execute(
       _toolCallId: string,
-      params: { url: string; render?: boolean },
+      params: { url: string; render?: boolean; cdp?: string },
       signal?: AbortSignal,
     ) {
       const browserBackend = await resolveBrowserBackend();
+      browserBackend.bindCdpTarget(resolveCdpTarget(params.cdp, env));
 
       const result = params.render
         ? renderedPageToMarkdown(await browserBackend.renderPage(params.url))
@@ -143,6 +154,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
       viewport: Type.Optional(StringEnum(VIEWPORT_ENUM, { description: 'Viewport preset' })),
       width: Type.Optional(Type.Number({ description: 'Viewport width override' })),
       height: Type.Optional(Type.Number({ description: 'Viewport height override' })),
+      cdp: CDP_PARAM,
       analyze: Type.Optional(
         Type.Boolean({
           description:
@@ -160,6 +172,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
         viewport?: ViewportPreset;
         width?: number;
         height?: number;
+        cdp?: string;
         analyze?: boolean;
         analyze_prompt?: string;
       },
@@ -168,6 +181,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
       ctx: { modelRegistry: AnalysisModelRegistry },
     ) {
       const browserBackend = await resolveBrowserBackend();
+      browserBackend.bindCdpTarget(resolveCdpTarget(params.cdp, env));
 
       const screenshot = await browserBackend.screenshot({
         url: params.url,

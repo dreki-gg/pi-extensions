@@ -1,5 +1,16 @@
 # @dreki-gg/pi-browser-tools
 
+## 0.5.0
+
+### Minor Changes
+
+- Drive an already-running, authenticated Chrome via CDP instead of launching a
+  fresh browser. Start Chrome with `--remote-debugging-port=9222` and pass
+  `cdp: "localhost:9222"` (a bare port, `host:port`, or ws/http URL) to
+  `web_screenshot`/`web_visit`, or set the `PI_BROWSER_CDP` env var as a default.
+  The connection binds once per session and the connected browser is never
+  auto-closed on shutdown, so your logged-in session stays intact.
+
 ## 0.4.4
 
 ### Patch Changes

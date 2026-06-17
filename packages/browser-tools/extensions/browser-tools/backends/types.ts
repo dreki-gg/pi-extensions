@@ -51,6 +51,12 @@ export interface BrowserBackend {
   readonly name: BrowserBackendName;
   isOpen(): boolean;
   getStatus(): BrowserStatus;
+  /**
+   * Bind a CDP connect target for this session. The first non-null target
+   * wins; later calls (and null) are ignored. When bound, the backend connects
+   * to the running browser instead of launching its own.
+   */
+  bindCdpTarget(target: string | null): void;
   navigate(
     url: string,
     options?: { preset?: ViewportPreset; width?: number; height?: number; waitMs?: number },

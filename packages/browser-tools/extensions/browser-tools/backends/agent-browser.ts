@@ -80,6 +80,8 @@ class AgentBrowserBackend implements BrowserBackend {
   private queue: Promise<unknown> = Promise.resolve();
   private availableChecked = false;
   private suppressedPageErrorCounts = new Map<string, number>();
+  private cdpTarget: string | null = null;
+  private connected = false;
   private status: BrowserStatus = {
     isOpen: false,
     url: null,
@@ -88,6 +90,14 @@ class AgentBrowserBackend implements BrowserBackend {
 
   isOpen(): boolean {
     return this.status.isOpen;
+  }
+
+  bindCdpTarget(target: string | null): void {
+    // First non-null target wins for the session; later calls (and null) are ignored.
+    if (this.cdpTarget || !target) {
+      return;
+    }
+    this.cdpTarget = target;
   }
 
   getStatus(): BrowserStatus {
@@ -344,9 +354,18 @@ class AgentBrowserBackend implements BrowserBackend {
   }
 
   private async openInternal(url?: string): Promise<void> {
-    if (url) {
+    if (this.cdpTarget && !this.connected) {
+      // Attach to the running browser via CDP instead of launching our own.
+      await runAgentBrowserJson(['connect', this.cdpTarget]);
+      this.connected = true;
+      if (url) {
+        await runAgentBrowserJson(['open', url]);
+      }
+    } else if (url) {
       await runAgentBrowserJson(['open', url]);
-    } else {
+    } else if (!this.connected) {
+      // Never issue a bare `open` on a connected session; it could spawn a
+      // second browser. Reuse the already-attached active page instead.
       await runAgentBrowserJson(['open']);
     }
 
@@ -456,14 +475,19 @@ class AgentBrowserBackend implements BrowserBackend {
 
   private async closeInternal(): Promise<void> {
     const shouldAttemptClose = this.status.isOpen;
+    // agent-browser has no `disconnect`, and `close` would close the user's
+    // own browser. When attached via CDP we only drop local session state.
+    const wasConnected = this.connected;
     this.status = {
       isOpen: false,
       url: null,
       viewport: null,
     };
+    this.connected = false;
+    this.cdpTarget = null;
     this.resetPageErrorSuppression();
 
-    if (!shouldAttemptClose) {
+    if (!shouldAttemptClose || wasConnected) {
       return;
     }
 
