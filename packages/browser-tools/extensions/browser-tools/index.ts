@@ -237,6 +237,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
     promptGuidelines: TOOL_GUIDELINES,
     parameters: Type.Object({
       action: StringEnum(ACTION_ENUM, { description: 'Interaction to perform' }),
+      cdp: CDP_PARAM,
       selector: Type.Optional(Type.String({ description: 'CSS selector' })),
       text: Type.Optional(Type.String({ description: 'Visible text to target' })),
       value: Type.Optional(Type.String({ description: 'Value for type/select actions' })),
@@ -259,6 +260,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
       _toolCallId: string,
       params: {
         action: (typeof ACTION_ENUM)[number];
+        cdp?: string;
         selector?: string;
         text?: string;
         value?: string;
@@ -273,6 +275,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
       ctx: { modelRegistry: AnalysisModelRegistry },
     ) {
       const browserBackend = await resolveBrowserBackend();
+      browserBackend.bindCdpTarget(resolveCdpTarget(params.cdp, env));
 
       if (!browserBackend.isOpen()) {
         throw new Error(
@@ -341,6 +344,7 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
       '`web_console` captures output from the moment the browser opens. Use `clear: true` to reset the buffer after reading.',
     ],
     parameters: Type.Object({
+      cdp: CDP_PARAM,
       level: Type.Optional(
         Type.Array(
           StringEnum(CONSOLE_LEVEL_ENUM, {
@@ -360,11 +364,13 @@ export default function browserToolsExtension(pi: ExtensionAPI) {
     async execute(
       _toolCallId: string,
       params: {
+        cdp?: string;
         level?: ConsoleEntry['level'][];
         clear?: boolean;
       },
     ) {
       const browserBackend = await resolveBrowserBackend();
+      browserBackend.bindCdpTarget(resolveCdpTarget(params.cdp, env));
 
       const entries = await browserBackend.getConsoleEntries({
         level: params.level,

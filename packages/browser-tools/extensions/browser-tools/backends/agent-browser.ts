@@ -7,6 +7,7 @@ import {
   viewportFor,
 } from './agent-browser-cli.js';
 import { resolveTargetRef } from './resolve-target.js';
+import { buildCdpConnectError } from './cdp-connect-error.js';
 import { encodeScreenshot } from '../image/screenshot.js';
 import type {
   BrowserBackend,
@@ -356,7 +357,11 @@ class AgentBrowserBackend implements BrowserBackend {
   private async openInternal(url?: string): Promise<void> {
     if (this.cdpTarget && !this.connected) {
       // Attach to the running browser via CDP instead of launching our own.
-      await runAgentBrowserJson(['connect', this.cdpTarget]);
+      try {
+        await runAgentBrowserJson(['connect', this.cdpTarget]);
+      } catch (error) {
+        throw new Error(buildCdpConnectError(this.cdpTarget, error));
+      }
       this.connected = true;
       if (url) {
         await runAgentBrowserJson(['open', url]);
