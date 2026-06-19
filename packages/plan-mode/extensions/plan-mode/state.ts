@@ -3,7 +3,7 @@
  */
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import type { PlanData, PersistedState, ThinkingLevel } from './types.js';
+import type { PlanData, PersistedState } from './types.js';
 
 export class PlanModeState {
   planEnabled = false;
@@ -11,7 +11,6 @@ export class PlanModeState {
   planDir: string | undefined;
   plan: PlanData | undefined;
   executionStartIdx: number | undefined;
-  previousThinking: ThinkingLevel | undefined;
   previousModel: { provider: string; id: string } | undefined;
 
   persist(pi: ExtensionAPI): void {

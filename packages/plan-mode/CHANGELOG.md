@@ -1,5 +1,15 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.27.0
+
+### Minor Changes
+
+- Plan mode no longer overrides the model or thinking level. Entering plan mode,
+  starting execution, and session restore all keep whatever model and thinking
+  level the user had active. The forced executor model picker is also removed.
+  Additionally, plan mode now auto-exits after the agent submits a plan or
+  initiative, returning the user to normal mode immediately.
+
 ## 0.26.2
 
 ### Patch Changes

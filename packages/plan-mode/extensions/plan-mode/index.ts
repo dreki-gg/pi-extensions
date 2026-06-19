@@ -21,12 +21,8 @@ import { Key } from '@earendil-works/pi-tui';
 import {
   PLAN_TOOLS,
   EXEC_TOOLS,
-  PLAN_MODEL,
-  PLAN_THINKING,
-  EXEC_MODEL,
-  EXEC_THINKING,
 } from './constants.js';
-import type { ThinkingLevel, TaskStatus } from './types.js';
+import type { TaskStatus } from './types.js';
 import { PlanModeState } from './state.js';
 import { makePlanRuntime } from '@dreki-gg/taskman';
 import { loadHandoff } from '@dreki-gg/taskman';
@@ -524,11 +520,10 @@ export default function planMode(pi: ExtensionAPI): void {
           { triggerTurn: false },
         );
 
-        const { previousModel: dpm, previousThinking: dpt } = state;
+        const { previousModel: dpm } = state;
         state.exitPreservingPlan();
         pi.setActiveTools(EXEC_TOOLS);
         if (dpm) await switchModel(pi, ctx, dpm);
-        if (dpt) pi.setThinkingLevel(dpt);
         updateUI(state, ctx);
         state.persist(pi);
         return;
@@ -587,11 +582,10 @@ export default function planMode(pi: ExtensionAPI): void {
           { triggerTurn: false },
         );
 
-        const { previousModel: pm, previousThinking: pt } = state;
+        const { previousModel: pm } = state;
         state.reset();
         pi.setActiveTools(EXEC_TOOLS);
         if (pm) await switchModel(pi, ctx, pm);
-        if (pt) pi.setThinkingLevel(pt);
         updateUI(state, ctx);
         state.persist(pi);
         return;
@@ -599,8 +593,11 @@ export default function planMode(pi: ExtensionAPI): void {
       return;
     }
 
-    // Plan submitted — user can /plan-exec or type naturally.
-    // No menu needed: plan.jsonl + HANDOFF.md are the source of truth.
+    // Auto-exit plan mode after plan/initiative submission so the user
+    // returns to normal mode with their original model.
+    if (state.planEnabled) {
+      await exitPlanMode(state, pi, ctx);
+    }
   });
 
   // ── Event: session restore ────────────────────────────────────────────────
@@ -636,7 +633,7 @@ export default function planMode(pi: ExtensionAPI): void {
         state.planEnabled = false;
         pi.setActiveTools(EXEC_TOOLS);
         await switchModel(pi, ctx, pending.config.model);
-        pi.setThinkingLevel(pending.config.thinking as ThinkingLevel);
+
         updateUI(state, ctx);
         state.persist(pi);
         return;
@@ -651,15 +648,11 @@ export default function planMode(pi: ExtensionAPI): void {
       await resolveActivePlan(state, pi, runPlanIO);
     }
 
-    // Apply tool restrictions, model, and thinking level
+    // Apply tool restrictions (no model/thinking override — keep user's settings)
     if (state.planEnabled) {
       pi.setActiveTools(PLAN_TOOLS);
-      await switchModel(pi, ctx, PLAN_MODEL);
-      pi.setThinkingLevel(PLAN_THINKING);
     } else if (state.executing) {
       pi.setActiveTools(EXEC_TOOLS);
-      await switchModel(pi, ctx, EXEC_MODEL);
-      pi.setThinkingLevel(EXEC_THINKING);
     }
 
     updateUI(state, ctx);

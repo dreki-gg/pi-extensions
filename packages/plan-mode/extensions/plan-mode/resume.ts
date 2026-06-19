@@ -4,28 +4,18 @@
 
 import type {
   ExtensionAPI,
-  ExtensionContext,
   ExtensionCommandContext,
 } from '@earendil-works/pi-coding-agent';
 import type { PlanModeState } from './state.js';
 import type { PlanData } from './types.js';
 import type { RunPlanIO } from '@dreki-gg/taskman';
-import { EXEC_THINKING, EXEC_MODEL_OPTIONS } from './constants.js';
+
 import { readPlansManifest } from '@dreki-gg/taskman';
 import { loadHandoff } from '@dreki-gg/taskman';
 import { writeExecPending } from './exec-pending.js';
 import { readTasksJsonl, writeTasksJsonl } from '@dreki-gg/taskman';
 import { enterPlanMode } from './phase-transitions.js';
 import { reactivateForExecution } from '@dreki-gg/taskman';
-
-export async function pickExecutionModel(
-  ctx: ExtensionContext,
-): Promise<{ provider: string; id: string } | undefined> {
-  const labels = EXEC_MODEL_OPTIONS.map((o) => o.label);
-  const choice = await ctx.ui.select('Execute with:', labels);
-  if (!choice) return undefined;
-  return EXEC_MODEL_OPTIONS.find((o) => o.label === choice)?.model;
-}
 
 export async function executeInNewSession(
   ctx: ExtensionCommandContext,
@@ -34,10 +24,12 @@ export async function executeInNewSession(
   _planData: PlanData,
   kickoff: string,
 ): Promise<void> {
-  const selectedModel = await pickExecutionModel(ctx);
-  if (!selectedModel) return;
+  // Use the current model for execution — no forced model override.
+  const currentModel = ctx.model
+    ? { provider: ctx.model.provider, id: ctx.model.id }
+    : { provider: 'anthropic', id: 'claude-sonnet-4-20250514' };
 
-  await runPlanIO(writeExecPending(dir, { model: selectedModel, thinking: EXEC_THINKING }));
+  await runPlanIO(writeExecPending(dir, { model: currentModel, thinking: 'low' }));
   const parentSession = ctx.sessionManager.getSessionFile();
 
   await ctx.newSession({
