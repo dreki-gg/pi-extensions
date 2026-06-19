@@ -1,5 +1,12 @@
 # @dreki-gg/pi-pr-babysitter
 
+## 1.0.0
+
+### Major Changes
+
+- Remove the agent-callable `babysit_pr` tool. The extension now exposes only the
+  `/babysit` commands (`start`, `stop`, `status`) for manual control of PR watching.
+
 ## 0.8.0
 
 ### Minor Changes
