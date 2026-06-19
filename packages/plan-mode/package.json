@@ -9,12 +9,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dreki-gg/pi-extensions",
+    "url": "git+https://github.com/dreki-gg/pi-extensions.git",
     "directory": "packages/plan-mode"
   },
   "type": "module",
   "bin": {
-    "pi-plan-mode": "./bin/clean-plans.js"
+    "pi-plan-mode": "bin/clean-plans.js"
   },
   "files": [
     "extensions",
