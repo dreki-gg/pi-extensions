@@ -1,5 +1,11 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.27.3
+
+### Patch Changes
+
+- Require an explicit plan id on plan mutations so writes always target the intended plan.
+
 ## 0.27.2
 
 ### Patch Changes
