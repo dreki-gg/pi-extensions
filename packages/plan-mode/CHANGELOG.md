@@ -1,5 +1,22 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.27.2
+
+### Patch Changes
+
+- `add_task` now rejects an empty or whitespace `plan` argument instead of
+  silently filing the follow-up onto whatever plan happens to be in-progress.
+  This prevents discovered tasks from being misfiled onto an unrelated plan
+  after a context switch — the agent is told to re-issue with an explicit plan.
+
+## 0.27.1
+
+### Patch Changes
+
+- Require an explicit `plan` argument on `add_task`, `update_task`, and `update_tasks` so writes are always scoped to the intended plan and can never be misfiled into whatever plan happened to be the active pin. Previously these tools would trust a stale in-memory active-plan pin (or silently fall back to some other in-progress plan) after the pinned plan finished, causing follow-ups to be filed against the wrong plan.
+
+  In addition, `resolveActivePlan` now drops a stale pin and reports the in-progress candidates instead of guessing when a pinned plan has completed while other plans are still in-progress. The pin is still honored when no other plan is in-progress.
+
 ## 0.27.0
 
 ### Minor Changes

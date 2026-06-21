@@ -106,10 +106,27 @@ export async function resolveActivePlan(
   }
 
   // ── No hint: in-memory plan, else the single in-progress plan on disk ─────
-  if (state.plan) return { plan: state.plan, candidates: [] };
-
+  //
+  // IMPORTANT (misfile guard): a pinned `state.plan` must NOT be trusted blindly
+  // when it no longer corresponds to an in-progress plan. After a plan completes
+  // (e.g. `set_active_plan` then 6/6 done), a stale pin would silently capture
+  // writes — or the fallback would guess a different in-progress plan. Mirror
+  // `update_task`'s strictness: when the pin is stale AND other plans are still
+  // in-progress, REFUSE and force an explicit `{ plan }` rather than guess.
   const manifest = await runPlanIO(readPlansManifest());
   const inProgress = manifest.filter((entry) => entry.status === 'in-progress');
+
+  if (state.plan) {
+    const pinName = state.plan.planName;
+    const pinInProgress = inProgress.some((entry) => entry.name === pinName);
+    const competing = inProgress.filter((entry) => entry.name !== pinName);
+    // Trust the pin only when it is still in-progress, or when there is no other
+    // in-progress plan to confuse it with (e.g. an in-memory-only plan).
+    if (pinInProgress || competing.length === 0) return { plan: state.plan, candidates: [] };
+    // Stale pin with live competitors → ambiguous: require an explicit choice.
+    return { plan: undefined, candidates: inProgress.map((entry) => entry.name) };
+  }
+
   if (inProgress.length === 1) {
     const plan = await attach(state, pi, runPlanIO, inProgress[0]!.name);
     if (plan) return { plan, candidates: [] };

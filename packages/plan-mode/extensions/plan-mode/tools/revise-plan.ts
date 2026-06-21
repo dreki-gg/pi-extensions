@@ -83,6 +83,15 @@ export function registerRevisePlanTool(
     }),
 
     async execute(_toolCallId, params) {
+      // Hard-require an explicit plan: an empty/whitespace value must never fall
+      // through to candidate resolution (that silently rewrites whatever plan
+      // happens to be in-progress — e.g. after the intended plan completed on a
+      // context switch). Throw so the agent re-issues with an explicit { plan }.
+      if (!params.plan || !params.plan.trim()) {
+        throw new Error(
+          'revise_plan requires an explicit { plan } — pass the plan name so the rewrite is never applied to an unrelated in-progress plan.',
+        );
+      }
       const { plan, candidates } = await callbacks.resolvePlan({ name: params.plan });
       if (!plan) {
         const notFound: Record<string, unknown> = {

@@ -66,6 +66,7 @@ describe('update_tasks tool', () => {
         { task_id: 't-001', status: 'done', notes: 'a' },
         { task_id: 't-002', status: 'skipped', notes: 'b' },
       ],
+      plan: 'plan',
     });
     expect(updates).toEqual([
       { taskId: 't-001', status: 'done', notes: 'a' },
@@ -79,7 +80,10 @@ describe('update_tasks tool', () => {
 
   test('soft-skips (no throw) when there is no active plan', async () => {
     const { tool, updates } = setup(undefined, ['alpha', 'beta']);
-    const result = await tool.execute('c', { updates: [{ task_id: 't-001', status: 'done' }] });
+    const result = await tool.execute('c', {
+      updates: [{ task_id: 't-001', status: 'done' }],
+      plan: 'plan',
+    });
     expect((result.details as { skipped?: boolean }).skipped).toBe(true);
     expect(result.content?.[0]?.text).toMatch(/alpha, beta/);
     expect(updates).toHaveLength(0);
@@ -92,6 +96,7 @@ describe('update_tasks tool', () => {
         { task_id: 't-001', status: 'done' },
         { task_id: 't-999', status: 'done' },
       ],
+      plan: 'plan',
     });
     expect(getWriteCount()).toBe(0);
   });
@@ -103,6 +108,7 @@ describe('update_tasks tool', () => {
         { task_id: 't-001', status: 'done' },
         { task_id: 't-999', status: 'done' },
       ],
+      plan: 'plan',
     });
     expect(updates).toEqual([{ taskId: 't-001', status: 'done', notes: undefined }]);
     const details = result.details as { results?: Array<{ task_id: string; outcome: string }> };
@@ -116,6 +122,7 @@ describe('update_tasks tool', () => {
         { task_id: 't-001', status: 'done' },
         { task_id: 't-002', status: 'done' },
       ],
+      plan: 'plan',
     });
     expect(updates).toEqual([{ taskId: 't-002', status: 'done', notes: undefined }]);
     const details = result.details as { results?: Array<{ task_id: string; outcome: string }> };
@@ -124,7 +131,21 @@ describe('update_tasks tool', () => {
 
   test('corrects an already-resolved task (done → skipped)', async () => {
     const { tool, updates } = setup(basePlan([planTask('t-001', 'done')]));
-    await tool.execute('c', { updates: [{ task_id: 't-001', status: 'skipped' }] });
+    await tool.execute('c', {
+      updates: [{ task_id: 't-001', status: 'skipped' }],
+      plan: 'plan',
+    });
     expect(updates).toEqual([{ taskId: 't-001', status: 'skipped', notes: undefined }]);
+  });
+
+  test('throws when { plan } is missing or whitespace', async () => {
+    const { tool, updates } = setup(basePlan([planTask('t-001')]));
+    await expect(
+      tool.execute('c', { updates: [{ task_id: 't-001', status: 'done' }] }),
+    ).rejects.toThrow(/requires an explicit \{ plan \}/);
+    await expect(
+      tool.execute('c', { updates: [{ task_id: 't-001', status: 'done' }], plan: '   ' }),
+    ).rejects.toThrow(/requires an explicit \{ plan \}/);
+    expect(updates).toHaveLength(0);
   });
 });

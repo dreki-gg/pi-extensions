@@ -35,6 +35,7 @@ export function registerUpdateTaskTool(pi: ExtensionAPI, callbacks: UpdateTaskCa
       'Call update_task after completing each plan task before moving to the next.',
       'Always include notes summarizing what was done, why skipped, or why blocked.',
       'Use update_task with status "blocked" and explain the reason in notes if a task cannot be completed.',
+      'Always pass an explicit { plan } (it is required) so the write is scoped to the intended plan — never rely on an implicit active-plan pin, which may have completed after a context switch.',
     ],
     parameters: Type.Object({
       task_id: Type.String({ description: 'Task ID (for example, t-001)' }),
@@ -42,15 +43,22 @@ export function registerUpdateTaskTool(pi: ExtensionAPI, callbacks: UpdateTaskCa
       notes: Type.Optional(
         Type.String({ description: 'What was done, why skipped, or why blocked' }),
       ),
-      plan: Type.Optional(
-        Type.String({
-          description:
-            'Plan name (or .plans/<name>) to target. Only needed to disambiguate when multiple plans are in-progress; otherwise the active / sole in-progress plan is used.',
-        }),
-      ),
+      plan: Type.String({
+        description:
+          'Plan name (or .plans/<name>) to target. Required — always scope the write explicitly so it never lands in the wrong plan.',
+      }),
     }),
 
     async execute(_toolCallId, params) {
+      // Hard-require an explicit plan: an empty/whitespace value must never fall
+      // through to candidate resolution (that silently writes to whatever plan
+      // happens to be in-progress — e.g. after the intended plan completed on a
+      // context switch). Throw so the agent re-issues with an explicit { plan }.
+      if (!params.plan || !params.plan.trim()) {
+        throw new Error(
+          'update_task requires an explicit { plan } — pass the plan name so the write is never applied to an unrelated in-progress plan.',
+        );
+      }
       const { plan, candidates } = await callbacks.resolvePlan({ name: params.plan });
       // No active plan is a tracking miss, not an error: return a soft result
       // (non-terminating) so the agent keeps doing the real work.

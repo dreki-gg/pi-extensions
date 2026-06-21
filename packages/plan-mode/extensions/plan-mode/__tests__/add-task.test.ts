@@ -62,6 +62,7 @@ describe('add_task tool', () => {
     await tool.execute('call-1', {
       description: 'Extract shared helper',
       reason: 'noticed duplication while editing',
+      plan: 'plan',
     });
 
     expect(added).toHaveLength(1);
@@ -73,11 +74,23 @@ describe('add_task tool', () => {
     expect(task.description).toBe('Extract shared helper');
   });
 
-  test('soft-skips (does not throw) when there is no active plan', async () => {
+  test('soft-skips (does not throw) when the named plan cannot be resolved', async () => {
     const { tool, added } = setup(undefined);
-    const result = await tool.execute('call-1', { description: 'x', reason: 'y' });
+    const result = await tool.execute('call-1', { description: 'x', reason: 'y', plan: 'plan' });
     expect((result.details as { skipped?: boolean }).skipped).toBe(true);
     expect(result.content?.[0]?.text).toMatch(/no active plan/i);
+    expect(added).toHaveLength(0);
+  });
+
+  test('throws when { plan } is missing or whitespace', async () => {
+    const plan = basePlan([planTask('t-001')]);
+    const { tool, added } = setup(plan);
+    await expect(tool.execute('call-1', { description: 'x', reason: 'y' })).rejects.toThrow(
+      /requires an explicit \{ plan \}/,
+    );
+    await expect(
+      tool.execute('call-2', { description: 'x', reason: 'y', plan: '   ' }),
+    ).rejects.toThrow(/requires an explicit \{ plan \}/);
     expect(added).toHaveLength(0);
   });
 });

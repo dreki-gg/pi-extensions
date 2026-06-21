@@ -206,4 +206,16 @@ describe('revise_plan tool', () => {
     const [entry] = await runPlanIO(readPlansManifest());
     expect(entry.initiative).toBe('big');
   });
+
+  test('throws when { plan } is empty or whitespace', async () => {
+    const plan: PlanData = { title: 'P', planName: 'p', handoff: 'h', tasks: [task('t-001')] };
+    const { tool, revised } = setup(plan);
+    await expect(tool.execute('c', { plan: '', title: 'x' })).rejects.toThrow(
+      /requires an explicit \{ plan \}/,
+    );
+    await expect(tool.execute('c', { plan: '   ', title: 'x' })).rejects.toThrow(
+      /requires an explicit \{ plan \}/,
+    );
+    expect(revised).toHaveLength(0);
+  });
 });

@@ -56,20 +56,25 @@ const planTask = (id: string, status: TaskStatus = 'pending'): TaskRecord => ({
 describe('update_task tool', () => {
   test('marks a pending task and reports progress', async () => {
     const { tool, updates } = setup(basePlan([planTask('t-001'), planTask('t-002')]));
-    const result = await tool.execute('c', { task_id: 't-001', status: 'done', notes: 'did it' });
+    const result = await tool.execute('c', {
+      task_id: 't-001',
+      status: 'done',
+      notes: 'did it',
+      plan: 'plan',
+    });
     expect(updates).toEqual([{ taskId: 't-001', status: 'done', notes: 'did it' }]);
     expect(result.content?.[0]?.text).toMatch(/Progress: 1\/2/);
   });
 
   test('blocked terminates the turn', async () => {
     const { tool } = setup(basePlan([planTask('t-001')]));
-    const result = await tool.execute('c', { task_id: 't-001', status: 'blocked' });
+    const result = await tool.execute('c', { task_id: 't-001', status: 'blocked', plan: 'plan' });
     expect(result.terminate).toBe(true);
   });
 
   test('soft-skips (no throw) when there is no active plan', async () => {
     const { tool, updates } = setup(undefined, ['alpha', 'beta']);
-    const result = await tool.execute('c', { task_id: 't-001', status: 'done' });
+    const result = await tool.execute('c', { task_id: 't-001', status: 'done', plan: 'plan' });
     expect((result.details as { skipped?: boolean }).skipped).toBe(true);
     expect(result.content?.[0]?.text).toMatch(/alpha, beta/);
     expect(updates).toHaveLength(0);
@@ -77,7 +82,7 @@ describe('update_task tool', () => {
 
   test('soft result (no throw) for an unknown task id', async () => {
     const { tool, updates } = setup(basePlan([planTask('t-001')]));
-    const result = await tool.execute('c', { task_id: 't-999', status: 'done' });
+    const result = await tool.execute('c', { task_id: 't-999', status: 'done', plan: 'plan' });
     expect((result.details as { error?: string }).error).toBe('not_found');
     expect(result.content?.[0]?.text).toMatch(/t-001/);
     expect(updates).toHaveLength(0);
@@ -85,22 +90,33 @@ describe('update_task tool', () => {
 
   test('idempotent: re-marking the same status is a no-op success', async () => {
     const { tool, updates } = setup(basePlan([planTask('t-001', 'done')]));
-    const result = await tool.execute('c', { task_id: 't-001', status: 'done' });
+    const result = await tool.execute('c', { task_id: 't-001', status: 'done', plan: 'plan' });
     expect(result.content?.[0]?.text).toMatch(/no-op/);
     expect(updates).toHaveLength(0);
   });
 
   test('corrects an already-resolved task (done → skipped) and reports it', async () => {
     const { tool, updates } = setup(basePlan([planTask('t-001', 'done')]));
-    const result = await tool.execute('c', { task_id: 't-001', status: 'skipped' });
+    const result = await tool.execute('c', { task_id: 't-001', status: 'skipped', plan: 'plan' });
     expect(updates).toEqual([{ taskId: 't-001', status: 'skipped', notes: undefined }]);
     expect(result.content?.[0]?.text).toMatch(/corrected \(done → skipped\)/);
   });
 
   test('unblocks a task (blocked → done) without terminating', async () => {
     const { tool, updates } = setup(basePlan([planTask('t-001', 'blocked')]));
-    const result = await tool.execute('c', { task_id: 't-001', status: 'done' });
+    const result = await tool.execute('c', { task_id: 't-001', status: 'done', plan: 'plan' });
     expect(updates).toEqual([{ taskId: 't-001', status: 'done', notes: undefined }]);
     expect(result.terminate).toBeUndefined();
+  });
+
+  test('throws when { plan } is missing or whitespace', async () => {
+    const { tool, updates } = setup(basePlan([planTask('t-001')]));
+    await expect(tool.execute('c', { task_id: 't-001', status: 'done' })).rejects.toThrow(
+      /requires an explicit \{ plan \}/,
+    );
+    await expect(
+      tool.execute('c', { task_id: 't-001', status: 'done', plan: '   ' }),
+    ).rejects.toThrow(/requires an explicit \{ plan \}/);
+    expect(updates).toHaveLength(0);
   });
 });

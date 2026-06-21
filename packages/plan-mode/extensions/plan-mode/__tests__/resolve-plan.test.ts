@@ -133,6 +133,36 @@ describe('resolveActivePlan', () => {
     expect(state.planDir).toBe('.plans/beta');
   });
 
+  test('refuses a stale in-memory pin when other plans are in-progress (misfile guard)', async () => {
+    // The pinned plan has completed; two unrelated plans are still in-progress.
+    await seedPlan('alpha', 'done', ['t-001']);
+    await seedPlan('beta', 'in-progress', ['t-001']);
+    await seedPlan('gamma', 'in-progress', ['t-001']);
+    const state = new PlanModeState();
+    state.plan = { title: 'alpha', planName: 'alpha', handoff: '', tasks: [task('t-001')] };
+    state.planDir = '.plans/alpha';
+    const { pi } = fakePi();
+
+    const result = await resolveActivePlan(state, pi, runPlanIO);
+
+    // Must NOT silently file into the stale pin or guess one of the others.
+    expect(result.plan).toBeUndefined();
+    expect(result.candidates.sort()).toEqual(['beta', 'gamma']);
+  });
+
+  test('keeps a stale in-memory pin when no other plan is in-progress', async () => {
+    // Pin completed, nothing else live → safe to keep using it (no ambiguity).
+    await seedPlan('alpha', 'done', ['t-001']);
+    const state = new PlanModeState();
+    state.plan = { title: 'alpha', planName: 'alpha', handoff: '', tasks: [task('t-001')] };
+    state.planDir = '.plans/alpha';
+    const { pi } = fakePi();
+
+    const result = await resolveActivePlan(state, pi, runPlanIO);
+
+    expect(result.plan?.planName).toBe('alpha');
+  });
+
   test('ignores a done plan when auto-attaching', async () => {
     await seedPlan('alpha', 'done', ['t-001']);
     const state = new PlanModeState();

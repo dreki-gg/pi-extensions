@@ -69,15 +69,22 @@ export function registerUpdateTasksTool(pi: ExtensionAPI, callbacks: UpdateTasks
         }),
         { description: 'Tasks to mark, each with its own status and notes', minItems: 1 },
       ),
-      plan: Type.Optional(
-        Type.String({
-          description:
-            'Plan name (or .plans/<name>) to target. Only needed to disambiguate when multiple plans are in-progress; otherwise the active / sole in-progress plan is used.',
-        }),
-      ),
+      plan: Type.String({
+        description:
+          'Plan name (or .plans/<name>) to target. Required — always scope the write explicitly so it never lands in the wrong plan.',
+      }),
     }),
 
     async execute(_toolCallId, params) {
+      // Hard-require an explicit plan: an empty/whitespace value must never fall
+      // through to candidate resolution (that silently writes to whatever plan
+      // happens to be in-progress — e.g. after the intended plan completed on a
+      // context switch). Throw so the agent re-issues with an explicit { plan }.
+      if (!params.plan || !params.plan.trim()) {
+        throw new Error(
+          'update_tasks requires an explicit { plan } — pass the plan name so the writes are never applied to an unrelated in-progress plan.',
+        );
+      }
       const { plan, candidates } = await callbacks.resolvePlan({ name: params.plan });
       // No active plan is a tracking miss, not an error: return a soft result
       // (non-terminating) so the agent keeps doing the real work.

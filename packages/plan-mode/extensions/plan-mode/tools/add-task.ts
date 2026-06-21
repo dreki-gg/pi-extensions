@@ -30,6 +30,7 @@ export function registerAddTaskTool(pi: ExtensionAPI, callbacks: AddTaskCallback
       'Use add_task when you notice worthwhile work outside the current plan while implementing.',
       'Discovered tasks are deferred for the user to review — do NOT implement them now; continue with the planned tasks.',
       'Give a clear reason so the user can decide whether the follow-up is worth doing.',
+      'Always pass an explicit { plan } (it is required) so the write is scoped to the intended plan — never rely on an implicit active-plan pin, which may have completed after a context switch.',
     ],
     parameters: Type.Object({
       description: Type.String({ description: 'Short task label (≤60 chars)' }),
@@ -40,15 +41,23 @@ export function registerAddTaskTool(pi: ExtensionAPI, callbacks: AddTaskCallback
         Type.String({ description: 'Optional fuller implementation notes for the follow-up' }),
       ),
       depends_on: Type.Optional(Type.Array(Type.String({ description: 'Dependency task ID' }))),
-      plan: Type.Optional(
-        Type.String({
-          description:
-            'Plan name (or .plans/<name>) to target. Only needed to disambiguate when multiple plans are in-progress.',
-        }),
-      ),
+      plan: Type.String({
+        description:
+          'Plan name (or .plans/<name>) to target. Required — always scope the capture explicitly so it never lands in the wrong plan.',
+      }),
     }),
 
     async execute(_toolCallId, params) {
+      // Hard-require an explicit plan: the schema marks it required, but an
+      // empty/whitespace value must never fall through to candidate resolution
+      // (that silently files the follow-up onto whatever plan happens to be
+      // in-progress — e.g. after the intended plan completed on a context
+      // switch). Throw so the agent re-issues with an explicit { plan }.
+      if (!params.plan || !params.plan.trim()) {
+        throw new Error(
+          'add_task requires an explicit { plan } — pass the plan name so the follow-up is never misfiled onto an unrelated in-progress plan.',
+        );
+      }
       const { plan, candidates } = await callbacks.resolvePlan({ name: params.plan });
       // No active plan is a tracking miss, not an error — return a soft,
       // non-terminating result so real work continues.
