@@ -1,3 +1,0 @@
-# Vendored upstream impeccable detection engine (Apache-2.0). Kept verbatim so
-# it can be diffed against upstream; not formatted or linted by this repo.
-extensions/impeccable/detector/
