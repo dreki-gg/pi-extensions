@@ -185,6 +185,9 @@ function createMockContext(options?: { cwd?: string; hasUI?: boolean }) {
       },
       setToolsExpanded() {},
       setEditorComponent() {},
+      addAutocompleteProvider() {
+        return () => {};
+      },
       getAllThemes() {
         return [];
       },
@@ -632,7 +635,13 @@ describe('Pi extension compatibility harness', () => {
     );
     planModeExtension(pi.api as any);
 
-    expect([...pi.commands.keys()].sort()).toEqual(['plan', 'plan-exec', 'todos']);
+    expect([...pi.commands.keys()].sort()).toEqual([
+      'initiatives',
+      'plan',
+      'plan-exec',
+      'plans',
+      'todos',
+    ]);
     expect(pi.countHandlers('session_start')).toBeGreaterThan(0);
     expect(pi.countHandlers('before_agent_start')).toBeGreaterThan(0);
     expect(pi.countHandlers('tool_call')).toBeGreaterThan(0);
@@ -647,10 +656,19 @@ describe('Pi extension compatibility harness', () => {
       'find',
       'ls',
       'submit_plan',
+      'submit_initiative',
+      'revise_plan',
+      'preview_prototype',
       'write',
       'questionnaire',
       'search_skills',
       'subagent',
+      'plan_status',
+      'set_active_plan',
+      'update_plan',
+      'update_initiative',
+      'initiative_status',
+      'reconcile_plans',
     ]);
     expect(ctx.statuses.get('plan-mode')).toBe('📝 plan');
 
@@ -667,8 +685,14 @@ describe('Pi extension compatibility harness', () => {
       },
       ctx,
     );
-    expect(beforeAgentStartResults[0].message.content).toContain('[PLAN MODE ACTIVE]');
-    expect(beforeAgentStartResults[0].message.content).toContain('.plans/');
+    // plan-mode now registers multiple before_agent_start handlers (plan
+    // references + the core plan-mode prompt), so locate the injected message
+    // by its marker rather than assuming a fixed result index.
+    const planModeMessage = beforeAgentStartResults.find((r) =>
+      r?.message?.content?.includes('[PLAN MODE ACTIVE]'),
+    );
+    expect(planModeMessage?.message.content).toContain('[PLAN MODE ACTIVE]');
+    expect(planModeMessage?.message.content).toContain('.plans/');
 
     // Destructive bash commands are still blocked in plan mode
     const toolCallResults = await pi.emit(
