@@ -17,6 +17,7 @@ Each package is independently installable via `pi install`.
 | `@dreki-gg/pi-plan-mode` | Cursor-like plan workflow with read-only planning, domain-model handoffs, and implementation-plan generation | `pi install npm:@dreki-gg/pi-plan-mode` |
 | `@dreki-gg/pi-past-chats` | Reference previous Pi sessions inline with `@chat:` / `@session:` autocomplete and injected handoff summaries | `pi install npm:@dreki-gg/pi-past-chats` |
 | `@dreki-gg/pi-miro` | Create native Miro items — shapes, connectors, frames, and auto-laid-out diagrams (dagre) on an existing board | `pi install npm:@dreki-gg/pi-miro` |
+| `@dreki-gg/pi-jira` | Jira tools via an authenticated Atlassian CLI (`acli`) session — pull ticket context (`jira_view`, `jira_search`, `jira_comments`) and post concise comments (`jira_comment`) | `pi install npm:@dreki-gg/pi-jira` |
 
 ## Development
 
