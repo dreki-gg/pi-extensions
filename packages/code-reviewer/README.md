@@ -30,10 +30,28 @@ This creates:
 /review --lens quality,ux        # Multiple lenses
 /review --base main              # Diff against a branch
 /review --staged                 # Only staged changes
+/review --repo ../project-pr35    # Review a worktree / sibling repo
 /review-lenses                   # List available lenses
 ```
 
-The `code_review` tool is also available for programmatic use by the agent.
+### Reviewing worktrees & other repos (`--repo`)
+
+By default `/review` runs git against the Pi session directory. Pass `--repo <dir>`
+(alias `--cwd <dir>`) to target a different directory — a git worktree (sibling or
+nested) or another repo — without leaving the session:
+
+```
+/review --repo /path/to/worktree --base HEAD~1 --lens code-quality,architecture
+```
+
+- The path is resolved relative to the session directory and validated as a git
+  work tree (relative paths like `../project-pr35` work).
+- `.code-review.json`, lenses, and recorded rejections all resolve relative to the
+  override directory.
+- The session directory itself is left unchanged — only git/config/lens resolution
+  is redirected.
+
+The `code_review` tool exposes the same override via its optional `cwd` parameter.
 
 ## How the review runs (Bugbot-style pipeline)
 

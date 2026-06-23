@@ -7,6 +7,7 @@ import { Type } from 'typebox';
 import { loadConfig, getLensDir } from '../config';
 import { collectDiff, getChangedFiles } from '../diff';
 import { discoverLenses, getLensContent } from '../lenses';
+import { resolveRepoCwd } from '../resolve-cwd';
 import { resolveModelPlan } from '../model-plan';
 import { runPipeline } from '../passes';
 import {
@@ -72,10 +73,29 @@ export function registerReviewTool(pi: ExtensionAPI) {
           description: 'Review only staged changes instead of all working directory changes.',
         }),
       ),
+      cwd: Type.Optional(
+        Type.String({
+          description:
+            'Override directory for git/config/lens resolution (e.g. a worktree or sibling repo). Resolved relative to the session directory and validated as a git work tree. The session directory is left unchanged.',
+        }),
+      ),
     }),
 
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
-      const cwd = ctx.cwd;
+      let cwd: string;
+      try {
+        cwd = await resolveRepoCwd(pi, ctx.cwd, params.cwd);
+      } catch (cause) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `cwd "${params.cwd}" is not a git work tree (${cause instanceof Error ? cause.message : String(cause)}).`,
+            },
+          ],
+          details: {},
+        };
+      }
       const config = await loadConfig(cwd);
       const lensDir = getLensDir(cwd, config);
       const available = await discoverLenses(lensDir);
