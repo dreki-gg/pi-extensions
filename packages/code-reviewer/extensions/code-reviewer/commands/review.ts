@@ -14,13 +14,29 @@ import {
   runTools,
 } from '../reviewer';
 import { parseReviewArgs } from '../parse-args';
+import { resolveRepoCwd } from '../resolve-cwd';
 
 export function registerReviewCommand(pi: ExtensionAPI) {
   pi.registerCommand('review', {
     description:
-      'Run a multi-lens code review on working directory changes. Usage: /review [--lens name,...] [--base ref] [--staged]',
+      'Run a multi-lens code review on working directory changes. Usage: /review [--lens name,...] [--base ref] [--staged] [--repo dir]',
     handler: async (args, ctx) => {
-      const cwd = ctx.cwd;
+      const parsed = parseReviewArgs(args ?? '');
+
+      // Override directory for git/config/lens resolution (worktrees, sibling
+      // repos). Resolved relative to the session CWD and validated; the session
+      // CWD itself is left unchanged.
+      let cwd: string;
+      try {
+        cwd = await resolveRepoCwd(pi, ctx.cwd, parsed.repo);
+      } catch (cause) {
+        ctx.ui.notify(
+          `--repo ${parsed.repo} is not a git work tree (${cause instanceof Error ? cause.message : String(cause)})`,
+          'error',
+        );
+        return;
+      }
+
       const config = await loadConfig(cwd);
       const lensDir = getLensDir(cwd, config);
       const available = await discoverLenses(lensDir);
@@ -33,7 +49,6 @@ export function registerReviewCommand(pi: ExtensionAPI) {
         return;
       }
 
-      const parsed = parseReviewArgs(args ?? '');
       const lensNames = resolveLensNames(parsed.lenses, config.defaultLenses, available, (msg) =>
         ctx.ui.notify(msg, 'warning'),
       );
