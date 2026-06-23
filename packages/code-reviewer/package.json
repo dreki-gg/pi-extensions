@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-code-reviewer",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Multi-lens code review extension for pi — configurable review criteria per project",
   "keywords": [
     "pi-package"
