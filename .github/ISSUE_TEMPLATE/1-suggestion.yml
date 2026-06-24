@@ -1,0 +1,37 @@
+name: 💡 Suggestion / Feature request
+description: Suggest a new feature, enhancement, or idea.
+title: "[Suggestion]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the idea! Fill in the fields below so we understand what you want and why.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the pain point or the goal. As a user, I want to…
+      placeholder: As a user, I would like pi to remember my selected preset between sessions.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should happen? Describe the behaviour you'd like.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds or other approaches you've thought about.
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Examples, screenshots, links, or anything else.
+    validations:
+      required: false

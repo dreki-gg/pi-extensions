@@ -1,0 +1,12 @@
+name: 🗒️ Other
+description: Questions, documentation, or anything that isn't a bug or a suggestion.
+title: "[Other]: "
+labels: ["question"]
+body:
+  - type: textarea
+    id: details
+    attributes:
+      label: What's on your mind?
+      description: Ask a question or describe the topic. Add any context that helps.
+    validations:
+      required: true
