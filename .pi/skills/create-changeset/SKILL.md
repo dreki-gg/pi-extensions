@@ -62,4 +62,4 @@ When unsure between two levels, pick the higher one. Pre-1.0 packages still foll
 
 - Leave the file uncommitted for the user to review, or commit it alongside the change — match the user's workflow.
 - Versioning happens later via `bun run version` (`changeset version`), which consumes all pending `.changeset/*.md` files, bumps versions, and updates each package's `CHANGELOG.md`.
-- To actually release, see the `deploy-local` skill (`bun run deploy:local`).
+- To actually release, publish to npm with `bun run publish` (or `bun run deploy:public`).

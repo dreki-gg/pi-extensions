@@ -7,12 +7,12 @@
 
 ## Publishing and Installing Packages
 
-1. **NEVER install packages manually** on the local machine (no `npm install -g`, `bun add -g`, etc.). After publishing to the local Verdaccio registry, packages are installed via `pi update` — the standard pi upgrade flow handles everything.
-2. After `npm publish --registry http://localhost:4873`, just confirm the publish succeeded. Do not run any global install command.
+1. **NEVER install packages manually** on the local machine (no `npm install -g`, `bun add -g`, etc.). Released packages are installed via `pi install npm:@dreki-gg/<pkg>` and updated via `pi update` — the standard pi flow handles everything.
+2. Publishing releases to the public npm registry goes through Changesets: `bun run version` then `bun run publish` (or `bun run deploy:public`). Confirm the publish succeeded; do not run any global install command.
 
-### Alternative (dev only): path-install from this repo
+### Local dev: path-install from this repo
 
-For a local live-edit loop without republishing, install a package straight from its repo directory:
+For a local live-edit loop without publishing, install a package straight from its repo directory:
 
 ```bash
 pi install /absolute/path/to/pi-extensions/packages/<pkg>
@@ -21,7 +21,7 @@ pi remove  /absolute/path/to/pi-extensions/packages/<pkg>
 
 pi adds local paths to settings **without copying**, loads the directory with full package rules (reads `package.json` + `pi.extensions`, handles multi-file extensions), and resolves runtime deps from the repo's hoisted `node_modules` — so dependency-bound packages work too. Edits in the repo take effect on the next pi restart.
 
-Notes: workspace-dependent packages (e.g. `plan-mode` → `command-sandbox`, `taskman`) require `bun run build` first so their `dist/` exists. Path installs are unversioned and skipped by `pi update`. This is a personal dev convenience; the Verdaccio flow above remains the canonical way others install these packages.
+Notes: workspace-dependent packages (e.g. `plan-mode` → `command-sandbox`, `taskman`) require `bun run build` first so their `dist/` exists. Path installs are unversioned and skipped by `pi update`. This is the canonical local dev loop; publishing to npm (above) remains how releases reach other people.
 
 ## Creating and maintaining Pi Extensions
 
