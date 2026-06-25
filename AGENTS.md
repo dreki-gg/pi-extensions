@@ -29,6 +29,7 @@ Notes: workspace-dependent packages (e.g. `plan-mode` → `command-sandbox`, `ta
 2. Create extensions using a domain-driven approach to avoid huge files — group code by domain concepts and responsibilities.
 3. Create extensions using a TDD approach to make sure that the code generated builds with the correct logic.
 4. Prefer less code to avoid too many moving parts, but never take shortcuts — simplicity without sacrificing correctness.
+5. Decide where a new extension lives by its shape, not by counting what already exists: a small, self-contained personal helper (a command or a tiny hook) with no real runtime dependencies goes inside the `workflow` package (add it under `extensions/<name>/` and list it in that package's `pi.extensions`). Give an extension its own package only when it has a distinct domain, real runtime dependencies, or is worth installing standalone.
 
 ### Runtime constraint: Extensions run on Node.js, not Bun
 
