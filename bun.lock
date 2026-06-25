@@ -18,27 +18,6 @@
         "typebox": "^1.0.55",
       },
     },
-    "packages/ask-mode": {
-      "name": "@dreki-gg/pi-ask-mode",
-      "version": "0.3.3",
-      "dependencies": {
-        "@dreki-gg/pi-command-sandbox": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/node": "24",
-        "oxfmt": "^0.43.0",
-        "oxlint": "^1.58.0",
-        "typescript": "^6.0.0",
-      },
-      "peerDependencies": {
-        "@earendil-works/pi-coding-agent": "*",
-        "@earendil-works/pi-tui": "*",
-      },
-      "optionalPeers": [
-        "@earendil-works/pi-coding-agent",
-        "@earendil-works/pi-tui",
-      ],
-    },
     "packages/browser-tools": {
       "name": "@dreki-gg/pi-browser-tools",
       "version": "0.6.0",
@@ -69,7 +48,7 @@
     },
     "packages/code-reviewer": {
       "name": "@dreki-gg/pi-code-reviewer",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "dependencies": {
         "effect": "^3.21.2",
       },
@@ -192,7 +171,7 @@
     },
     "packages/jira": {
       "name": "@dreki-gg/pi-jira",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "devDependencies": {
         "@types/node": "24",
         "bun-types": "^1.3.14",
@@ -233,45 +212,6 @@
         "@earendil-works/pi-ai",
         "@earendil-works/pi-coding-agent",
         "typebox",
-      ],
-    },
-    "packages/miro": {
-      "name": "@dreki-gg/pi-miro",
-      "version": "0.5.0",
-      "dependencies": {
-        "@dagrejs/dagre": "^1.1.4",
-        "@mirohq/miro-api": "^2.2.4",
-      },
-      "devDependencies": {
-        "@types/node": "24",
-        "bun-types": "^1.3.14",
-        "oxfmt": "^0.43.0",
-        "oxlint": "^1.58.0",
-        "typescript": "^6.0.0",
-      },
-      "peerDependencies": {
-        "@earendil-works/pi-coding-agent": "*",
-        "typebox": "*",
-      },
-      "optionalPeers": [
-        "@earendil-works/pi-coding-agent",
-        "typebox",
-      ],
-    },
-    "packages/modes": {
-      "name": "@dreki-gg/pi-modes",
-      "version": "0.1.4",
-      "devDependencies": {
-        "@types/node": "24",
-        "oxfmt": "^0.43.0",
-        "oxlint": "^1.58.0",
-        "typescript": "^6.0.0",
-      },
-      "peerDependencies": {
-        "@earendil-works/pi-coding-agent": "*",
-      },
-      "optionalPeers": [
-        "@earendil-works/pi-coding-agent",
       ],
     },
     "packages/past-chats": {
@@ -324,23 +264,6 @@
       "optionalPeers": [
         "@earendil-works/pi-coding-agent",
         "@earendil-works/pi-tui",
-      ],
-    },
-    "packages/pr-babysitter": {
-      "name": "@dreki-gg/pi-pr-babysitter",
-      "version": "1.0.0",
-      "devDependencies": {
-        "@types/node": "24",
-        "bun-types": "^1.3.14",
-        "oxfmt": "^0.43.0",
-        "oxlint": "^1.58.0",
-        "typescript": "^6.0.0",
-      },
-      "peerDependencies": {
-        "@earendil-works/pi-coding-agent": "*",
-      },
-      "optionalPeers": [
-        "@earendil-works/pi-coding-agent",
       ],
     },
     "packages/pr-canvas": {
@@ -621,13 +544,7 @@
 
     "@conventional-changelog/git-client": ["@conventional-changelog/git-client@2.7.0", "", { "dependencies": { "@simple-libs/child-process-utils": "^1.0.0", "@simple-libs/stream-utils": "^1.2.0", "semver": "^7.5.2" }, "peerDependencies": { "conventional-commits-filter": "^5.0.0", "conventional-commits-parser": "^6.4.0" }, "optionalPeers": ["conventional-commits-filter", "conventional-commits-parser"] }, "sha512-j7A8/LBEQ+3rugMzPXoKYzyUPpw/0CBQCyvtTR7Lmu4olG4yRC/Tfkq79Mr3yuPs0SUitlO2HwGP3gitMJnRFw=="],
 
-    "@dagrejs/dagre": ["@dagrejs/dagre@1.1.8", "", { "dependencies": { "@dagrejs/graphlib": "2.2.4" } }, "sha512-5SEDlndt4W/LaVzPYJW+bSmSEZc9EzTf8rJ20WCKvjS5EAZAN0b+x0Yww7VMT4R3Wootkg+X9bUfUxazYw6Blw=="],
-
-    "@dagrejs/graphlib": ["@dagrejs/graphlib@2.2.4", "", {}, "sha512-mepCf/e9+SKYy1d02/UkvSy6+6MoyXhVxP8lLDfA7BPE1X1d4dR0sZznmbM8/XVJ1GPM+Svnx7Xj6ZweByWUkw=="],
-
     "@datadog/datadog-api-client": ["@datadog/datadog-api-client@1.58.0", "", { "dependencies": { "@types/buffer-from": "^1.1.0", "@types/node": "*", "@types/pako": "^1.0.3", "buffer-from": "^1.1.2", "cross-fetch": "^3.1.5", "form-data": "^4.0.4", "loglevel": "^1.8.1", "pako": "^2.0.4" } }, "sha512-aDCMu+qEXjr8PHkT8XvY7FTzVNi2z7yVJy39I4s0lVtb+sdth4ZppMC1aCDwGJQMHK4J0aect+xKScuHy/Xilg=="],
-
-    "@dreki-gg/pi-ask-mode": ["@dreki-gg/pi-ask-mode@workspace:packages/ask-mode"],
 
     "@dreki-gg/pi-browser-tools": ["@dreki-gg/pi-browser-tools@workspace:packages/browser-tools"],
 
@@ -647,15 +564,9 @@
 
     "@dreki-gg/pi-lsp": ["@dreki-gg/pi-lsp@workspace:packages/lsp"],
 
-    "@dreki-gg/pi-miro": ["@dreki-gg/pi-miro@workspace:packages/miro"],
-
-    "@dreki-gg/pi-modes": ["@dreki-gg/pi-modes@workspace:packages/modes"],
-
     "@dreki-gg/pi-past-chats": ["@dreki-gg/pi-past-chats@workspace:packages/past-chats"],
 
     "@dreki-gg/pi-plan-mode": ["@dreki-gg/pi-plan-mode@workspace:packages/plan-mode"],
-
-    "@dreki-gg/pi-pr-babysitter": ["@dreki-gg/pi-pr-babysitter@workspace:packages/pr-babysitter"],
 
     "@dreki-gg/pi-pr-canvas": ["@dreki-gg/pi-pr-canvas@workspace:packages/pr-canvas"],
 
@@ -756,8 +667,6 @@
     "@mariozechner/clipboard-win32-arm64-msvc": ["@mariozechner/clipboard-win32-arm64-msvc@0.3.6", "", { "os": "win32", "cpu": "arm64" }, "sha512-+8+1aHYsBPUjmW3otmWlg+Hijt0iJvoBBs5e0mxFeUd4gDaKMB8Bn6x7c6KVtscg7E5j5NFXnwQqNSIAO4p8zQ=="],
 
     "@mariozechner/clipboard-win32-x64-msvc": ["@mariozechner/clipboard-win32-x64-msvc@0.3.6", "", { "os": "win32", "cpu": "x64" }, "sha512-S4xfPmERC8ZkiLHe3vekZCjdDwNEETCuvCgQK2kP6/TnvmUkq1y2Pk+DjM4t8uh9KMX9bH4zs5ePcKa8GTXmfg=="],
-
-    "@mirohq/miro-api": ["@mirohq/miro-api@2.2.4", "", { "dependencies": { "form-data": "^4.0.0", "node-fetch": "^2.7.0" } }, "sha512-qsWCV6QYqUPr1u10DMAfnTy00iJgZ6x2rIDw00BHADHsXtz19krXB3cs34LDQ273DckmHezil6vfzhl7NRyTMQ=="],
 
     "@mistralai/mistralai": ["@mistralai/mistralai@2.2.1", "", { "dependencies": { "ws": "^8.18.0", "zod": "^3.25.0 || ^4.0.0", "zod-to-json-schema": "^3.25.0" } }, "sha512-uKU8CZmL2RzYKmplsU01hii4p3pe4HqJefpWNRWXm1Tcm0Sm4xXfwSLIy4k7ZCPlbETCGcp69E7hZs+WOJ5itQ=="],
 
