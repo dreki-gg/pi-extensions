@@ -36,3 +36,4 @@ scripts/verdaccio/*.log
 scripts/verdaccio/*.log.err
 scripts/verdaccio/*.pid
 scripts/verdaccio/htpasswd
+dist/
