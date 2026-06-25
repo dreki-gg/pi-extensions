@@ -1,7 +1,7 @@
 {
   "name": "@dreki-gg/pi-workflow",
   "version": "0.1.0",
-  "description": "Personal pi workflow helpers — /commit (Conventional Commits) and a concise model-specific prompt for gpt-5.5",
+  "description": "Personal pi workflow helpers — /commit generates and creates a Conventional Commits commit",
   "keywords": [
     "pi-package",
     "pi",
@@ -29,8 +29,7 @@
   },
   "pi": {
     "extensions": [
-      "./extensions/commit",
-      "./extensions/gpt55-concise"
+      "./extensions/commit"
     ]
   },
   "devDependencies": {

@@ -23,7 +23,7 @@ Each package is independently installable via `pi install`.
 | `@dreki-gg/pi-questionnaire` | Tool-first questionnaire flow + `/questionnaire` demo command | `pi install npm:@dreki-gg/pi-questionnaire` |
 | `@dreki-gg/pi-slack` | Slack read tools — messages, threads, channels, search, and file/image downloads | `pi install npm:@dreki-gg/pi-slack` |
 | `@dreki-gg/pi-subagent` | Subagent tool + `/run-agent` with bundled agents and workflow templates | `pi install npm:@dreki-gg/pi-subagent` |
-| `@dreki-gg/pi-workflow` | Personal workflow helpers — `/commit` (Conventional Commits) + a concise prompt for `gpt-5.5` | `pi install npm:@dreki-gg/pi-workflow` |
+| `@dreki-gg/pi-workflow` | Personal workflow helpers — `/commit` generates and creates a Conventional Commits commit | `pi install npm:@dreki-gg/pi-workflow` |
 | `@dreki-gg/taskman` | Standalone task-management engine + CLI over a `.plans/` JSONL ledger — the plan-mode core | `pi install npm:@dreki-gg/taskman` |
 
 ## Development
