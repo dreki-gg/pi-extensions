@@ -1,0 +1,58 @@
+{
+  "name": "@dreki-gg/pi-handoff",
+  "version": "0.1.0",
+  "description": "Transfer context to a new focused pi session via a generated, editable handoff prompt instead of lossy compaction",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "handoff",
+    "context",
+    "session"
+  ],
+  "author": "Juan Albarran <jalbarrandev@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dreki-gg/pi-extensions",
+    "directory": "packages/handoff"
+  },
+  "type": "module",
+  "files": [
+    "extensions",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint extensions",
+    "format": "oxfmt --write extensions",
+    "format:check": "oxfmt --check extensions"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/handoff"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "oxfmt": "^0.43.0",
+    "oxlint": "^1.58.0",
+    "typescript": "^6.0.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-agent-core": {
+      "optional": true
+    },
+    "@earendil-works/pi-ai": {
+      "optional": true
+    },
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    }
+  }
+}
