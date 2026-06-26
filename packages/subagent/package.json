@@ -30,6 +30,9 @@
       "./prompts"
     ]
   },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "^1.0.0"
+  },
   "devDependencies": {
     "@types/node": "24",
     "oxfmt": "^0.43.0",

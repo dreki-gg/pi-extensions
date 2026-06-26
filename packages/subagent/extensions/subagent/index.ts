@@ -44,6 +44,7 @@ import type { AgentResult } from './agent-runner-types.js';
 import { getFinalText } from './agent-result-utils.js';
 import { buildHandoffFromResult, renderHandoffForPrompt } from './handoffs.js';
 import { emptyUsage, spawnPiAgent, type ToolExecutionStartEvent } from './spawn-utils.js';
+import { dispatchSubagent } from './cursor/dispatch.js';
 import { registerListAgentsTool } from './list-agents.js';
 import { registerCreateAgentCommand } from './create-agent.js';
 
@@ -356,7 +357,7 @@ async function runSingleAgent(
   };
 
   let spawnResult: Awaited<ReturnType<typeof spawnPiAgent>> | undefined;
-  spawnResult = await spawnPiAgent({
+  spawnResult = await dispatchSubagent({
     cwd: cwd ?? defaultCwd,
     agentName: agent.name,
     task,
@@ -525,6 +526,13 @@ export default function (pi: ExtensionAPI) {
     scope: AgentScope,
   ): Promise<Array<{ value: string; label?: string; description?: string }>> {
     const items = new Map<string, { value: string; label?: string; description?: string }>();
+
+    // Cursor ACP backend: cursor:<model> routes through `cursor-agent acp`.
+    items.set('cursor:composer-2.5', {
+      value: 'cursor:composer-2.5',
+      label: 'cursor:composer-2.5',
+      description: 'Cursor Composer 2.5 via ACP (requires cursor-agent + agent login)',
+    });
 
     try {
       const authStorage = AuthStorage.create();

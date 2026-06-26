@@ -1,7 +1,8 @@
 import type { ResolvedPaths } from '@earendil-works/pi-coding-agent';
 import { discoverAgents, type AgentScope } from './agents.js';
 import type { AgentResult } from './agent-runner-types.js';
-import { emptyUsage, spawnPiAgent, type ToolExecutionStartEvent } from './spawn-utils.js';
+import { emptyUsage, type ToolExecutionStartEvent } from './spawn-utils.js';
+import { dispatchSubagent } from './cursor/dispatch.js';
 
 export type OnPhaseUpdate = (phaseName: string, agentName: string, result: AgentResult) => void;
 
@@ -51,7 +52,7 @@ export async function runAgent(
     model: selectedModel,
   };
 
-  const spawnResult = await spawnPiAgent({
+  const spawnResult = await dispatchSubagent({
     cwd: options.cwd ?? cwd,
     agentName: agent.name,
     task,

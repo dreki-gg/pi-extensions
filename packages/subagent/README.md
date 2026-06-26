@@ -26,6 +26,36 @@ Notes:
 - `/run-agent` provides autocomplete for `--model` and `--thinking`
 - the `subagent` tool supports the same fields in its schema, but this package does not currently add custom interactive autocomplete for tool-call JSON parameters
 
+## Cursor Composer (ACP backend)
+
+Set a subagent's model to `cursor:<model>` to run the task on Cursor's agent via the
+[Agent Client Protocol](https://agentclientprotocol.com/) instead of spawning a `pi`
+process. A bare `cursor:` (or `cursor`) defaults to `composer-2.5`.
+
+```jsonc
+// single run on Composer 2.5
+{ "agent": "worker", "task": "…", "model": "cursor:composer-2.5" }
+```
+
+Works across every mode (single / parallel / chain) and the `/run-agent` command —
+routing happens in one shared dispatcher, so the result shape and rendering are
+identical to pi-backed subagents.
+
+**Prerequisites**
+
+- `cursor-agent` installed (default `~/.local/bin/cursor-agent`). Override the binary
+  with the `CURSOR_AGENT_BIN` env var.
+- Authenticated once: `agent login` (or set `CURSOR_API_KEY`).
+
+**Behavior notes**
+
+- Cursor runs **its own tools** in ACP headless mode and auto-executes them; the
+  subagent `tools` allowlist and `thinking` level do **not** apply to `cursor:` models.
+- Permission prompts (`session/request_permission`) are auto-approved (most permissive
+  allow option) so runs never block. Cursor typically does not prompt for normal ops.
+- The model is passed as `cursor-agent --model <model> acp`; see `cursor-agent --list-models`
+  for available ids (e.g. `cursor:gpt-5.2`).
+
 ## Opinionated Defaults
 
 This package is intentionally opinionated about orchestration:

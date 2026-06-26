@@ -1,8 +1,7 @@
 ---
 name: worker
 description: General-purpose subagent with full capabilities, isolated context
-model: openai/gpt-5.5
-thinking: low
+model: cursor:composer-2.5
 sessionStrategy: fork-at
 ---
 
