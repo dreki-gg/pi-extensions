@@ -28,6 +28,7 @@ As soon as you understand the intent, write `.plans/<plan-name>/context.md` with
 - **Constraints** — technical, product, or process limits that shape the work
 - **Open questions** — anything unresolved; do not submit a plan with silent unknowns
 - **Discarded options** — approaches considered and rejected, with why. This is the highest-value section and the one most often skipped.
+- **Blast radius** (when the plan deletes/removes/renames/narrows anything) — for every symbol, export, file, or feature being removed, record the exact proof command (grep / ast-grep over *every* exported symbol name, not just the type or feature name) and its result. Scope by **feature, not directory**: trace each symbol upward to its callers, operations, commands, and settings. This evidence is what turns "delete, it's unused" from an assertion into a precondition the executor can re-run — see the precondition gate in the plan-mode prompt. A removal task without it will rot.
 
 ### 3. Style
 

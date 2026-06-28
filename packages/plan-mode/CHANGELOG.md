@@ -1,5 +1,21 @@
 # @dreki-gg/pi-plan-mode
 
+## 0.28.0
+
+### Minor Changes
+
+- Add a precondition gate that stops "delete X, it's unused" plan drift. Any task
+  that deletes, removes, renames, or narrows a codebase symbol/export/file/feature
+  must now carry a re-runnable proof of its premise — a `Proof: <command>` line
+  (grep/ast-grep over every exported symbol, scoped by feature not directory) or
+  an explicit `Precondition: none — <reason>` opt-out. The rule is hoisted to the
+  top of the planner prompt and enforced deterministically: `submit_plan` refuses
+  to persist a plan whose destructive tasks lack proof, naming the offending task
+  ids so you can fix and resubmit. No LLM call, no reviewer side effect. At
+  execution time the proof is re-run, and a contradicted premise (live consumers,
+  a delete that breaks an import) blocks instead of being silently improvised
+  around.
+
 ## 0.27.3
 
 ### Patch Changes

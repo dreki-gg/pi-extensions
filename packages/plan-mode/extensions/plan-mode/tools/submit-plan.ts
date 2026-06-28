@@ -14,6 +14,7 @@ import { reconcileInitiativeForPlan } from '@dreki-gg/taskman';
 import type { RunPlanIO } from '@dreki-gg/taskman';
 import { toKebabCase } from '@dreki-gg/taskman';
 import { readHeadCommit } from '../git.js';
+import { detectPreconditionGaps, formatPreconditionRejection } from '../precondition-guard.js';
 import type { PlanData, TaskMeta, TaskRecord } from '../types.js';
 
 export interface SubmitPlanCallbacks {
@@ -78,6 +79,18 @@ export function registerSubmitPlanTool(
     }),
 
     async execute(_toolCallId, params) {
+      // Precondition gate (deterministic, no LLM): reject destructive tasks that
+      // carry no proof command or auditable opt-out. Nothing is persisted on
+      // rejection — the agent fixes the tasks and re-calls submit_plan.
+      const gaps = detectPreconditionGaps(params.tasks);
+      if (gaps.length > 0) {
+        const details: Record<string, unknown> = { rejected: true, preconditionGaps: gaps };
+        return {
+          content: [{ type: 'text' as const, text: formatPreconditionRejection(gaps) }],
+          details,
+        };
+      }
+
       const planName = toKebabCase(params.name);
       const planDir = `.plans/${planName}`;
       const initiative = params.initiative ? toKebabCase(params.initiative) : undefined;

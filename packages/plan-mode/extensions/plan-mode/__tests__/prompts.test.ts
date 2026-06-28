@@ -28,6 +28,13 @@ describe('buildPlanModePrompt', () => {
     expect(prompt).toContain('STOP conditions');
   });
 
+  test('hoists the precondition gate and flags it as enforced', () => {
+    expect(prompt).toContain('PRECONDITION GATE');
+    expect(prompt).toMatch(/submit_plan will REJECT/i);
+    expect(prompt).toContain('Precondition: none');
+    expect(prompt).toMatch(/FEATURE, not directory/i);
+  });
+
   test('mentions handoff instead of context and risks', () => {
     expect(prompt).toContain('handoff');
     expect(prompt).not.toContain('- risks:');

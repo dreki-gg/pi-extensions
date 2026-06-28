@@ -17,7 +17,7 @@ interface SubmitParams {
   name: string;
   title: string;
   handoff: string;
-  tasks: Array<{ id: string; description: string }>;
+  tasks: Array<{ id: string; description: string; details?: string }>;
   initiative?: string;
   depends_on_plans?: string[];
 }
@@ -56,6 +56,47 @@ beforeEach(async () => {
 afterEach(async () => {
   chdir(originalCwd);
   await rm(dir, { recursive: true, force: true });
+});
+
+describe('submit_plan tool — precondition gate', () => {
+  test('rejects a destructive task with no proof and persists nothing', async () => {
+    const tool = setup();
+    const res = await tool.execute(
+      'c',
+      baseParams({ tasks: [{ id: 't-001', description: 'Delete the `AuthProvider` export' }] }),
+    );
+    expect(res.content?.[0]?.text).toContain('precondition gate failed');
+    expect((res.details as { rejected?: boolean }).rejected).toBe(true);
+    // Nothing written to the registry.
+    const entries = await runPlanIO(readPlansManifest());
+    expect(entries).toHaveLength(0);
+  });
+
+  test('accepts a destructive task that carries a proof command', async () => {
+    const tool = setup();
+    const res = await tool.execute(
+      'c',
+      baseParams({
+        tasks: [
+          {
+            id: 't-001',
+            description: 'Delete the `AuthProvider` export',
+            details: 'Proof: rg "AuthProvider" -l → no consumers',
+          },
+        ],
+      }),
+    );
+    expect((res.details as { rejected?: boolean }).rejected).toBeUndefined();
+    const entries = await runPlanIO(readPlansManifest());
+    expect(entries).toHaveLength(1);
+  });
+
+  test('accepts a non-destructive task untouched', async () => {
+    const tool = setup();
+    await tool.execute('c', baseParams());
+    const entries = await runPlanIO(readPlansManifest());
+    expect(entries).toHaveLength(1);
+  });
 });
 
 describe('submit_plan tool — initiative + plan deps', () => {

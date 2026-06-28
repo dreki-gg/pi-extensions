@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-workflow",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Personal pi workflow helpers — /commit generates and creates a Conventional Commits commit",
   "keywords": [
     "pi-package",

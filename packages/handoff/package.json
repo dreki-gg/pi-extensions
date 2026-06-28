@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-handoff",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Transfer context to a new focused pi session via a generated, editable handoff prompt instead of lossy compaction",
   "keywords": [
     "pi-package",

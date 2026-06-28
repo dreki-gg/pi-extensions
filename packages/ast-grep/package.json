@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-ast-grep",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Structural (AST-based) code search and rewrite tool for pi, powered by ast-grep",
   "keywords": [
     "pi-package",
