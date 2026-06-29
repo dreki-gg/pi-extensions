@@ -29,6 +29,9 @@ bun.lockb
 .plans/
 .handoffs/
 
+# Personal notes / scratch
+.notes/
+
 # Local Verdaccio registry runtime artifacts
 scripts/verdaccio/storage/
 scripts/verdaccio/plugins/
