@@ -26,7 +26,10 @@ import {
 import { reconcileInitiativeForPlan, reconcileInitiativeStatus } from '@dreki-gg/taskman';
 import { isPlanFinalizable } from '@dreki-gg/taskman';
 import { toKebabCase } from '@dreki-gg/taskman';
+import { makePlanRuntime, resolvePlanByName, loadPlanData } from '@dreki-gg/taskman';
 import type { RunPlanIO } from '@dreki-gg/taskman';
+import { Effect as E } from 'effect';
+import { resolvePlanTarget } from '../target.js';
 import type { PlanData, TaskMeta, TaskRecord } from '../types.js';
 
 export interface RevisePlanCallbacks {
@@ -53,6 +56,12 @@ export function registerRevisePlanTool(
     ],
     parameters: Type.Object({
       plan: Type.String({ description: 'Plan name (or .plans/<name>) to revise' }),
+      target: Type.Optional(
+        Type.String({
+          description:
+            "Optional path to ANOTHER project's repo root whose .plans/ holds the plan being revised. Use when the plan was filed into a package you author. Author-only: the revised plan is NOT pinned as this session's active plan.",
+        }),
+      ),
       title: Type.Optional(Type.String({ description: 'New human-readable plan title' })),
       handoff: Type.Optional(Type.String({ description: 'New markdown content for HANDOFF.md' })),
       tasks: Type.Optional(
@@ -92,7 +101,23 @@ export function registerRevisePlanTool(
           'revise_plan requires an explicit { plan } — pass the plan name so the rewrite is never applied to an unrelated in-progress plan.',
         );
       }
-      const { plan, candidates } = await callbacks.resolvePlan({ name: params.plan });
+      // Resolve an optional external target. When set, resolve + rewrite the
+      // plan against that repo's .plans/ via a target-scoped runtime, and do
+      // not touch this session's active-plan state (author-only).
+      const targetDir = await resolvePlanTarget(params.target);
+      const io: RunPlanIO = targetDir ? makePlanRuntime(targetDir) : runPlanIO;
+
+      const { plan, candidates } = targetDir
+        ? await io(
+            E.gen(function* () {
+              const resolved = yield* resolvePlanByName({ name: params.plan });
+              if (!resolved.planName || !resolved.planDir)
+                return { plan: undefined, candidates: resolved.candidates };
+              const loaded = yield* loadPlanData(resolved.planDir);
+              return { plan: loaded, candidates: [] as string[] };
+            }),
+          )
+        : await callbacks.resolvePlan({ name: params.plan });
       if (!plan) {
         const notFound: Record<string, unknown> = {
           error: 'not_found',
@@ -152,7 +177,7 @@ export function registerRevisePlanTool(
       const newInitiative = params.initiative ? toKebabCase(params.initiative) : undefined;
       const newDependsOn = params.depends_on_plans?.map(toKebabCase);
 
-      await runPlanIO(
+      await io(
         Effect.gen(function* () {
           yield* writeTasksJsonl(planDir, meta, tasks);
           yield* saveHandoff(planDir, newHandoff);
@@ -176,21 +201,24 @@ export function registerRevisePlanTool(
         }),
       );
 
-      callbacks.onPlanRevised(planDir, revised);
+      // Author-only: only re-pin the active plan when revising in the current
+      // project (an external plan stays a local plan in its own repo).
+      if (!targetDir) callbacks.onPlanRevised(planDir, revised);
 
       const changed = [
         params.title ? 'title' : undefined,
         params.handoff ? 'handoff' : undefined,
         params.tasks ? 'tasks' : undefined,
       ].filter(Boolean);
+      const location = targetDir ? `${targetDir}/${planDir}` : planDir;
       return {
         content: [
           {
             type: 'text' as const,
-            text: `Plan "${newTitle}" revised (${changed.join(', ') || 'no changes'}) in ${planDir}.`,
+            text: `Plan "${newTitle}" revised (${changed.join(', ') || 'no changes'}) in ${location}.`,
           },
         ],
-        details: { planDir, plan: revised, changed },
+        details: { planDir, plan: revised, changed, target: targetDir },
       };
     },
 

@@ -25,7 +25,12 @@ export * from './errors.js';
 export * from './schema.js';
 
 // Effect runtime / filesystem seam
-export { FileSystem, nodeFileSystemService, type FileSystemService } from './effects/filesystem.js';
+export {
+  FileSystem,
+  makeNodeFileSystemService,
+  nodeFileSystemService,
+  type FileSystemService,
+} from './effects/filesystem.js';
 export { makeRuntimeLayer, makePlanRuntime, type RunPlanIO } from './effects/runtime.js';
 
 // Storage

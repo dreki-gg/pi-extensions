@@ -9,9 +9,17 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { Text } from '@earendil-works/pi-tui';
 import { Type } from 'typebox';
+import { Effect as E } from 'effect';
 import type { TaskRecord } from '../types.js';
 import type { ResolvedPlan } from '../resolve-plan.js';
-import { nextTaskId } from '@dreki-gg/taskman';
+import {
+  nextTaskId,
+  makePlanRuntime,
+  resolvePlanByName,
+  appendDeferredTask,
+  loadPlanData,
+} from '@dreki-gg/taskman';
+import { resolvePlanTarget } from '../target.js';
 
 export interface AddTaskCallbacks {
   /** Resolve the active plan, attaching from disk when none is in memory. */
@@ -45,6 +53,12 @@ export function registerAddTaskTool(pi: ExtensionAPI, callbacks: AddTaskCallback
         description:
           'Plan name (or .plans/<name>) to target. Required — always scope the capture explicitly so it never lands in the wrong plan.',
       }),
+      target: Type.Optional(
+        Type.String({
+          description:
+            "Optional path to ANOTHER project's repo root whose .plans/ holds the plan. Use when capturing a follow-up against a plan you filed into a package you author. The plan must already exist there.",
+        }),
+      ),
     }),
 
     async execute(_toolCallId, params) {
@@ -58,6 +72,52 @@ export function registerAddTaskTool(pi: ExtensionAPI, callbacks: AddTaskCallback
           'add_task requires an explicit { plan } — pass the plan name so the follow-up is never misfiled onto an unrelated in-progress plan.',
         );
       }
+      // External target: resolve + append against that repo's .plans/ via a
+      // target-scoped runtime, bypassing the cwd-bound session callbacks.
+      const targetDir = await resolvePlanTarget(params.target);
+      if (targetDir) {
+        const io = makePlanRuntime(targetDir);
+        const resolved = await io(resolvePlanByName({ name: params.plan }));
+        if (!resolved.planName || !resolved.planDir) {
+          const hint = resolved.candidates.length
+            ? ` In-progress in ${targetDir}: ${resolved.candidates.join(', ')}.`
+            : ` No such plan in ${targetDir}/.plans/.`;
+          return {
+            content: [
+              { type: 'text' as const, text: `Skipped follow-up capture — plan not found.${hint}` },
+            ],
+            details: { skipped: true, candidates: resolved.candidates, target: targetDir },
+          };
+        }
+        const { task, deferred } = await io(
+          E.gen(function* () {
+            const added = yield* appendDeferredTask(resolved.planDir!, {
+              description: params.description,
+              reason: params.reason,
+              details: params.details,
+              depends_on: params.depends_on,
+            });
+            const reloaded = yield* loadPlanData(resolved.planDir!);
+            const count = reloaded?.tasks.filter((t) => t.status === 'deferred').length ?? 1;
+            return { task: added, deferred: count };
+          }),
+        );
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Captured follow-up ${task.id}: ${task.description} into ${targetDir}/${resolved.planDir} (deferred for review). ${deferred} follow-up(s) pending there. Continue with the planned tasks — do not implement this now.`,
+            },
+          ],
+          details: {
+            task_id: task.id,
+            description: task.description,
+            reason: params.reason,
+            target: targetDir,
+          },
+        };
+      }
+
       const { plan, candidates } = await callbacks.resolvePlan({ name: params.plan });
       // No active plan is a tracking miss, not an error — return a soft,
       // non-terminating result so real work continues.

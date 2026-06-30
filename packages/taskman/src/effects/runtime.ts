@@ -7,15 +7,24 @@
  */
 
 import { Effect, Layer } from 'effect';
-import { FileSystem, nodeFileSystemService } from './filesystem.js';
+import { FileSystem, makeNodeFileSystemService, nodeFileSystemService } from './filesystem.js';
 
-export function makeRuntimeLayer(): Layer.Layer<FileSystem> {
-  return Layer.succeed(FileSystem, nodeFileSystemService);
+/**
+ * Build the live filesystem layer. Pass `root` to relocate the whole `.plans/`
+ * registry under another working directory; omit it for the default (relative
+ * paths resolve against the current working directory).
+ */
+export function makeRuntimeLayer(root?: string): Layer.Layer<FileSystem> {
+  const service = root === undefined ? nodeFileSystemService : makeNodeFileSystemService(root);
+  return Layer.succeed(FileSystem, service);
 }
 
-/** Build a bridge that runs storage programs against the live filesystem layer. */
-export function makePlanRuntime() {
-  const layer = makeRuntimeLayer();
+/**
+ * Build a bridge that runs storage programs against the live filesystem layer.
+ * Pass `root` to target an external working directory's `.plans/` registry.
+ */
+export function makePlanRuntime(root?: string) {
+  const layer = makeRuntimeLayer(root);
   return function runPlanIO<A, E>(program: Effect.Effect<A, E, FileSystem>): Promise<A> {
     return Effect.runPromise(program.pipe(Effect.provide(layer)));
   };

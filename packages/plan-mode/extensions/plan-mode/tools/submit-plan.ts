@@ -12,8 +12,10 @@ import { upsertPlanEntry } from '@dreki-gg/taskman';
 import { readInitiativesManifest } from '@dreki-gg/taskman';
 import { reconcileInitiativeForPlan } from '@dreki-gg/taskman';
 import type { RunPlanIO } from '@dreki-gg/taskman';
+import { makePlanRuntime } from '@dreki-gg/taskman';
 import { toKebabCase } from '@dreki-gg/taskman';
 import { readHeadCommit } from '../git.js';
+import { resolvePlanTarget } from '../target.js';
 import { detectPreconditionGaps, formatPreconditionRejection } from '../precondition-guard.js';
 import type { PlanData, TaskMeta, TaskRecord } from '../types.js';
 
@@ -76,6 +78,12 @@ export function registerSubmitPlanTool(
           }),
         ),
       ),
+      target: Type.Optional(
+        Type.String({
+          description:
+            "Optional path to ANOTHER project's repo root (not its .plans/ dir). When set, the plan is filed into that project's .plans/ registry instead of the current one — useful when you find a gap in a package you author and want the plan to live (and later execute) there. Author-only: the plan is NOT pinned as the active plan in this session.",
+        }),
+      ),
     }),
 
     async execute(_toolCallId, params) {
@@ -91,12 +99,19 @@ export function registerSubmitPlanTool(
         };
       }
 
+      // Resolve an optional external target. When set, the plan is filed into
+      // that repo's .plans/ registry via a target-scoped runtime, its base
+      // commit comes from that repo's HEAD, and we do NOT pin it as this
+      // session's active plan (author-only).
+      const targetDir = await resolvePlanTarget(params.target);
+      const io: RunPlanIO = targetDir ? makePlanRuntime(targetDir) : runPlanIO;
+
       const planName = toKebabCase(params.name);
       const planDir = `.plans/${planName}`;
       const initiative = params.initiative ? toKebabCase(params.initiative) : undefined;
       const dependsOnPlans = params.depends_on_plans?.map(toKebabCase);
       const now = new Date().toISOString();
-      const baseCommit = await readHeadCommit();
+      const baseCommit = await readHeadCommit(targetDir ?? process.cwd());
       const meta: TaskMeta = {
         _type: 'meta',
         title: params.title,
@@ -122,7 +137,7 @@ export function registerSubmitPlanTool(
         base_commit: baseCommit,
       };
 
-      const unknownInitiative = await runPlanIO(
+      const unknownInitiative = await io(
         Effect.gen(function* () {
           yield* writeTasksJsonl(planDir, meta, tasks);
           yield* saveHandoff(planDir, params.handoff);
@@ -140,21 +155,23 @@ export function registerSubmitPlanTool(
         }),
       );
 
-      callbacks.onPlanSubmitted(planDir, plan);
+      // Author-only: only pin as the active plan when filed in the current
+      // project. A plan filed into an external repo is a first-class local plan
+      // *there* — pinning a non-local path here would corrupt session state.
+      if (!targetDir) callbacks.onPlanSubmitted(planDir, plan);
 
       const linkSuffix = initiative
         ? ` Linked to initiative "${initiative}"${
             unknownInitiative ? ' (no initiatives.jsonl entry yet — create it with submit_initiative)' : ''
           }.`
         : '';
+      const location = targetDir ? `${targetDir}/${planDir}` : planDir;
+      const text = targetDir
+        ? `Plan "${params.title}" filed into ${location} with ${tasks.length} tasks. It is a local plan in that project — execute it from that directory.${linkSuffix}`
+        : `Plan "${params.title}" saved with ${tasks.length} tasks in ${planDir}. Execute when ready.${linkSuffix}`;
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: `Plan "${params.title}" saved with ${tasks.length} tasks in ${planDir}. Execute when ready.${linkSuffix}`,
-          },
-        ],
-        details: { planDir, plan, initiative, depends_on_plans: dependsOnPlans },
+        content: [{ type: 'text' as const, text }],
+        details: { planDir, plan, initiative, depends_on_plans: dependsOnPlans, target: targetDir },
       };
     },
 

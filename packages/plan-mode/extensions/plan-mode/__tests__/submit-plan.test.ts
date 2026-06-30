@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { chdir } from 'node:process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { makePlanRuntime } from '@dreki-gg/taskman';
@@ -20,6 +20,7 @@ interface SubmitParams {
   tasks: Array<{ id: string; description: string; details?: string }>;
   initiative?: string;
   depends_on_plans?: string[];
+  target?: string;
 }
 interface CapturedTool {
   execute: (
@@ -28,14 +29,14 @@ interface CapturedTool {
   ) => Promise<{ content?: Array<{ text: string }>; details?: unknown }>;
 }
 
-function setup(): CapturedTool {
+function setup(onPlanSubmitted: () => void = () => {}): CapturedTool {
   let tool: CapturedTool | undefined;
   const pi = {
     registerTool: (config: CapturedTool) => {
       tool = config;
     },
   } as unknown as Parameters<typeof registerSubmitPlanTool>[0];
-  registerSubmitPlanTool(pi, runPlanIO, { onPlanSubmitted: () => {} });
+  registerSubmitPlanTool(pi, runPlanIO, { onPlanSubmitted });
   return tool!;
 }
 
@@ -134,5 +135,44 @@ describe('submit_plan tool — initiative + plan deps', () => {
     const [entry] = await runPlanIO(readPlansManifest());
     expect(entry.initiative).toBeUndefined();
     expect(result.content?.[0]?.text).not.toMatch(/initiative/i);
+  });
+});
+
+describe('submit_plan tool — external target', () => {
+  test('files the plan into the target repo, not cwd, and does not pin session state', async () => {
+    const targetDir = await mkdtemp(join(tmpdir(), 'plan-mode-target-'));
+    try {
+      let pinned = false;
+      const tool = setup(() => {
+        pinned = true;
+      });
+
+      const result = await tool.execute('c', baseParams({ target: targetDir }));
+
+      // Plan landed in the target repo's registry.
+      const targetManifest = await readFile(join(targetDir, '.plans', 'plans.jsonl'), 'utf-8');
+      expect(targetManifest).toContain('auth-jwt');
+      const tasks = await readFile(join(targetDir, '.plans', 'auth-jwt', 'tasks.jsonl'), 'utf-8');
+      expect(tasks).toContain('t-001');
+
+      // Nothing leaked into the current working directory.
+      await expect(
+        readFile(join(dir, '.plans', 'plans.jsonl'), 'utf-8'),
+      ).rejects.toThrow();
+
+      // Author-only: the active-plan callback is NOT invoked for external targets.
+      expect(pinned).toBe(false);
+      expect(result.content?.[0]?.text).toMatch(/filed into/);
+      expect((result.details as { target?: string }).target).toBe(targetDir);
+    } finally {
+      await rm(targetDir, { recursive: true, force: true });
+    }
+  });
+
+  test('rejects a target directory that does not exist', async () => {
+    const tool = setup();
+    await expect(
+      tool.execute('c', baseParams({ target: join(dir, 'does-not-exist') })),
+    ).rejects.toThrow(/does not exist/);
   });
 });
