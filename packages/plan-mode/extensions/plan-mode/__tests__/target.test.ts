@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { resolvePlanTarget } from '../target.js';
+import { mkdir, writeFile as writeFileFs } from 'node:fs/promises';
+import {
+  resolvePlanTarget,
+  assertTargetReceived,
+  assertTargetTaskAppended,
+} from '../target.js';
 
 let dir: string;
 
@@ -41,5 +46,28 @@ describe('resolvePlanTarget', () => {
     const file = join(dir, 'file.txt');
     await writeFile(file, 'x');
     await expect(resolvePlanTarget(file)).rejects.toThrow(/not a directory/);
+  });
+});
+
+describe('stale-target guards', () => {
+  test('assertTargetReceived throws when the target tasks file is absent', async () => {
+    await expect(assertTargetReceived(dir, '.plans/gap')).rejects.toThrow(
+      /does not support external targets/,
+    );
+  });
+
+  test('assertTargetReceived passes when the target tasks file exists', async () => {
+    await mkdir(join(dir, '.plans', 'gap'), { recursive: true });
+    await writeFileFs(join(dir, '.plans', 'gap', 'tasks.jsonl'), '{"_type":"meta"}\n');
+    await expect(assertTargetReceived(dir, '.plans/gap')).resolves.toBeUndefined();
+  });
+
+  test('assertTargetTaskAppended throws when the task id is not in the target file', async () => {
+    await mkdir(join(dir, '.plans', 'gap'), { recursive: true });
+    await writeFileFs(join(dir, '.plans', 'gap', 'tasks.jsonl'), '{"id":"t-001"}\n');
+    await expect(assertTargetTaskAppended(dir, '.plans/gap', 't-002')).rejects.toThrow(
+      /external targets/,
+    );
+    await expect(assertTargetTaskAppended(dir, '.plans/gap', 't-001')).resolves.toBeUndefined();
   });
 });

@@ -29,7 +29,7 @@ import { toKebabCase } from '@dreki-gg/taskman';
 import { makePlanRuntime, resolvePlanByName, loadPlanData } from '@dreki-gg/taskman';
 import type { RunPlanIO } from '@dreki-gg/taskman';
 import { Effect as E } from 'effect';
-import { resolvePlanTarget } from '../target.js';
+import { resolvePlanTarget, assertTargetReceived } from '../target.js';
 import type { PlanData, TaskMeta, TaskRecord } from '../types.js';
 
 export interface RevisePlanCallbacks {
@@ -200,6 +200,9 @@ export function registerRevisePlanTool(
           }
         }),
       );
+
+      // Fail loudly if an old/stale taskman silently routed the write to cwd.
+      if (targetDir) await assertTargetReceived(targetDir, planDir);
 
       // Author-only: only re-pin the active plan when revising in the current
       // project (an external plan stays a local plan in its own repo).

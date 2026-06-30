@@ -16,7 +16,7 @@
 
 import { homedir } from 'node:os';
 import { isAbsolute, resolve } from 'node:path';
-import { stat } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 
 /** Expand a leading `~` / `~/` to the user's home directory. */
 function expandHome(input: string): string {
@@ -52,4 +52,56 @@ export async function resolvePlanTarget(target?: string): Promise<string | undef
     throw new Error(`target is not a directory: ${absolute}. Pass the repo root, not a file.`);
   }
   return absolute;
+}
+
+/**
+ * Verify that an external-target write actually landed under `targetDir`.
+ *
+ * Routing to an external root relies on the loaded `@dreki-gg/taskman` honoring
+ * the `root` argument to `makePlanRuntime`. An OLD/stale taskman build silently
+ * ignores it and writes to the current working directory instead — reporting
+ * success while misfiling the plan. This converts that silent fallback into a
+ * loud, actionable failure.
+ *
+ * @throws when `<targetDir>/<planDir>/tasks.jsonl` was not created.
+ */
+export async function assertTargetReceived(targetDir: string, planDir: string): Promise<void> {
+  const marker = resolve(targetDir, planDir, 'tasks.jsonl');
+  let body: string;
+  try {
+    body = await readFile(marker, 'utf-8');
+  } catch {
+    throw staleTargetError(targetDir, marker);
+  }
+  if (body.length === 0) throw staleTargetError(targetDir, marker);
+}
+
+/**
+ * Like {@link assertTargetReceived} but for an append: confirm the freshly
+ * written `taskId` is actually present in the target plan's tasks file. Reads
+ * the file directly (not via a runtime) so a stale taskman cannot mask the
+ * fallback by reading from cwd.
+ */
+export async function assertTargetTaskAppended(
+  targetDir: string,
+  planDir: string,
+  taskId: string,
+): Promise<void> {
+  const marker = resolve(targetDir, planDir, 'tasks.jsonl');
+  let body = '';
+  try {
+    body = await readFile(marker, 'utf-8');
+  } catch {
+    throw staleTargetError(targetDir, marker);
+  }
+  if (!body.includes(`"${taskId}"`)) throw staleTargetError(targetDir, marker);
+}
+
+function staleTargetError(targetDir: string, marker: string): Error {
+  return new Error(
+    `External-target write did not land in ${targetDir} (${marker} missing or unchanged). ` +
+      'The loaded @dreki-gg/taskman build does not support external targets (root param) — ' +
+      'restart pi so it reloads the rebuilt taskman, then retry. ' +
+      "Note: the write may have gone to the current project's .plans/ instead — check and clean up there.",
+  );
 }

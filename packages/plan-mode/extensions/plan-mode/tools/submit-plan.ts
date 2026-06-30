@@ -15,7 +15,7 @@ import type { RunPlanIO } from '@dreki-gg/taskman';
 import { makePlanRuntime } from '@dreki-gg/taskman';
 import { toKebabCase } from '@dreki-gg/taskman';
 import { readHeadCommit } from '../git.js';
-import { resolvePlanTarget } from '../target.js';
+import { resolvePlanTarget, assertTargetReceived } from '../target.js';
 import { detectPreconditionGaps, formatPreconditionRejection } from '../precondition-guard.js';
 import type { PlanData, TaskMeta, TaskRecord } from '../types.js';
 
@@ -154,6 +154,9 @@ export function registerSubmitPlanTool(
           return !initiatives.some((entry) => entry.name === initiative);
         }),
       );
+
+      // Fail loudly if an old/stale taskman silently routed the write to cwd.
+      if (targetDir) await assertTargetReceived(targetDir, planDir);
 
       // Author-only: only pin as the active plan when filed in the current
       // project. A plan filed into an external repo is a first-class local plan

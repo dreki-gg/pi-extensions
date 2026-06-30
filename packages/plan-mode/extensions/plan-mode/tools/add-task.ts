@@ -19,7 +19,7 @@ import {
   appendDeferredTask,
   loadPlanData,
 } from '@dreki-gg/taskman';
-import { resolvePlanTarget } from '../target.js';
+import { resolvePlanTarget, assertTargetTaskAppended } from '../target.js';
 
 export interface AddTaskCallbacks {
   /** Resolve the active plan, attaching from disk when none is in memory. */
@@ -102,6 +102,8 @@ export function registerAddTaskTool(pi: ExtensionAPI, callbacks: AddTaskCallback
             return { task: added, deferred: count };
           }),
         );
+        // Fail loudly if an old/stale taskman silently appended to cwd instead.
+        await assertTargetTaskAppended(targetDir, resolved.planDir!, task.id);
         return {
           content: [
             {
