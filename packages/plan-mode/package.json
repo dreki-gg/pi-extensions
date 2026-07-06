@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-plan-mode",
-  "version": "0.28.0",
+  "version": "0.29.0",
   "description": "Two-phase planning workflow for pi — plan with claude-opus-4-6:medium, execute with gpt-5.5:low, with .plans/ file-based handoff",
   "keywords": [
     "pi-package"
@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@dreki-gg/pi-command-sandbox": "^0.3.0",
-    "@dreki-gg/taskman": "^0.3.0",
+    "@dreki-gg/taskman": "^0.4.0",
     "effect": "^3.21.2"
   },
   "devDependencies": {

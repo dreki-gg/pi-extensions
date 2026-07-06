@@ -1,6 +1,6 @@
 {
   "name": "@dreki-gg/pi-discord",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Discord read tools for pi — pull channel messages and attachments for agent context with an Effect-powered bot client",
   "keywords": [
     "pi-package",
