@@ -56,6 +56,17 @@ identical to pi-backed subagents.
 - The model is passed as `cursor-agent --model <model> acp`; see `cursor-agent --list-models`
   for available ids (e.g. `cursor:gpt-5.2`).
 
+## Model Routing
+
+The `spawn-subagents` skill teaches the orchestrating agent to route each task to the model whose strengths match the work instead of one default model for everything:
+
+- **Bulk token burn goes cheap** — log digging, large specs, migrations, clear-spec implementation.
+- **User-facing output goes tasteful** — public APIs, SDKs, UI copy go to (or are reviewed by) the highest-taste model.
+- **Reviews get the strong model** — cheap models only as an extra perspective, never the sole reviewer.
+- **Defaults, not limits** — redo cheap-model output on a stronger model without asking; judge the output, not the price tag.
+
+If your context files (e.g. a global `AGENTS.md`) define a model routing policy — a table scoring your models on intelligence / taste / cost — the skill treats it as authoritative when picking per-task `model` overrides. Result headers and working messages show which model ran each task (` · model`), so quality is auditable per model.
+
 ## Opinionated Defaults
 
 This package is intentionally opinionated about orchestration:

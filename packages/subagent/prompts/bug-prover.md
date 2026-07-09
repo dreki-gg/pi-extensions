@@ -3,7 +3,7 @@ name: bug-prover
 description: Create the smallest failing repro for a suspected bug. Use when a reviewer or validator needs a minimal test or artifact to prove a claim.
 tools: read, grep, find, ls, bash, edit, write
 model: anthropic/claude-opus-4-6
-thinking: low
+thinking: high
 sessionStrategy: fork-at
 ---
 

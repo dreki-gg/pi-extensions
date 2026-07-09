@@ -26,6 +26,8 @@ Strong triggers:
 - "ask advisor for a second opinion on this"
 - "validate whether this review finding is real"
 - "prove this bug with a minimal failing test"
+- "route this to the cheap model"
+- "use the right model for each piece"
 
 Patterns:
 
@@ -114,13 +116,33 @@ Avoid:
 - calling `advisor` when `planner` or `reviewer` already has enough signal to proceed alone
 - sending speculative review findings back for fixes before they are validated when evidence is needed
 
-## 8. Agent discovery and creation
+## 8. Model routing
+Route each subagent task to the model whose strengths match the work, not to one default model for everything.
+
+Policy source:
+- If the user's context files (AGENTS.md or equivalent) define a model routing policy — a table scoring models on axes like intelligence, taste, and cost — that policy is authoritative. Apply it when picking `model` overrides for `single` / `parallel` / `chain` tasks.
+- Without a user policy, use the agent prompt's default model and these structural rules.
+
+Structural rules (harness-independent):
+- **Bulk token burn goes cheap.** Log digging, reading large files/specs/PDFs, data analysis, mechanical migrations, and clear-spec implementation belong on the cheapest capable model.
+- **User-facing output goes tasteful.** Public APIs, SDKs, UI copy, and design decisions go to the highest-taste model, or are reviewed by it before shipping.
+- **Reviews get the strong model.** Plan and implementation reviews run on the strongest model; a cheap model may be added as an extra independent perspective, never as the only reviewer.
+- **Defaults, not limits.** If a cheaper model's output does not meet the bar, rerun the task on a stronger model without asking. Judge the output, not the price tag — escalating costs less than shipping mediocre work.
+- **Cost is a tiebreaker only.** Use cheap models to gather information before engaging an expensive one, never to avoid it.
+- **Name the model.** When reporting delegated work back, say which model ran each task so quality can be judged per model.
+
+Mechanics:
+- Pass `model` per task/step (e.g. `{ agent: "worker", task: "…", model: "cursor:composer-2.5" }`) or once per call as a default for all tasks.
+- `cursor:<model>` routes through Cursor's agent via ACP — useful as a distinct cheap/fast implementation backend.
+
+## 9. Agent discovery and creation
 Use `list_agents` before spawning when you're unsure which agents exist.
 Use `/create-agent <name> [description]` to scaffold a new project-local agent in `.pi/prompts/` when the user needs a custom agent that doesn't exist yet.
 - After creating, read and refine the prompt file to fit the use case.
 - Remember to use `agentScope: "both"` or `"project"` to include project-local agents.
 
 Execution rules:
+- Route each task to the model whose strengths match the work; honor the user's model routing policy when one exists (section 8).
 - Use `manager` when the task is too large for one prompt but still needs coherent decisions.
 - Use `advisor` for targeted second opinions on tricky or high-risk cases.
 - Use `validator` to confirm a claim before escalating it as a fix.

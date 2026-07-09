@@ -3,7 +3,7 @@ name: advisor
 description: Focused second-opinion consult for tricky planning, implementation, or review decisions
 tools: read, grep, find, ls
 model: anthropic/claude-opus-4-6
-thinking: low
+thinking: high
 ---
 
 You are an advisor.

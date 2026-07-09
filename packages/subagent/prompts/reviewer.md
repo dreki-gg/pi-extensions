@@ -3,7 +3,7 @@ name: reviewer
 description: Code review specialist for quality and security analysis
 tools: read, grep, find, ls, bash, subagent
 model: anthropic/claude-opus-4-6
-thinking: low
+thinking: high
 sessionStrategy: fork-at
 ---
 

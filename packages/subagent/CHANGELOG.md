@@ -1,5 +1,16 @@
 # @dreki-gg/pi-subagent
 
+## 0.11.0
+
+### Minor Changes
+
+- Model routing guidance and visible model attribution.
+
+  - `spawn-subagents` skill: new "Model routing" section — route each subagent task to the model whose strengths match the work (bulk token burn → cheap, user-facing → tasteful, reviews → strongest), honor a user model routing policy from AGENTS.md when one exists, and escalate without asking when a cheaper model's output misses the bar.
+  - Reasoning defaults: Opus-backed judgment/coding agents (advisor, planner, reviewer, validator, bug-prover, ux-designer) now run `thinking: high` instead of low/medium — reasoning effort applies per step, and high is the quality/cost sweet spot. Scouts stay low for cheap bulk recon.
+  - Result rendering: the model that ran each task is now shown next to the agent name in single, parallel, and chain headers (dim ` · model`), and in the working message while a run is active — so per-model quality is auditable at a glance. Parallel running placeholders resolve the model up front (task override → call default → agent default), so attribution shows while tasks are still running, not just after completion.
+  - `scout` and `docs-scout` default models move from `gpt-5.4-mini` to `gpt-5.6-luna` — near-Terra coding quality at the lowest benchmarked cost per task.
+
 ## 0.10.0
 
 ### Minor Changes

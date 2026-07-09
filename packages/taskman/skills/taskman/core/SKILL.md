@@ -9,7 +9,7 @@ description: >
   stateless plan resolution, and reconcile.
 type: core
 library: "@dreki-gg/taskman"
-library_version: "0.3.1"
+library_version: "0.4.0"
 sources:
   - "dreki-gg/pi-extensions:packages/taskman/README.md"
   - "dreki-gg/pi-extensions:packages/taskman/src/cli.ts"
