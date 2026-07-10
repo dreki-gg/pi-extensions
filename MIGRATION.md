@@ -16,7 +16,7 @@ Disposition of every package under `packages/`. Skills live in `github.com/jalba
 | `firestore-cli` | stays as published npm CLI | Standalone CLI consumed by skill `firestore`; not a pi session extension |
 | `handoff` | retired-superseded | Portable `handoff` skill already exists in the skills repo |
 | `jira` | ported to skill `jira` | Jira via `acli` as a portable skill |
-| `lsp` | ported to skill `lsp` | Five LSP ops only; skill landing in this batch |
+| `lsp` | not ported — dropped | Harness-native LSP (Cursor, editors) covers it; a portable one-shot skill was built, verified, and removed as not worth keeping |
 | `past-chats` | stays pi-only | Tied to pi session JSONL format and `@chat:` / `@session:` editor tokens |
 | `plan-mode` | retired-superseded | Superseded by `taskman` CLI + `planwork` skill |
 | `questionnaire` | stays pi-only | Interactive TUI for structured answers inside pi |
