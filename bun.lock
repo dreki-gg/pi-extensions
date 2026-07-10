@@ -18,24 +18,6 @@
         "typebox": "^1.0.55",
       },
     },
-    "packages/ast-grep": {
-      "name": "@dreki-gg/pi-ast-grep",
-      "version": "0.2.0",
-      "devDependencies": {
-        "@types/node": "24",
-        "oxfmt": "^0.43.0",
-        "oxlint": "^1.58.0",
-        "typescript": "^6.0.0",
-      },
-      "peerDependencies": {
-        "@earendil-works/pi-coding-agent": "*",
-        "typebox": "*",
-      },
-      "optionalPeers": [
-        "@earendil-works/pi-coding-agent",
-        "typebox",
-      ],
-    },
     "packages/browser-tools": {
       "name": "@dreki-gg/pi-browser-tools",
       "version": "0.6.0",
@@ -212,7 +194,7 @@
     },
     "packages/firestore-cli": {
       "name": "@dreki-gg/firestore-cli",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "bin": {
         "firestore-cli": "./dist/bin.mjs",
       },
@@ -623,8 +605,6 @@
     "@datadog/datadog-api-client": ["@datadog/datadog-api-client@1.58.0", "", { "dependencies": { "@types/buffer-from": "^1.1.0", "@types/node": "*", "@types/pako": "^1.0.3", "buffer-from": "^1.1.2", "cross-fetch": "^3.1.5", "form-data": "^4.0.4", "loglevel": "^1.8.1", "pako": "^2.0.4" } }, "sha512-aDCMu+qEXjr8PHkT8XvY7FTzVNi2z7yVJy39I4s0lVtb+sdth4ZppMC1aCDwGJQMHK4J0aect+xKScuHy/Xilg=="],
 
     "@dreki-gg/firestore-cli": ["@dreki-gg/firestore-cli@workspace:packages/firestore-cli"],
-
-    "@dreki-gg/pi-ast-grep": ["@dreki-gg/pi-ast-grep@workspace:packages/ast-grep"],
 
     "@dreki-gg/pi-browser-tools": ["@dreki-gg/pi-browser-tools@workspace:packages/browser-tools"],
 
