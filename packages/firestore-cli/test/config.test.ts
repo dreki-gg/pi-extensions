@@ -24,7 +24,7 @@ function writeJson(path: string, value: unknown) {
 }
 
 describe('config resolution precedence', () => {
-  it('prefers .agents/firestore.json over .pi/firestore.json in the same dir', () => {
+  it('resolves .agents/firestore.json and ignores legacy .pi/ configs', () => {
     writeJson(join(root, '.agents', 'firestore.json'), {
       projectId: 'from-agents',
       serviceAccountKeyPath: './sa.json',
@@ -39,16 +39,15 @@ describe('config resolution precedence', () => {
     expect(config.projectId).toBe('from-agents');
   });
 
-  it('falls back to .pi/firestore.json when .agents is absent', () => {
+  it('does not fall back to .pi/firestore.json when .agents is absent', () => {
     writeJson(join(root, '.pi', 'firestore.json'), {
       defaultEnvironment: 'staging',
       environments: {
         staging: { projectId: 'stg', serviceAccountKeyPath: './stg.json' },
       },
     });
-    const config = resolveProjectConfig(root);
-    expect(config.defaultEnvironment).toBe('staging');
-    expect(config.projectId).toBe('stg');
+    expect(findConfigPath(root)).toBeNull();
+    expect(() => resolveProjectConfig(root)).toThrow(ConfigError);
   });
 
   it('walks up from a nested cwd to find .agents config', () => {
@@ -71,7 +70,7 @@ describe('config resolution precedence', () => {
       expect(err).toBeInstanceOf(ConfigError);
       const formatted = formatConfigError(err as ConfigError);
       expect(formatted).toContain('.agents/firestore.json');
-      expect(formatted).toContain('.pi/firestore.json');
+      expect(formatted).not.toContain('.pi/');
       expect(formatted).not.toContain('at ');
       expect((err as ConfigError).stack).toBeDefined();
       // Message itself must not dump a stack — only the Error object has one.
@@ -82,7 +81,7 @@ describe('config resolution precedence', () => {
   it('lists candidates from collectConfigCandidates', () => {
     const candidates = collectConfigCandidates(root);
     expect(candidates[0]).toBe(join(root, '.agents', 'firestore.json'));
-    expect(candidates[1]).toBe(join(root, '.pi', 'firestore.json'));
+    expect(candidates.every((c) => !c.includes('/.pi/'))).toBe(true);
   });
 });
 
@@ -105,7 +104,7 @@ describe('auth actionable errors', () => {
   });
 
   it('selects --env environment from config', () => {
-    writeJson(join(root, '.pi', 'firestore.json'), {
+    writeJson(join(root, '.agents', 'firestore.json'), {
       defaultEnvironment: 'development',
       environments: {
         development: { projectId: 'dev', serviceAccountKeyPath: './dev.json' },

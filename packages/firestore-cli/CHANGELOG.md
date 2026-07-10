@@ -1,5 +1,11 @@
 # @dreki-gg/firestore-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- Drop legacy `.pi/firestore.json` / `.pi/firebase.json` config fallbacks — resolution is `.agents/firestore.json` only (plus `GOOGLE_APPLICATION_CREDENTIALS` and `.firebaserc` fallbacks, unchanged).
+
 ## 0.2.0
 
 ### Minor Changes

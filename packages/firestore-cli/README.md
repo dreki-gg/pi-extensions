@@ -15,7 +15,7 @@ npx -y @dreki-gg/firestore-cli relation-map users
 
 ## Config
 
-Resolution order (walks up from cwd): `.agents/firestore.json` → `.pi/firestore.json` → `.pi/firebase.json`. Shape:
+Resolution (walks up from cwd): first `.agents/firestore.json` found. Shape:
 
 ```json
 {

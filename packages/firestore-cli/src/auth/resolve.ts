@@ -7,7 +7,7 @@ export type { ResolvedAuth } from './types.js';
 
 /**
  * Resolve auth for a command.
- * 1. Load config (`.agents` → `.pi`, walk up) when present.
+ * 1. Load `.agents/firestore.json` (walk up) when present.
  * 2. Select environment via `--env` or `defaultEnvironment`.
  * 3. Read service account from config path; fall back to GOOGLE_APPLICATION_CREDENTIALS.
  */

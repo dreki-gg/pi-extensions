@@ -1,11 +1,7 @@
 import { existsSync } from 'node:fs';
 import { dirname, join, parse as parsePath, resolve } from 'node:path';
 
-const PROJECT_CANDIDATES = [
-  ['.agents', 'firestore.json'],
-  ['.pi', 'firestore.json'],
-  ['.pi', 'firebase.json'],
-] as const;
+const PROJECT_CANDIDATES = [['.agents', 'firestore.json']] as const;
 
 /** Walk from startDir to filesystem root; return every candidate path tried (whether or not it exists). */
 export function collectConfigCandidates(startDir: string): string[] {
@@ -25,8 +21,7 @@ export function collectConfigCandidates(startDir: string): string[] {
 }
 
 /**
- * Find the first existing firestore config walking up from cwd.
- * Precedence per directory: `.agents/firestore.json` → `.pi/firestore.json` → `.pi/firebase.json`.
+ * Find the first existing `.agents/firestore.json` walking up from cwd.
  */
 export function findConfigPath(startDir: string): string | null {
   let dir = resolve(startDir);
