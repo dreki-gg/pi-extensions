@@ -166,7 +166,7 @@
     },
     "packages/discord": {
       "name": "@dreki-gg/pi-discord",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@effect/platform": "^0.78.0",
         "effect": "^3.16.0",
@@ -209,6 +209,25 @@
         "@earendil-works/pi-coding-agent",
         "typebox",
       ],
+    },
+    "packages/firestore-cli": {
+      "name": "@dreki-gg/firestore-cli",
+      "version": "0.1.0",
+      "bin": {
+        "firestore-cli": "./dist/bin.mjs",
+      },
+      "dependencies": {
+        "commander": "^15.0.0",
+        "firebase-admin": "^13.4.0",
+      },
+      "devDependencies": {
+        "@types/node": "24",
+        "bun-types": "latest",
+        "oxfmt": "^0.43.0",
+        "oxlint": "^1.58.0",
+        "tsdown": "^0.22.0",
+        "typescript": "^6.0.0",
+      },
     },
     "packages/handoff": {
       "name": "@dreki-gg/pi-handoff",
@@ -302,7 +321,7 @@
     },
     "packages/plan-mode": {
       "name": "@dreki-gg/pi-plan-mode",
-      "version": "0.28.0",
+      "version": "0.29.0",
       "bin": {
         "pi-plan-mode": "./bin/clean-plans.js",
       },
@@ -374,7 +393,7 @@
     },
     "packages/subagent": {
       "name": "@dreki-gg/pi-subagent",
-      "version": "0.10.0",
+      "version": "0.11.0",
       "dependencies": {
         "@agentclientprotocol/sdk": "^1.0.0",
       },
@@ -401,7 +420,7 @@
     },
     "packages/taskman": {
       "name": "@dreki-gg/taskman",
-      "version": "0.3.1",
+      "version": "0.4.0",
       "bin": {
         "taskman": "./dist/cli.mjs",
       },
@@ -602,6 +621,8 @@
     "@conventional-changelog/git-client": ["@conventional-changelog/git-client@2.7.0", "", { "dependencies": { "@simple-libs/child-process-utils": "^1.0.0", "@simple-libs/stream-utils": "^1.2.0", "semver": "^7.5.2" }, "peerDependencies": { "conventional-commits-filter": "^5.0.0", "conventional-commits-parser": "^6.4.0" }, "optionalPeers": ["conventional-commits-filter", "conventional-commits-parser"] }, "sha512-j7A8/LBEQ+3rugMzPXoKYzyUPpw/0CBQCyvtTR7Lmu4olG4yRC/Tfkq79Mr3yuPs0SUitlO2HwGP3gitMJnRFw=="],
 
     "@datadog/datadog-api-client": ["@datadog/datadog-api-client@1.58.0", "", { "dependencies": { "@types/buffer-from": "^1.1.0", "@types/node": "*", "@types/pako": "^1.0.3", "buffer-from": "^1.1.2", "cross-fetch": "^3.1.5", "form-data": "^4.0.4", "loglevel": "^1.8.1", "pako": "^2.0.4" } }, "sha512-aDCMu+qEXjr8PHkT8XvY7FTzVNi2z7yVJy39I4s0lVtb+sdth4ZppMC1aCDwGJQMHK4J0aect+xKScuHy/Xilg=="],
+
+    "@dreki-gg/firestore-cli": ["@dreki-gg/firestore-cli@workspace:packages/firestore-cli"],
 
     "@dreki-gg/pi-ast-grep": ["@dreki-gg/pi-ast-grep@workspace:packages/ast-grep"],
 

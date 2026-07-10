@@ -1,0 +1,50 @@
+{
+  "name": "@dreki-gg/firestore-cli",
+  "version": "0.1.0",
+  "description": "Standalone Firestore CLI — list collections, query, get, count, and map relations via firebase-admin",
+  "keywords": [
+    "firestore",
+    "firebase",
+    "cli",
+    "debugging"
+  ],
+  "author": "Juan Albarran <jalbarrandev@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dreki-gg/pi-extensions.git",
+    "directory": "packages/firestore-cli"
+  },
+  "type": "module",
+  "bin": {
+    "firestore-cli": "./dist/bin.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src test",
+    "format": "oxfmt --write src test",
+    "format:check": "oxfmt --check src test"
+  },
+  "dependencies": {
+    "commander": "^15.0.0",
+    "firebase-admin": "^13.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "bun-types": "latest",
+    "oxfmt": "^0.43.0",
+    "oxlint": "^1.58.0",
+    "tsdown": "^0.22.0",
+    "typescript": "^6.0.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.0",
+    "node-domexception": "npm:@user-agent/domexception@^0.2.7"
+  }
+}
