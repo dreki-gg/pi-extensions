@@ -4,7 +4,7 @@ Disposition of every package under `packages/`. Skills live in `github.com/jalba
 
 | Package | Disposition | Reason |
 |---------|-------------|--------|
-| `ast-grep` | ported to skill `ast-grep` | Direct CLI usage; skill polished to match extension dry-run/`--update-all` safety |
+| `ast-grep` | removed — package and skill both dropped | Models default to grep/rg even with a native tool and prompt nudge; the CLI remains usable ad hoc, no dedicated tooling kept (npm @dreki-gg/pi-ast-grep@0.2.0 stays published but unmaintained) |
 | `browser-tools` | ported to skill `browser` | Harness-agnostic browser tooling under the `browser` skill name |
 | `code-reviewer` | ported to skill `code-reviewer` | Upgraded portable review skill |
 | `command-sandbox` | stays pi-only | Shared shell-safety library consumed by pi extensions, not an agent-facing skill |
