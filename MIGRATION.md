@@ -12,7 +12,7 @@ Disposition of every package under `packages/`. Skills live in `github.com/jalba
 | `context7` | ported to skill `context7` | Library-docs lookup via Context7 MCP/API |
 | `datadog` | ported to skill `datadog` | Datadog query/ops as a portable skill |
 | `discord` | ported to skill `discord` | Discord messaging as a portable skill |
-| `firestore` | ported to skill `firestore` | Skill drives `@dreki-gg/firestore-cli` instead of the pi tool surface |
+| `firestore` | removed — superseded by `firestore-cli` + skill | Same domain logic lived twice; the CLI + skill cover every harness including pi (npm @dreki-gg/pi-firestore@0.3.1 stays published, unmaintained) |
 | `firestore-cli` | stays as published npm CLI | Standalone CLI consumed by skill `firestore`; not a pi session extension |
 | `handoff` | retired-superseded | Portable `handoff` skill already exists in the skills repo |
 | `jira` | ported to skill `jira` | Jira via `acli` as a portable skill |
