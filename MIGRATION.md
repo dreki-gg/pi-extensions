@@ -18,8 +18,8 @@ Disposition of every package under `packages/`. Skills live in `github.com/jalba
 | `jira` | ported to skill `jira` | Jira via `acli` as a portable skill |
 | `lsp` | not ported — dropped | Harness-native LSP (Cursor, editors) covers it; a portable one-shot skill was built, verified, and removed as not worth keeping |
 | `past-chats` | stays pi-only | Tied to pi session JSONL format and `@chat:` / `@session:` editor tokens |
-| `plan-mode` | retired-superseded | Superseded by `taskman` CLI + `planwork` skill |
-| `questionnaire` | stays pi-only | Interactive TUI for structured answers inside pi |
+| `plan-mode` | retired — parity proven | planwork skill + taskman CLI (0.5.0: create-initiative, revise-plan) reproduce the full workflow on any harness; verified end-to-end by a zero-context cursor agent |
+| `questionnaire` | retired — replaced by convention | planwork's batched clarification rule (≤5 enumerated questions in one message) replaces the TUI questionnaire outside pi |
 | `slack` | ported to skill `slack` | Slack messaging as a portable skill |
 | `subagent` | ported to skill `subagents` | Skill ports the workflow; pi extension also stays for pi sessions |
 | `taskman` | extracted to [jalbarrang/taskman](https://github.com/jalbarrang/taskman) | Standalone plan ledger CLI consumed by `planwork` and `plan-mode` (now via npm ^0.4.0); moved out with history |

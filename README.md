@@ -1,5 +1,7 @@
 # Pi Extensions
 
+> **Archived.** These extensions are superseded by harness-agnostic skills at [jalbarrang/skills](https://github.com/jalbarrang/skills) and the standalone [jalbarrang/taskman](https://github.com/jalbarrang/taskman) CLI. See [MIGRATION.md](./MIGRATION.md) for the per-package disposition. Published `@dreki-gg/*` npm packages remain installable but unmaintained.
+
 A collection of [pi coding agent](https://github.com/badlogic/pi-mono) extensions.
 
 Each package is independently installable via `pi install`.
