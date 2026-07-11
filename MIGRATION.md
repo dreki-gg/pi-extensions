@@ -16,7 +16,7 @@ Disposition of every package under `packages/`. Skills live in `github.com/jalba
 | `firestore-cli` | extracted to [jalbarrang/firestore-cli](https://github.com/jalbarrang/firestore-cli) | Standalone npm CLI consumed by skill `firestore`; no pi coupling, moved out with history |
 | `handoff` | retired-superseded; extension extracted to [jalbarrang/pi-handoff](https://github.com/jalbarrang/pi-handoff) | Portable `handoff` skill already exists in the skills repo |
 | `jira` | ported to skill `jira`; extension extracted to [jalbarrang/pi-jira](https://github.com/jalbarrang/pi-jira) | Jira via `acli` as a portable skill |
-| `lsp` | not ported — dropped | Harness-native LSP (Cursor, editors) covers it; a portable one-shot skill was built, verified, and removed as not worth keeping |
+| `lsp` | not ported as a skill; extension extracted to [jalbarrang/pi-lsp](https://github.com/jalbarrang/pi-lsp) | Harness-native LSP (Cursor, editors) covers it for other harnesses; the pi extension stays maintained in its own repo |
 | `past-chats` | stays pi-only | Tied to pi session JSONL format and `@chat:` / `@session:` editor tokens |
 | `plan-mode` | retired — parity proven; extension extracted to [jalbarrang/pi-plan-mode](https://github.com/jalbarrang/pi-plan-mode) | planwork skill + taskman CLI (0.5.0: create-initiative, revise-plan) reproduce the full workflow on any harness; verified end-to-end by a zero-context cursor agent |
 | `questionnaire` | extracted to [jalbarrang/pi-questionnaire](https://github.com/jalbarrang/pi-questionnaire) | Still used daily in pi; moved out with history. Outside pi, planwork's batched clarification rule (≤5 enumerated questions) replaces it |

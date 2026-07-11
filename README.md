@@ -13,6 +13,7 @@
 | [jalbarrang/pi-doc-search](https://github.com/jalbarrang/pi-doc-search) | `@dreki-gg/pi-doc-search` (renamed from `@dreki-gg/pi-context7`; tools now `doc_search_*`) |
 | [jalbarrang/pi-handoff](https://github.com/jalbarrang/pi-handoff) | `@dreki-gg/pi-handoff` |
 | [jalbarrang/pi-jira](https://github.com/jalbarrang/pi-jira) | `@dreki-gg/pi-jira` |
+| [jalbarrang/pi-lsp](https://github.com/jalbarrang/pi-lsp) | `@dreki-gg/pi-lsp` |
 | [jalbarrang/pi-plan-mode](https://github.com/jalbarrang/pi-plan-mode) | `@dreki-gg/pi-plan-mode` |
 | [jalbarrang/pi-slack](https://github.com/jalbarrang/pi-slack) | `@dreki-gg/pi-slack` |
 | [jalbarrang/pi-subagent](https://github.com/jalbarrang/pi-subagent) | `@dreki-gg/pi-subagent` |
