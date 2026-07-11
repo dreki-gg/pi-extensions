@@ -1,6 +1,23 @@
 # Pi Extensions
 
-> **Archived.** These extensions are superseded by harness-agnostic skills at [jalbarrang/skills](https://github.com/jalbarrang/skills) and the standalone [jalbarrang/taskman](https://github.com/jalbarrang/taskman) CLI. See [MIGRATION.md](./MIGRATION.md) for the per-package disposition. Published `@dreki-gg/*` npm packages remain installable but unmaintained.
+> **Archived.** These extensions are superseded by harness-agnostic skills at [jalbarrang/skills](https://github.com/jalbarrang/skills) and the standalone [jalbarrang/taskman](https://github.com/jalbarrang/taskman) CLI. Actively maintained extensions were extracted to their own repos (see below). See [MIGRATION.md](./MIGRATION.md) for the per-package disposition. Published `@dreki-gg/*` npm packages remain installable but unmaintained.
+
+## Extracted to standalone repos
+
+| Repo | Package |
+|------|---------|
+| [jalbarrang/pi-browser-tools](https://github.com/jalbarrang/pi-browser-tools) | `@dreki-gg/pi-browser-tools` |
+| [jalbarrang/pi-code-reviewer](https://github.com/jalbarrang/pi-code-reviewer) | `@dreki-gg/pi-code-reviewer` |
+| [jalbarrang/pi-command-sandbox](https://github.com/jalbarrang/pi-command-sandbox) | `@dreki-gg/pi-command-sandbox` |
+| [jalbarrang/pi-datadog](https://github.com/jalbarrang/pi-datadog) | `@dreki-gg/pi-datadog` |
+| [jalbarrang/pi-doc-search](https://github.com/jalbarrang/pi-doc-search) | `@dreki-gg/pi-doc-search` (renamed from `@dreki-gg/pi-context7`; tools now `doc_search_*`) |
+| [jalbarrang/pi-handoff](https://github.com/jalbarrang/pi-handoff) | `@dreki-gg/pi-handoff` |
+| [jalbarrang/pi-jira](https://github.com/jalbarrang/pi-jira) | `@dreki-gg/pi-jira` |
+| [jalbarrang/pi-plan-mode](https://github.com/jalbarrang/pi-plan-mode) | `@dreki-gg/pi-plan-mode` |
+| [jalbarrang/pi-slack](https://github.com/jalbarrang/pi-slack) | `@dreki-gg/pi-slack` |
+| [jalbarrang/pi-subagent](https://github.com/jalbarrang/pi-subagent) | `@dreki-gg/pi-subagent` |
+| [jalbarrang/pi-questionnaire](https://github.com/jalbarrang/pi-questionnaire) | `@dreki-gg/pi-questionnaire` |
+| [jalbarrang/taskman](https://github.com/jalbarrang/taskman) | `@dreki-gg/taskman` |
 
 A collection of [pi coding agent](https://github.com/badlogic/pi-mono) extensions.
 
@@ -11,22 +28,10 @@ Each package is independently installable via `pi install`.
 | Package | Description | Install |
 |---------|-------------|---------|
 | `@dreki-gg/pi-ast-grep` | Structural (AST-based) code search/rewrite tool (`ast_grep`), powered by ast-grep | `pi install npm:@dreki-gg/pi-ast-grep` |
-| `@dreki-gg/pi-browser-tools` | Browser automation + web research tools (`web_search`, `web_visit`, `web_screenshot`, `web_interact`, `web_console`) | `pi install npm:@dreki-gg/pi-browser-tools` |
-| `@dreki-gg/pi-code-reviewer` | Multi-lens code review with configurable per-project review criteria | `pi install npm:@dreki-gg/pi-code-reviewer` |
-| `@dreki-gg/pi-command-sandbox` | Shared command-sandboxing utilities — validates shell commands against safe/destructive pattern lists | `pi install npm:@dreki-gg/pi-command-sandbox` |
 | `@dreki-gg/pi-context-folders` | Add sibling project folders as searchable context for pi agents | `pi install npm:@dreki-gg/pi-context-folders` |
-| `@dreki-gg/pi-context7` | Pi-native Context7 docs tools — direct HTTP, persistent cache, no MCP | `pi install npm:@dreki-gg/pi-context7` |
-| `@dreki-gg/pi-datadog` | Datadog log search tools — query production logs with project-aware context | `pi install npm:@dreki-gg/pi-datadog` |
 | `@dreki-gg/pi-firestore` | Firestore debugging tools — query collections, inspect documents, map relationships | `pi install npm:@dreki-gg/pi-firestore` |
-| `@dreki-gg/pi-jira` | Jira tools via an authenticated Atlassian CLI (`acli`) session — pull ticket context (`jira_view`, `jira_search`, `jira_comments`) and post concise comments (`jira_comment`) | `pi install npm:@dreki-gg/pi-jira` |
 | `@dreki-gg/pi-past-chats` | Reference previous Pi sessions inline with `@chat:` / `@session:` autocomplete and injected handoff summaries | `pi install npm:@dreki-gg/pi-past-chats` |
-| `@dreki-gg/pi-plan-mode` | Two-phase planning workflow with read-only planning and `.plans/` file-based handoff | `pi install npm:@dreki-gg/pi-plan-mode` |
-| `@dreki-gg/pi-handoff` | `/handoff` — transfer context into a new focused session via a generated, editable prompt | `pi install npm:@dreki-gg/pi-handoff` |
-| `@dreki-gg/pi-questionnaire` | Tool-first questionnaire flow + `/questionnaire` demo command | `pi install npm:@dreki-gg/pi-questionnaire` |
-| `@dreki-gg/pi-slack` | Slack read tools — messages, threads, channels, search, and file/image downloads | `pi install npm:@dreki-gg/pi-slack` |
-| `@dreki-gg/pi-subagent` | Subagent tool + `/run-agent` with bundled agents and workflow templates | `pi install npm:@dreki-gg/pi-subagent` |
 | `@dreki-gg/pi-workflow` | Personal workflow helpers — `/commit` generates and creates a Conventional Commits commit | `pi install npm:@dreki-gg/pi-workflow` |
-| `@dreki-gg/taskman` | Standalone task-management engine + CLI over a `.plans/` JSONL ledger — the plan-mode core | `pi install npm:@dreki-gg/taskman` |
 
 ## Development
 

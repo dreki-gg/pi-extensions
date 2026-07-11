@@ -5,16 +5,14 @@
     "packages/*"
   ],
   "scripts": {
-    "pretypecheck": "bun run build",
     "typecheck": "bun run --filter '*' typecheck",
     "compat": "bun test test/pi-compat.test.ts",
-    "test": "bun run compat && bun run --filter '@dreki-gg/pi-lsp' test && bun run --filter '@dreki-gg/pi-code-reviewer' test",
+    "test": "bun run compat && bun run --filter '@dreki-gg/pi-lsp' test",
     "lint": "bun run --filter '*' lint",
     "format": "bun run --filter '*' format",
     "changeset": "changeset",
     "version": "changeset version && node scripts/sync-skill-versions.mjs",
-    "build": "bun run --filter '@dreki-gg/pi-command-sandbox' build && bun run --filter '@dreki-gg/taskman' build",
-    "publish": "bun run build && changeset publish",
+    "publish": "changeset publish",
     "deploy:public": "./scripts/deploy-public.sh",
     "deploy:public:force": "./scripts/deploy-public.sh --force",
     "deploy:public:dry": "./scripts/deploy-public.sh --dry-run",
