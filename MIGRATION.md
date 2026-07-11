@@ -19,9 +19,9 @@ Disposition of every package under `packages/`. Skills live in `github.com/jalba
 | `lsp` | not ported — dropped | Harness-native LSP (Cursor, editors) covers it; a portable one-shot skill was built, verified, and removed as not worth keeping |
 | `past-chats` | stays pi-only | Tied to pi session JSONL format and `@chat:` / `@session:` editor tokens |
 | `plan-mode` | retired — parity proven | planwork skill + taskman CLI (0.5.0: create-initiative, revise-plan) reproduce the full workflow on any harness; verified end-to-end by a zero-context cursor agent |
-| `questionnaire` | retired — replaced by convention | planwork's batched clarification rule (≤5 enumerated questions in one message) replaces the TUI questionnaire outside pi |
+| `questionnaire` | extracted to [jalbarrang/pi-questionnaire](https://github.com/jalbarrang/pi-questionnaire) | Still used daily in pi; moved out with history. Outside pi, planwork's batched clarification rule (≤5 enumerated questions) replaces it |
 | `slack` | ported to skill `slack` | Slack messaging as a portable skill |
-| `subagent` | ported to skill `subagents` | Skill ports the workflow; pi extension also stays for pi sessions |
+| `subagent` | extracted to [jalbarrang/pi-subagent](https://github.com/jalbarrang/pi-subagent) | Heaviest-used extension; moved out with history and stays maintained for pi. The `subagents` skill covers other harnesses |
 | `taskman` | extracted to [jalbarrang/taskman](https://github.com/jalbarrang/taskman) | Standalone plan ledger CLI consumed by `planwork` and `plan-mode` (now via npm ^0.4.0); moved out with history |
 | `workflow` | `/commit` → skill `commit`; rest stays pi-only | Commit flow ports to skill `commit` (landing in this batch); remaining workflow helpers stay pi-only |
 

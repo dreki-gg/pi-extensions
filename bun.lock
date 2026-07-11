@@ -286,28 +286,6 @@
         "@earendil-works/pi-tui",
       ],
     },
-    "packages/questionnaire": {
-      "name": "@dreki-gg/pi-questionnaire",
-      "version": "0.2.6",
-      "devDependencies": {
-        "@types/node": "24",
-        "oxfmt": "^0.43.0",
-        "oxlint": "^1.58.0",
-        "typescript": "^6.0.0",
-      },
-      "peerDependencies": {
-        "@earendil-works/pi-ai": "*",
-        "@earendil-works/pi-coding-agent": "*",
-        "@earendil-works/pi-tui": "*",
-        "typebox": "*",
-      },
-      "optionalPeers": [
-        "@earendil-works/pi-ai",
-        "@earendil-works/pi-coding-agent",
-        "@earendil-works/pi-tui",
-        "typebox",
-      ],
-    },
     "packages/slack": {
       "name": "@dreki-gg/pi-slack",
       "version": "0.4.0",
@@ -331,33 +309,6 @@
         "typebox",
       ],
     },
-    "packages/subagent": {
-      "name": "@dreki-gg/pi-subagent",
-      "version": "0.11.0",
-      "dependencies": {
-        "@agentclientprotocol/sdk": "^1.0.0",
-      },
-      "devDependencies": {
-        "@types/node": "24",
-        "oxfmt": "^0.43.0",
-        "oxlint": "^1.58.0",
-        "typescript": "^6.0.0",
-      },
-      "peerDependencies": {
-        "@earendil-works/pi-agent-core": "*",
-        "@earendil-works/pi-ai": "*",
-        "@earendil-works/pi-coding-agent": "*",
-        "@earendil-works/pi-tui": "*",
-        "typebox": "*",
-      },
-      "optionalPeers": [
-        "@earendil-works/pi-agent-core",
-        "@earendil-works/pi-ai",
-        "@earendil-works/pi-coding-agent",
-        "@earendil-works/pi-tui",
-        "typebox",
-      ],
-    },
     "packages/workflow": {
       "name": "@dreki-gg/pi-workflow",
       "version": "0.2.0",
@@ -376,8 +327,6 @@
     },
   },
   "packages": {
-    "@agentclientprotocol/sdk": ["@agentclientprotocol/sdk@1.0.0", "", { "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" } }, "sha512-5FHgLbLZhSAq9F+9SU7AOCXTDzaw/IYx/AvMjrZDs/YFZ9ZPxkdn9ti3fSkny0huHfj2hrqF6pqdns9gN5/Fig=="],
-
     "@anthropic-ai/sdk": ["@anthropic-ai/sdk@0.91.1", "", { "dependencies": { "json-schema-to-ts": "^3.1.1" }, "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" }, "optionalPeers": ["zod"], "bin": { "anthropic-ai-sdk": "bin/cli" } }, "sha512-LAmu761tSN9r66ixvmciswUj/ZC+1Q4iAfpedTfSVLeswRwnY3n2Nb6Tsk+cLPP28aLOPWeMgIuTuCcMC6W/iw=="],
 
     "@aws-crypto/crc32": ["@aws-crypto/crc32@5.2.0", "", { "dependencies": { "@aws-crypto/util": "^5.2.0", "@aws-sdk/types": "^3.222.0", "tslib": "^2.6.2" } }, "sha512-nLbCWqQNgUiwwtFsen1AdzAtvuLRsQS8rYgMuxCrdKf9kOssamGLuPwyTY9wyYblNr9+1XM8v6zoDTPPSIeANg=="],
@@ -566,11 +515,7 @@
 
     "@dreki-gg/pi-plan-mode": ["@dreki-gg/pi-plan-mode@workspace:packages/plan-mode"],
 
-    "@dreki-gg/pi-questionnaire": ["@dreki-gg/pi-questionnaire@workspace:packages/questionnaire"],
-
     "@dreki-gg/pi-slack": ["@dreki-gg/pi-slack@workspace:packages/slack"],
-
-    "@dreki-gg/pi-subagent": ["@dreki-gg/pi-subagent@workspace:packages/subagent"],
 
     "@dreki-gg/pi-workflow": ["@dreki-gg/pi-workflow@workspace:packages/workflow"],
 
