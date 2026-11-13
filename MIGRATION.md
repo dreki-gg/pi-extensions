@@ -1,6 +1,6 @@
 # Pi extensions → skills migration ledger
 
-Disposition of every package under `packages/`. Skills live in `github.com/jalbarrang/skills`. Extracted packages now live in their own repos and were removed from `packages/`; everything else is frozen here.
+Where every package that used to live under `packages/` went. Skills live in `github.com/jalbarrang/skills`; extracted packages moved to their own repos and were removed from `packages/`. This is a historical record: `packages/` now holds only the packages that stayed.
 
 | Package | Disposition | Reason |
 |---------|-------------|--------|
@@ -25,4 +25,4 @@ Disposition of every package under `packages/`. Skills live in `github.com/jalba
 | `taskman` | extracted to [jalbarrang/taskman](https://github.com/jalbarrang/taskman) | Standalone plan ledger CLI consumed by `planwork` and `plan-mode` (now via npm ^0.4.0); moved out with history |
 | `workflow` | `/commit` → skill `commit`; rest stays pi-only | Commit flow ports to skill `commit` (landing in this batch); remaining workflow helpers stay pi-only |
 
-Packages marked "extracted" were moved to standalone repos and deleted from `packages/` when this repo was archived; their `@dreki-gg/*` npm packages remain installable and are maintained from the new repos. Everything else stays in place here, frozen: skills are additive ports (or supersessions) so other harnesses can use the same capabilities without loading a pi extension.
+Packages marked "extracted" were moved to standalone repos and deleted from `packages/`; their `@dreki-gg/*` npm packages remain installable and are maintained from the new repos. Packages marked "stays pi-only" are still developed here. Skills are additive ports (or supersessions), so other harnesses can use the same capabilities without loading a pi extension.
